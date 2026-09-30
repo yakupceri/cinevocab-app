@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 from pydantic import BaseModel
 import psycopg2
 
 app = FastAPI()
 
-# Chrome eklentisinin istek atabilmesi için CORS ayarları
+# CORS ayarları
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# PostgreSQL Veritabanı Bağlantı Ayarları
+# Şablon klasörünü tanımla
+templates = Jinja2Templates(directory="templates")
+
 DB_CONFIG = {
     "dbname": "lost_vocabulary",
     "user": "yakupceri",
@@ -23,10 +28,14 @@ DB_CONFIG = {
     "port": "5432"
 }
 
-# Gelen kelime verisi için Pydantic modeli
 class WordCreate(BaseModel):
     eng: str
     tr: str
+
+# Kök dizin için HTML arayüzü sunucusu
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/add-word")
 def add_word(word: WordCreate):
