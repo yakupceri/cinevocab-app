@@ -1,23 +1,24 @@
 {
   "manifest_version": 3,
   "name": "CineVocab",
-  "version": "1.0",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
+  "version": "1.1",
+  "description": "Prime Video Türkçe altyazılarını kelime kelime çevirip kaydeder.",
   "host_permissions": [
     "http://127.0.0.1:8000/*",
-    "http://localhost:8000/*",
-    "https://*.primevideo.com/*"
+    "https://www.primevideo.com/*",
+    "https://*.amazon.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*.primevideo.com/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://www.primevideo.com/*",
+        "https://*.amazon.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ]
 }
