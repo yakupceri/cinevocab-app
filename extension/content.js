@@ -1,6 +1,5 @@
-console.log("CineVocab Kesin Yakalayıcı Aktif!");
+console.log("CineVocab: Kelime Kelime Ayırıcı Aktif!");
 
-// 1. Sol üst köşe kutucuğu
 const overlayBox = document.createElement("div");
 overlayBox.id = "cinevocab-overlay";
 overlayBox.style.position = "fixed";
@@ -15,60 +14,66 @@ overlayBox.style.fontFamily = "Arial, sans-serif";
 overlayBox.style.fontSize = "15px";
 overlayBox.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
 overlayBox.style.pointerEvents = "none";
-overlayBox.innerHTML = "<b>CineVocab:</b> Hazır!";
+overlayBox.innerHTML = "<b>CineVocab:</b> Dinlemede...";
 document.body.appendChild(overlayBox);
 
-const miniDictionary = {
-  "survivor": "hayatta kalan",
-  "island": "ada",
-  "water": "su",
-  "help": "yardım",
-  "fire": "ateş",
-  "run": "kaçmak / koşmak",
-  "listen": "dinlemek",
-  "look": "bakmak",
-  "friend": "arkadaş",
-  "stranger": "yabancı",
-  "ocean": "okyanus",
-  "plane": "uçak",
-  "crash": "kaza / düşmek",
-  "we": "biz",
-  "need": "ihtiyacım var",
-  "with": "ile"
-};
+// Kelimeleri sırayla tek tek backend'e gönderen fonksiyon
+function sendWordsOneByOne(sentence) {
+  if (!chrome.runtime?.id) return;
 
-function translateWord(text) {
-  let lowerText = text.toLowerCase();
-  for (let [eng, tr] of Object.entries(miniDictionary)) {
-    if (lowerText.includes(eng)) {
-      return `${eng} = ${tr}`;
-    }
-  }
-  return `Kaydedildi: "${text}"`;
+  // Cümleyi kelimelere ayır, noktalama işaretlerini temizle ve 2 harften uzun olanları al
+  let rawWords = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "").split(/\s+/);
+  let uniqueWords = [...new Set(rawWords.map(w => w.trim()).filter(w => w.length > 2))];
+
+  console.log("Cümleden çıkarılan kelimeler:", uniqueWords);
+
+  // Her kelimeyi sırayla veritabanına kaydedelim
+  uniqueWords.forEach((word, index) => {
+    setTimeout(() => {
+      chrome.runtime.sendMessage({ action: "addWord", eng: word }, (response) => {
+        if (chrome.runtime.lastError) return;
+
+        if (response && response.status === "success") {
+          overlayBox.innerHTML = `<b>EN:</b> ${response.eng}<br><b>TR:</b> ${response.tr}`;
+          console.log(`Kelime Kaydedildi: ${response.eng} -> ${response.tr}`);
+        }
+      });
+    }, index * 800); // Kelimeler arasına 0.8 saniye koyarak ard arda ekletelim
+  });
 }
 
-async function sendWordToBackend(engWord, trWord) {
-  try {
-    await fetch("http://127.0.0.1:8000/add-word", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eng: engWord, tr: trWord })
-    });
-  } catch (error) {
-    console.error("Kayıt hatası:", error);
-  }
-}
-
-// 2. Doğrudan video altyazı container'ını veya body'yi izleyen güçlü gözlemci
-const observer = new MutationObserver(() => {
-  // Sayfadaki olası tüm altyazı elementlerini ve metinleri tarayalım
-  const subtitleElements = document.querySelectorAll('.timedTextContent, [data-automation-id="subtitle-line"], span, div');
-  
+// Altyazı yakalayıcı döngü
+setInterval(() => {
   let foundText = "";
-  for (let el of subtitleElements) {
+  const elements = document.querySelectorAll('span');
+
+  for (let el of elements) {
     let text = el.innerText ? el.innerText.trim() : "";
-    // Altyazı uzunluğuna uygun ve İngilizce olabilecek metinleri filtrele
-    if (text.length > 3 && text.length < 80 && (text.includes("help") || text.includes("fire") || text.includes("we") || text.includes("is") || text.includes("you"))) {
+    
+    if (text.length < 3 || text.length > 120) continue;
+    if (text === window.lastSubtitle) continue;
+
+    let lower = text.toLowerCase();
+
+    if (
+      lower.includes("yaş sınırı") || 
+      lower.includes("alkol kullanımı") || 
+      lower.includes("tümüne göz at") || 
+      lower.includes("mağaza") || 
+      lower.includes("menü") || 
+      lower.includes("ana sayfa") || 
+      lower.includes("sezon") || 
+      lower.includes("bölüm") ||
+      lower.includes("izle")
+    ) {
+      continue;
+    }
+
+    const basicWords = ["the", "to", "you", "i", "it", "a", "and", "is", "in", "of", "that", "he", "was", "for", "on", "are", "with", "not", "this", "be", "do", "at", "have", "my", "what", "so", "up", "out", "if", "about", "who", "get", "just", "him", "know", "take", "your", "good", "well"];
+    let words = lower.replace(/[^a-z\s]/g, "").split(/\s+/);
+    let hasMatch = words.some(w => basicWords.includes(w));
+
+    if (hasMatch && /[a-zA-Z]/.test(text)) {
       foundText = text;
       break;
     }
@@ -76,17 +81,7 @@ const observer = new MutationObserver(() => {
 
   if (foundText && foundText !== window.lastSubtitle) {
     window.lastSubtitle = foundText;
-    console.log("Yakalanan Altyazı:", foundText);
-    
-    let translation = translateWord(foundText);
-    overlayBox.innerHTML = `<b>EN:</b> ${foundText}<br><b>TR:</b> ${translation}`;
-    
-    sendWordToBackend(foundText, translation);
+    overlayBox.innerHTML = `<b>Cümle Yakalandı:</b><br>${foundText}`;
+    sendWordsOneByOne(foundText);
   }
-});
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-  characterData: true
-});
+}, 500);
