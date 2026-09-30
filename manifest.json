@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "CineVocab - Lost Vocabulary",
+  "version": "1.0",
+  "description": "Prime Video üzerinde ingilizce kelimeleri yakalayıp kaydeder.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.primevideo.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
