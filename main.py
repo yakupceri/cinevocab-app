@@ -718,6 +718,11 @@ def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
+@app.get("/game", response_class=HTMLResponse)
+def game_page(request: Request):
+    return templates.TemplateResponse(request, "game.html")
+
+
 @app.get("/debug/providers")
 def debug_providers():
     now = time.time()
