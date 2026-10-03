@@ -25,6 +25,55 @@ document.addEventListener("fullscreenchange", () => {
   (document.fullscreenElement || document.body).appendChild(overlayBox);
 });
 
+// ---------- Dizi / bölüm bilgisi ----------
+// Oynatıcının başlık alanından okunur ("Lost" + "S1 E13 Kalpler Ve Zihinler").
+// Başlık gizlenince son bilinen bölüm kullanılır; sayfa adresi değişirse sıfırlanır.
+let currentEpisode = "";
+let lastHref = location.href;
+
+const EPISODE_RE = /S(?:ezon)?\s*(\d+)[\s,.:\-]*(?:E|B[öo]l[üu]m)\s*(\d+)/i;
+
+function firstText(selector) {
+  for (const n of document.querySelectorAll(selector)) {
+    const t = n.textContent ? n.textContent.trim() : "";
+    if (t) return t;
+  }
+  return "";
+}
+
+// Sınıf adları tutmazsa: sayfadaki kısa metinlerden "S1 E1 ..." kalıbını ara
+function findEpisodeText() {
+  for (const n of document.querySelectorAll("span, div, h1, h2")) {
+    if (n.children.length) continue;
+    const t = n.textContent ? n.textContent.trim() : "";
+    if (t && t.length < 80 && EPISODE_RE.test(t)) return t;
+  }
+  return "";
+}
+
+function readEpisode() {
+  if (location.href !== lastHref) {
+    lastHref = location.href;
+    currentEpisode = "";
+  }
+  const show =
+    firstText(".atvwebplayersdk-title-text, [class*='title-text']") ||
+    document.title.replace(/^Prime Video:\s*/i, "").trim();
+  const sub =
+    firstText(".atvwebplayersdk-subtitle-text, [class*='subtitle-text']") || findEpisodeText();
+  const m = EPISODE_RE.exec(sub) || EPISODE_RE.exec(show);
+  if (m && show) {
+    const label = `${show.replace(EPISODE_RE, "").trim()} S${m[1]} E${m[2]}`;
+    if (label !== currentEpisode) {
+      currentEpisode = label;
+      console.log("CineVocab bölüm:", currentEpisode);
+    }
+  }
+  return currentEpisode;
+}
+
+setInterval(readEpisode, 3000);
+
 function makeChip(word) {
   const chip = document.createElement("div");
   Object.assign(chip.style, {
@@ -62,10 +111,17 @@ const RETRY_DELAYS = [2000, 4000, 8000];
 function showSentence(sentence) {
   const myId = ++sentenceId;
   const gen = Date.now();
+  const episode = readEpisode();
   const words = splitWords(sentence);
   if (words.length === 0) return;
 
   overlayBox.textContent = "";
+  const epLabel = document.createElement("div");
+  Object.assign(epLabel.style, { fontSize: "12px", color: "#8b909c", marginBottom: "4px" });
+  epLabel.textContent = episode
+    ? "📺 " + episode
+    : "⚠ Bölüm okunamadı, kelimeler bölüme etiketlenmiyor";
+  overlayBox.appendChild(epLabel);
   const row = document.createElement("div");
   overlayBox.appendChild(row);
 
@@ -92,20 +148,37 @@ function showSentence(sentence) {
 
   const setText = (w, text) => (slots[w] || []).forEach((el) => (el.textContent = text));
   const markFailed = (list) => list.forEach((w) => setText(w, "?"));
+  // Hata/durum mesajını cümle çevirisi satırında göster (cümle çevirisi gelene kadar)
+  const status = (msg) => { if (!transLine.dataset.ok) transLine.textContent = msg; };
   const giveUpSentence = () => {
     if (transLine.textContent === "…") transLine.textContent = "";
   };
 
   // lookupOnly=true: sadece veritabanı/sözlük (anında); false: gerçek çeviri
   function request(list, attempt, lookupOnly) {
-    if (myId !== sentenceId || !chrome.runtime?.id) return;
+    if (myId !== sentenceId) return;
+    if (!chrome.runtime?.id) {
+      status("⚠ Uzantı yenilendi. Bu Prime sekmesini F5'le.");
+      return;
+    }
+
+    let answered = false;
+    const watchdog = setTimeout(() => {
+      if (!answered) status("⚠ Sunucudan cevap gelmiyor. Sunucu açık mı?");
+    }, 10000);
 
     chrome.runtime.sendMessage(
-      { action: "translateWords", words: list, gen, lookupOnly, sentence },
+      { action: "translateWords", words: list, gen, lookupOnly, sentence, episode },
       (res) => {
+        answered = true;
+        clearTimeout(watchdog);
         if (myId !== sentenceId) return;
+        console.log("CineVocab cevap:", lookupOnly ? "hızlı" : "tam", res);
 
         if (chrome.runtime.lastError || res?.status !== "success") {
+          const why = chrome.runtime.lastError?.message || res?.message || "cevap yok";
+          console.warn("CineVocab hata:", why);
+          status("⚠ " + why);
           if (attempt < RETRY_DELAYS.length) {
             setTimeout(() => request(list, attempt + 1, false), RETRY_DELAYS[attempt]);
           } else {
@@ -117,7 +190,10 @@ function showSentence(sentence) {
 
         for (const [w, eng] of Object.entries(res.results || {})) setText(w, eng);
         markFailed(res.failed || []); // sunucu "çevrilemedi" dediyse tekrar deneme
-        if (res.sentence_en) transLine.textContent = res.sentence_en;
+        if (res.sentence_en) {
+          transLine.textContent = res.sentence_en;
+          transLine.dataset.ok = "1";
+        }
 
         if (lookupOnly) {
           // Hızlı arama bitti; şimdi cümle bağlamıyla gerçek çeviri iste

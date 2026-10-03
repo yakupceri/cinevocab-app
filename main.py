@@ -1,11 +1,13 @@
 import re
 import time
+import asyncio
+import random
 import threading
 import concurrent.futures
 
 import requests
 import psycopg2
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -46,6 +48,7 @@ class WordsBatch(BaseModel):
     gen: int = 0  # cümle numarası (zaman damgası); büyük olan daha yeni cümledir
     lookup_only: bool = False  # True: sadece veritabanına bak (anında döner)
     sentence: str = ""  # cümlenin tamamı (bağlam için)
+    episode: str = ""  # ör. "Lost S1 E13" (kelimeleri bölüme etiketlemek için)
 
 
 # ======================= Yerel sözlük =======================
@@ -141,12 +144,16 @@ def is_garbage(text: str) -> bool:
 
 
 # Yerel modelin bilinmeyen kelimelerde sürekli uydurduğu çeviriler
-SUSPECT_GLOSSES = {"home"}
+SUSPECT_GLOSSES = {"home", "tags", "tag"}
+SUSPECT_EXEMPT_PREFIX = ("ev", "etiket")  # gerçek 'ev' ve 'etiket' kelimeleri
 
 
 def is_suspect(tr: str, eng: str) -> bool:
-    """'home' gibi uydurma çeviri mi? (ev, evde... gibi gerçek 'ev' kelimeleri hariç)"""
-    return eng.strip().lower() in SUSPECT_GLOSSES and not tr.startswith("ev")
+    """'home', 'o home', 'tags' gibi uydurma çeviri mi?"""
+    if tr.startswith(SUSPECT_EXEMPT_PREFIX):
+        return False
+    toks = [t for t in re.findall(r"[a-z']+", eng.lower()) if t not in STOP_EN and len(t) > 1]
+    return bool(toks) and all(t in SUSPECT_GLOSSES for t in toks)
 
 
 def norm_sentence(text: str) -> str:
@@ -214,6 +221,60 @@ def safe_store(pairs: dict, overwrite: bool = True):
         store_translations(pairs, overwrite)
     except Exception as e:
         print(f"DB kayıt hatası: {e}")
+
+
+# ---------- Bölüm etiketleri ----------
+
+TAGGED = set()  # (bölüm, kelime) çiftleri; aynı çifti tekrar yazmamak için
+
+
+def init_db():
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS episode_words ("
+                "episode TEXT NOT NULL, tr TEXT NOT NULL, "
+                "created_at TIMESTAMP DEFAULT now(), PRIMARY KEY (episode, tr));"
+            )
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"episode_words tablosu oluşturulamadı: {e}")
+
+
+init_db()
+
+
+def tag_episode(episode: str, words: list):
+    """Kelimeleri bölüme etiketle (aynı bölümde tekrar geçse de bir kez)."""
+    episode = " ".join((episode or "").split())[:80]
+    new = [w for w in words if (episode, w) not in TAGGED]
+    if not episode or not new:
+        return
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        try:
+            cur = conn.cursor()
+            for w in new:
+                cur.execute(
+                    "INSERT INTO episode_words (episode, tr) VALUES (%s, %s) "
+                    "ON CONFLICT DO NOTHING;", (episode, w))
+            conn.commit()
+            cur.close()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        TAGGED.update((episode, w) for w in new)
+        if len(TAGGED) > 20000:
+            TAGGED.clear()
+    except Exception as e:
+        print(f"Bölüm etiketi hatası: {e}")
 
 
 def save_translations(translated: dict, sources: dict):
@@ -443,10 +504,46 @@ def gloss_matches(gloss: str, s_tokens: list) -> bool:
     return False
 
 
-def refine_with_context(result: dict, sources: dict, sentence_en: str):
+_FULL_LOCAL = {}
+
+
+def ablate_gloss(word: str, sentence: str):
+    """Kelimeyi Türkçe cümleden çıkar, cümleyi yerel modelle yeniden çevir;
+    İngilizce çıktıda kaybolan kelime(ler) o kelimenin cümledeki karşılığıdır.
+    Örn: 'odun' çıkınca 'wood' kaybolur."""
+    if not sentence:
+        return None
+    pattern = re.compile(r"(?<!\w)" + re.escape(word) + r"(?!\w)", re.IGNORECASE)
+    if not pattern.search(sentence):
+        return None
+    reduced = " ".join(pattern.sub(" ", sentence, count=1).split())
+    if not reduced:
+        return None
+    try:
+        t = _get_local()
+        if sentence not in _FULL_LOCAL:
+            if len(_FULL_LOCAL) > 200:
+                _FULL_LOCAL.clear()
+            _FULL_LOCAL[sentence] = t.translate(sentence)
+        full, part = _FULL_LOCAL[sentence], t.translate(reduced)
+    except Exception:
+        return None
+    part_tokens = set(sentence_tokens(part))
+    diff = []
+    for tok in sentence_tokens(full):
+        if tok not in STOP_EN and len(tok) > 1 and tok not in part_tokens and tok not in diff:
+            diff.append(tok)
+    if 1 <= len(diff) <= 2:
+        g = " ".join(diff)
+        return None if is_suspect(word, g) else g
+    return None
+
+
+def refine_with_context(result: dict, sources: dict, sentence_en: str, sentence: str = ""):
     """Yerel modelden gelen kelime çevirilerini cümle bağlamıyla düzelt.
-    Adaylar: kelimenin kendisi, zeyrek kökleri, sözlükteki kökler.
-    Cümle çevirisinde geçen ilk aday seçilir ve kaydedilebilir (ctx).
+    1) Adaylar: kelimenin kendisi, zeyrek kökleri, sözlükteki kökler; cümle çevirisinde geçen ilk aday seçilir.
+    2) Olmazsa kelimeyi cümleden çıkarıp farkı bul (ablate_gloss).
+    Bu ikisi doğrulanmış sayılır ve kaydedilebilir (ctx).
     Doğrulanamazsa: zeyrek kök çevirisi, o da yoksa kelimenin kendisi (kaydedilmez).
     Uydurma çeviriyse ('home' gibi) ve hiç alternatif yoksa kelime '?' kalır."""
     s_tokens = sentence_tokens(sentence_en)
@@ -469,6 +566,12 @@ def refine_with_context(result: dict, sources: dict, sentence_en: str):
         if chosen:
             result[w] = chosen
             sources[w] = "ctx"  # doğrulandı -> kaydedilebilir
+            continue
+
+        g = ablate_gloss(w, sentence)
+        if g:
+            result[w] = g
+            sources[w] = "ctx"
         elif lemma_glosses:
             result[w] = lemma_glosses[0]  # doğrulanamadı; kaydedilmez
         elif not cands:
@@ -618,10 +721,12 @@ def mark_failed(word: str):
                 FAILED_UNTIL.pop(k, None)
 
 
-def translate_missing(words: list, sources: dict | None = None, sentence_en: str = "") -> dict:
+def translate_missing(words: list, sources: dict | None = None, sentence_en: str = "",
+                      sentence: str = "") -> dict:
     """Verilen kelimeleri çevirir. Başarılı olanları {tr: en} döndürür.
     sources: {kelime: 'dict'|'gtx'|'deep'|'local'|'ctx'} doldurulur.
-    sentence_en: cümlenin İngilizcesi; yerel model çevirilerini doğrulamak için kullanılır."""
+    sentence_en: cümlenin İngilizcesi; yerel model çevirilerini doğrulamak için kullanılır.
+    sentence: cümlenin Türkçesi; kelimeyi çıkarıp fark bulmak için kullanılır."""
     if sources is None:
         sources = {}
     result = {}
@@ -666,7 +771,7 @@ def translate_missing(words: list, sources: dict | None = None, sentence_en: str
     # Yerel model çevirilerini cümle bağlamı + kök çevirisiyle düzelt
     if any(s == "local" for s in sources.values()):
         try:
-            refine_with_context(result, sources, sentence_en)
+            refine_with_context(result, sources, sentence_en, norm_sentence(sentence))
         except Exception as e:
             print(f"   [bağlam] hata: {e}")
 
@@ -711,6 +816,201 @@ def deferred_worker():
 threading.Thread(target=deferred_worker, daemon=True).start()
 
 
+# ======================= Canlı oyun (2+ kişi) =======================
+
+Q_SECONDS = 12      # soru başına süre
+REVEAL_SECONDS = 2.5
+N_QUESTIONS = 10
+ROOMS = {}
+
+
+def db_rows(sql: str, params=()):
+    conn = psycopg2.connect(**DB_CONFIG)
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+        cur.close()
+        return rows
+    finally:
+        conn.close()
+
+
+def valid_pairs(rows) -> list:
+    return [
+        {"tr": tr, "eng": eng} for tr, eng in rows
+        if has_letters(eng) and eng.strip().lower() != tr
+        and not is_garbage(eng) and not is_suspect(tr, eng)
+    ]
+
+
+def episode_pool(episode: str) -> list:
+    """Bölümün kelimeleri (aynı İngilizce karşılığı tekrar etmeden)."""
+    rows = db_rows(
+        "SELECT ew.tr, w.eng FROM episode_words ew JOIN words w ON w.tr = ew.tr "
+        "WHERE ew.episode = %s;", (episode,))
+    seen, out = set(), []
+    for w in valid_pairs(rows):
+        if w["eng"].lower() not in seen:
+            seen.add(w["eng"].lower())
+            out.append(w)
+    return out
+
+
+def build_questions(episode: str, n: int = N_QUESTIONS) -> list:
+    """Bölüm kelimelerinden çoktan seçmeli sorular; yanlış şıklar tüm kelime havuzundan."""
+    ep = episode_pool(episode)
+    if len(ep) < 4:
+        raise ValueError(f"Bu bölümde en az 4 kelime gerekiyor (şu an {len(ep)}).")
+    all_eng = list({w["eng"] for w in valid_pairs(db_rows("SELECT tr, eng FROM words;"))})
+    random.shuffle(ep)
+    qs = []
+    for w in ep:
+        others = [e for e in all_eng if e.lower() != w["eng"].lower()]
+        random.shuffle(others)
+        opts, seen = [], {w["eng"].lower()}
+        for e in others:
+            if e.lower() not in seen:
+                opts.append(e)
+                seen.add(e.lower())
+            if len(opts) == 3:
+                break
+        if len(opts) < 3:
+            continue
+        opts.append(w["eng"])
+        random.shuffle(opts)
+        qs.append({"tr": w["tr"], "eng": w["eng"], "options": opts})
+        if len(qs) == n:
+            break
+    return qs
+
+
+class Room:
+    def __init__(self, code: str, episode: str):
+        self.code, self.episode = code, episode
+        self.players = {}      # pid -> {"name", "ws", "score"}
+        self.host = None
+        self.state = "lobby"   # lobby | playing | done
+        self.answers = {}      # pid -> (seçim, zaman)
+        self.event = asyncio.Event()
+        self.q_start = 0.0
+        self.task = None
+
+
+async def broadcast(room: Room, msg: dict):
+    for p in list(room.players.values()):
+        try:
+            await p["ws"].send_json(msg)
+        except Exception:
+            pass
+
+
+def room_info(room: Room) -> dict:
+    return {
+        "t": "room", "code": room.code, "episode": room.episode, "host": room.host,
+        "players": [{"id": pid, "name": p["name"], "score": p["score"]}
+                    for pid, p in room.players.items()],
+    }
+
+
+async def run_game(room: Room):
+    try:
+        questions = await asyncio.to_thread(build_questions, room.episode)
+    except Exception as e:
+        room.state = "lobby"
+        await broadcast(room, {"t": "error", "msg": str(e)})
+        return
+    room.state = "playing"
+    for p in room.players.values():
+        p["score"] = 0
+    for i, q in enumerate(questions):
+        if not room.players:
+            return
+        room.answers, room.event, room.q_start = {}, asyncio.Event(), time.time()
+        await broadcast(room, {"t": "question", "idx": i, "total": len(questions),
+                               "tr": q["tr"], "options": q["options"], "seconds": Q_SECONDS})
+        try:
+            await asyncio.wait_for(room.event.wait(), Q_SECONDS)
+        except asyncio.TimeoutError:
+            pass
+        results = []
+        for pid, p in list(room.players.items()):
+            a = room.answers.get(pid)
+            ok = a is not None and a[0] == q["eng"]
+            delta = 100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / Q_SECONDS)) if ok else 0
+            p["score"] += delta
+            results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"]})
+        await broadcast(room, {"t": "reveal", "correct": q["eng"], "results": results})
+        await asyncio.sleep(REVEAL_SECONDS)
+    room.state = "done"
+    final = sorted(room.players.items(), key=lambda kv: -kv[1]["score"])
+    await broadcast(room, {"t": "end", "scores": [{"id": pid, "name": p["name"], "score": p["score"]}
+                                                  for pid, p in final]})
+    room.state = "lobby"  # aynı odada tekrar oynanabilir
+
+
+async def leave_room(room, pid):
+    if not room or pid not in room.players:
+        return
+    room.players.pop(pid, None)
+    if not room.players:
+        if room.task:
+            room.task.cancel()
+        ROOMS.pop(room.code, None)
+        return
+    if room.host == pid:
+        room.host = next(iter(room.players))
+    if room.state == "playing" and len(room.answers) >= len(room.players):
+        room.event.set()
+    await broadcast(room, room_info(room))
+
+
+@app.websocket("/ws")
+async def ws_endpoint(ws: WebSocket):
+    await ws.accept()
+    room, pid = None, str(id(ws))
+    try:
+        while True:
+            msg = await ws.receive_json()
+            t = msg.get("t")
+            name = (str(msg.get("name") or "Oyuncu").strip() or "Oyuncu")[:16]
+
+            if t in ("create", "join") and room is None:
+                if t == "create":
+                    episode = str(msg.get("episode") or "")[:80]
+                    n = len(await asyncio.to_thread(episode_pool, episode)) if episode else 0
+                    if n < 4:
+                        await ws.send_json({"t": "error", "msg": f"Bu bölümde en az 4 kelime gerekiyor (şu an {n})."})
+                        continue
+                    code = next(c for c in (f"{random.randint(0, 9999):04d}" for _ in range(1000))
+                                if c not in ROOMS)
+                    room = ROOMS[code] = Room(code, episode)
+                    room.host = pid
+                else:
+                    room = ROOMS.get(str(msg.get("code") or "").strip())
+                    if room is None or room.state == "playing":
+                        room = None
+                        await ws.send_json({"t": "error", "msg": "Oda bulunamadı veya oyun başlamış."})
+                        continue
+                room.players[pid] = {"name": name, "ws": ws, "score": 0}
+                await ws.send_json({"t": "me", "id": pid})
+                await broadcast(room, room_info(room))
+
+            elif t == "start" and room and room.host == pid and room.state == "lobby":
+                room.task = asyncio.create_task(run_game(room))
+
+            elif t == "answer" and room and room.state == "playing" and pid not in room.answers:
+                room.answers[pid] = (str(msg.get("choice")), time.time())
+                if len(room.answers) >= len(room.players):
+                    room.event.set()
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    except Exception as e:
+        print(f"WebSocket hatası: {e}")
+    finally:
+        await leave_room(room, pid)
+
+
 # ======================= Endpoint'ler =======================
 
 @app.get("/", response_class=HTMLResponse)
@@ -718,9 +1018,62 @@ def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
+@app.get("/play", response_class=HTMLResponse)
+def play_page(request: Request):
+    return templates.TemplateResponse(request, "play.html")
+
+
 @app.get("/game", response_class=HTMLResponse)
 def game_page(request: Request):
     return templates.TemplateResponse(request, "game.html")
+
+
+@app.get("/episodes")
+def list_episodes():
+    """Bölümler ve her birinde toplanan (çevirisi kayıtlı) kelime sayısı."""
+    conn = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ew.episode, count(*), max(ew.created_at) FROM episode_words ew "
+            "JOIN words w ON w.tr = ew.tr GROUP BY ew.episode ORDER BY max(ew.created_at) DESC;"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        return [{"episode": r[0], "word_count": r[1], "last_seen": str(r[2])} for r in rows]
+    except Exception as e:
+        print(f"Bölüm listeleme hatası: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/episodes/words")
+def episode_words(episode: str):
+    """Bir bölümün kelimeleri: [{tr, eng}]. Örn: /episodes/words?episode=Lost S1 E13"""
+    conn = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ew.tr, w.eng FROM episode_words ew JOIN words w ON w.tr = ew.tr "
+            "WHERE ew.episode = %s ORDER BY ew.created_at;", (episode,)
+        )
+        rows = cur.fetchall()
+        cur.close()
+        return [
+            {"tr": tr, "eng": eng} for tr, eng in rows
+            if has_letters(eng) and eng.strip().lower() != tr
+            and not is_garbage(eng) and not is_suspect(tr, eng)
+        ]
+    except Exception as e:
+        print(f"Bölüm kelimeleri hatası: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.get("/debug/providers")
@@ -751,6 +1104,8 @@ def translate_words(batch: WordsBatch):
         if w and w not in words:
             words.append(w)
     words = words[:30]
+
+    tag_episode(batch.episode, words)
 
     db_found = safe_lookup(words)
     results = dict(db_found)
@@ -785,7 +1140,7 @@ def translate_words(batch: WordsBatch):
 
     if missing:
         src = {}
-        translated = translate_missing(missing, src, sentence_en)
+        translated = translate_missing(missing, src, sentence_en, batch.sentence)
         save_translations(translated, src)
         results.update(translated)
         print(
