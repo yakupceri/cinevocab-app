@@ -1,4 +1,4 @@
-const SERVER = "http://127.0.0.1:8000"; // sunucuyu internete açınca kendi adresinle değiştir
+const SERVER = "https://cinevocab-app-production.up.railway.app";
 const key = document.getElementById("key"), st = document.getElementById("st");
 chrome.storage.local.get("key", (r) => { if (r.key) { key.value = r.key; st.textContent = "Anahtar kayıtlı."; } });
 document.getElementById("save").onclick = () =>

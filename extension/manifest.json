@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "CineVocab",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Prime Video Türkçe altyazılarını kelime kelime çevirip kaydeder.",
   "permissions": ["storage"],
   "host_permissions": [
-    "http://127.0.0.1:8000/*",
+    "https://cinevocab-app-production.up.railway.app/*",
     "https://www.primevideo.com/*",
     "https://*.amazon.com/*"
   ],
