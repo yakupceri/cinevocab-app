@@ -1,4 +1,5 @@
 console.log("CineVocab aktif - Saf Altyazı Modu");
+const IS_YT = location.hostname.endsWith("youtube.com");
 
 // ---------- Overlay kutusu ----------
 const overlayBox = document.createElement("div");
@@ -52,6 +53,7 @@ function findEpisodeText() {
 }
 
 function readEpisode() {
+  if (IS_YT) return readYouTubeTitle();
   if (location.href !== lastHref) {
     lastHref = location.href;
     currentEpisode = "";
@@ -63,7 +65,7 @@ function readEpisode() {
     firstText(".atvwebplayersdk-subtitle-text, [class*='subtitle-text']") || findEpisodeText();
   const m = EPISODE_RE.exec(sub) || EPISODE_RE.exec(show);
   if (m && show) {
-    const label = `${show.replace(EPISODE_RE, "").trim()} S${m[1]} E${m[2]}`;
+    const label = `${show.replace(EPISODE_RE, "").replace(/\s*[-–]\s*(Season|Sezon)\s*\d+/i, "").trim()} S${m[1]} E${m[2]}`;
     if (label !== currentEpisode) {
       currentEpisode = label;
       console.log("CineVocab bölüm:", currentEpisode);
@@ -73,6 +75,22 @@ function readEpisode() {
 }
 
 setInterval(readEpisode, 3000);
+
+// YouTube: "bölüm" yerine video başlığı kullanılır (oyun odalarında bu ad görünür).
+function readYouTubeTitle() {
+  const raw =
+    firstText("h1.ytd-watch-metadata yt-formatted-string, h1.ytd-watch-metadata") ||
+    document.title.replace(/^\(\d+\)\s*/, "").replace(/\s*-\s*YouTube\s*$/i, "");
+  const title = raw.trim().slice(0, 60);
+  return title ? "YouTube · " + title : "";
+}
+
+function readYouTubeSubtitle() {
+  return [...document.querySelectorAll("span.ytp-caption-segment")]
+    .map((n) => (n.textContent ? n.textContent.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
+}
 
 function makeChip(word) {
   const chip = document.createElement("div");
@@ -178,7 +196,7 @@ function showSentence(sentence) {
         if (chrome.runtime.lastError || res?.status !== "success") {
           const why = chrome.runtime.lastError?.message || res?.message || "cevap yok";
           console.warn("CineVocab hata:", why);
-          status("⚠ " + why);
+          status(/401/.test(why) ? "⚠ Eklenti anahtarı girilmemiş: eklenti simgesine tıklayıp anahtarı yapıştır." : "⚠ " + why);
           if (attempt < RETRY_DELAYS.length) {
             setTimeout(() => request(list, attempt + 1, false), RETRY_DELAYS[attempt]);
           } else {
@@ -220,8 +238,10 @@ function showSentence(sentence) {
 
 // ---------- Saf Altyazı Yakalama ----------
 let lastSubtitle = "";
+let ytCandidate = "";
 
 function readSubtitle() {
+  if (IS_YT) return readYouTubeSubtitle();
   const nodes = [
     ...document.querySelectorAll(
       ".atvwebplayersdk-captions-text, [class*='captions-text'], .timedTextWindow, [data-automation-id='subtitle-line']"
@@ -241,6 +261,10 @@ setInterval(() => {
   if (!text) {
     lastSubtitle = ""; // altyazı kayboldu; aynı cümle tekrar gelirse yeniden işle
     return;
+  }
+  if (IS_YT) {
+    // Otomatik altyazılar kayarak değişir: metin iki yoklama boyunca aynı kalınca işle.
+    if (text !== ytCandidate) { ytCandidate = text; return; }
   }
   if (text.length < 3 || text.length > 200 || text === lastSubtitle) return;
 

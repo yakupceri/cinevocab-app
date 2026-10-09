@@ -1,513 +1,243 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CineVocab</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root { --bg:#0c0b0a; --ink:#efe6d6; --dim:#a39b8d; --line:rgba(239,230,214,.12); --soft:rgba(239,230,214,.045); --ember:#e8613c; --gold:#e9b44c; --ok:#86c79a; --bad:#c9503f;
-          --serif:"Fraunces", Georgia, "Times New Roman", serif; --sans:"Manrope", "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif; }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body { margin: 0; color: var(--ink); font: 400 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
-  #bd { position: fixed; inset: -60px; z-index: -2; filter: blur(34px) saturate(.85); opacity: .5; transition: background .6s; }
-  #bdo { position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(12,11,10,.35), var(--bg) 78%); }
-  body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .07;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); }
-  main { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 22px 22px 70px; }
-  h1, h2, h3 { font-family: var(--serif); font-weight: 800; margin: 0; letter-spacing: -.01em; }
-  .cap { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
-  .dim { color: var(--dim); font-size: 14px; }
-  button, input, a.btn { font: inherit; color: var(--ink); }
-  button { cursor: pointer; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; font-weight: 600; transition: border-color .15s, background .15s, transform .15s; }
-  button:hover:not(:disabled) { border-color: rgba(239,230,214,.45); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
-  .solid { background: var(--ember); border-color: var(--ember); color: #1a0d08; font-weight: 800; }
-  .solid:hover:not(:disabled) { background: #f0734f; border-color: #f0734f; }
-  .lnk { border: 0; padding: 4px 0; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(239,230,214,.3); }
-  .track { height: 8px; border-radius: 4px; background: rgba(239,230,214,.12); overflow: hidden; } .track i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--ember), #f0884f); transition: width .6s; }
-  .track.lg { height: 12px; border-radius: 6px; } .track.ok i { background: linear-gradient(90deg, #6fb98a, var(--ok)); }
-  /* üst */
-  .bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-  .brand { font: 800 21px var(--serif); } .brand b { color: var(--ember); }
-  .bar .who { display: flex; gap: 16px; align-items: center; color: var(--dim); font-size: 14px; font-weight: 600; } .bar button { padding: 6px 14px; font-size: 13px; }
-  /* hero */
-  .hero { position: relative; border-radius: 14px; overflow: hidden; min-height: 300px; display: flex; flex-direction: column; justify-content: flex-end; padding: 36px; border: 1px solid var(--line); }
-  .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(12,11,10,.9) 0%, rgba(12,11,10,.4) 70%, rgba(12,11,10,.12) 100%), linear-gradient(0deg, rgba(12,11,10,.85), transparent 55%); }
-  .hero > * { position: relative; z-index: 2; }
-  .hero > .hbg { position: absolute; inset: -20px; z-index: 0; filter: blur(16px) saturate(.9); }
-  .hero > .pcard { position: absolute; right: 36px; bottom: 36px; width: 150px; aspect-ratio: 2 / 3; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
-  .hero h1 { font-size: 54px; line-height: 1.02; margin: 8px 0 10px; }
-  .hero .next { font-size: 17px; font-weight: 500; margin-bottom: 14px; }
-  .hero .track { max-width: 380px; margin-bottom: 4px; } .hero .pl { font-size: 13px; color: var(--dim); margin-bottom: 20px; }
-  .hero .acts { display: flex; gap: 20px; align-items: center; } .hero .acts a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(239,230,214,.3); }
-  .hero .acts button { padding: 13px 26px; font-size: 16px; }
-  /* özet kutuları */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0 20px; }
-  .st { border: 1px solid var(--line); background: var(--soft); border-radius: 12px; padding: 16px 18px; }
-  .st .v { font: 800 24px/1.15 var(--serif); margin: 6px 0 10px; } .st .s { font-size: 13px; color: var(--dim); margin-top: 8px; }
-  /* dizi şeridi */
-  .strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 0 22px; }
-  .tile { flex: none; width: 96px; height: 134px; border-radius: 8px; border: 1px solid var(--line); position: relative; overflow: hidden; cursor: pointer; padding: 0; opacity: .55; transition: opacity .2s, transform .2s; }
-  .tile:hover { opacity: .9; transform: translateY(-2px); } .tile.on { opacity: 1; border-color: var(--ember); }
-  .tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.82), transparent 60%); }
-  .tile span { position: absolute; left: 9px; right: 9px; bottom: 9px; z-index: 1; font: 800 13px/1.15 var(--serif); text-align: left; }
-  /* gövde */
-  .cols { display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: start; }
-  .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
-  .tabs button { border: 0; border-radius: 0; padding: 12px 0; color: var(--dim); border-bottom: 3px solid transparent; white-space: nowrap; font-size: 16px; }
-  .tabs button.on { color: var(--ink); border-bottom-color: var(--ember); }
-  .sh { font: 800 22px var(--serif); } .row { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .row em { font-style: normal; color: var(--dim); } .row.m span:first-child { color: var(--ink); font-weight: 600; } .me { color: var(--ember); font-weight: 700; }
-  .search { width: 100%; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; margin: 10px 0 4px; }
-  .empty { padding: 40px 0; color: var(--dim); }
-  /* bölümler listesi */
-  .ep { display: grid; grid-template-columns: 1.1fr 1.6fr 52px 100px; gap: 18px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); }
-  .ep .en { font: 800 18px var(--serif); } .ep .en small { display: block; font: 500 13px var(--sans); color: var(--dim); margin-top: 2px; } .ep .pc { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; } .ep .ac { text-align: right; }
-  .badge { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); border: 1px solid rgba(134,199,154,.4); border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: middle; }
-  /* harita */
-  .eppick { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 20px; }
-  .eppick button { padding: 8px 16px; border-radius: 999px; font-size: 14px; } .eppick button.on { border-color: var(--ember); color: var(--ember); } .eppick button.fin::after { content: " ✓"; color: var(--ok); }
-  .mhead { border: 1px solid var(--line); background: var(--soft); border-radius: 12px; padding: 20px 22px; margin-bottom: 8px; }
-  .mhead h3 { font-size: 26px; } .mhead .l { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin: 14px 0 8px; } .mhead .rw { margin-top: 12px; font-size: 13px; color: var(--dim); }
-  .banner { border: 1px solid rgba(134,199,154,.4); background: rgba(134,199,154,.08); border-radius: 12px; padding: 16px 20px; margin: 12px 0; } .banner b { font: 800 18px var(--serif); display: block; margin-bottom: 2px; }
-  .path { position: relative; max-width: 420px; margin: 18px auto 30px; }
-  .path svg { position: absolute; inset: 0; width: 100%; height: 100%; } .path svg path { vector-effect: non-scaling-stroke; }
-  .node { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; padding: 0; border: 0; display: grid; place-items: center; background: conic-gradient(var(--ember) var(--p), rgba(239,230,214,.16) 0); transition: transform .15s; }
-  .node:hover:not(.lock) { transform: translate(-50%, -50%) scale(1.07); border: 0; }
-  .node .in { width: 54px; height: 54px; border-radius: 50%; background: #15120f; display: grid; place-items: center; font: 800 21px var(--serif); }
-  .node.done { background: conic-gradient(var(--ok) 100%, var(--ok) 0); } .node.done .in { background: var(--ok); color: #0f1a13; }
-  .node.cur { animation: pulse 1.8s infinite; } .node.cur .in { color: var(--ember); }
-  .node.lock { opacity: .4; cursor: not-allowed; } .node.lock .in { color: var(--dim); }
-  .node.chest { border-radius: 16px; background: rgba(233,180,76,.35); } .node.chest .in { border-radius: 12px; color: var(--gold); background: #1c1710; }
-  .node.chest.done { background: rgba(239,230,214,.16); } .node.chest.done .in { background: #1c1710; color: var(--dim); }
-  .node.boss { width: 86px; height: 86px; background: conic-gradient(var(--gold) var(--p), rgba(239,230,214,.16) 0); } .node.boss .in { width: 72px; height: 72px; font-size: 32px; color: var(--gold); }
-  .node.boss.done .in { background: var(--gold); color: #1c1305; } .node.boss.done { background: var(--gold); }
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(232,97,60,.5); } 70% { box-shadow: 0 0 0 16px rgba(232,97,60,0); } 100% { box-shadow: 0 0 0 0 rgba(232,97,60,0); } }
-  .nl { position: absolute; transform: translateY(-50%); width: 120px; font-size: 13px; line-height: 1.35; color: var(--dim); } .nl b { display: block; color: var(--ink); font-size: 14px; }
-  /* başarım */
-  .ach { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding-top: 14px; }
-  .a { border: 1px solid var(--line); border-radius: 12px; padding: 18px; opacity: .45; } .a.on { opacity: 1; border-color: rgba(232,97,60,.55); background: var(--soft); }
-  .a i { font-style: normal; font-size: 26px; color: var(--ember); display: block; margin-bottom: 10px; } .a b { display: block; font: 800 16px var(--serif); margin-bottom: 3px; } .a span { font-size: 13px; color: var(--dim); }
-  /* yan */
-  .side section { padding: 0 0 28px; } .side .cap { margin-bottom: 12px; }
-  .quest { padding: 10px 0; } .quest .t { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 8px; } .quest.ok .t { color: var(--dim); text-decoration: line-through; }
-  .extc { border: 1px solid rgba(232,97,60,.45); border-radius: 12px; padding: 18px; background: linear-gradient(160deg, rgba(232,97,60,.14), transparent); }
-  .extc h3 { font-size: 20px; margin-bottom: 8px; } .extc p { margin: 0 0 12px; font-size: 14px; color: rgba(239,230,214,.8); } .extc .big { font: 800 30px var(--serif); color: var(--ember); } .extc button { width: 100%; }
-  .key { word-break: break-all; font-size: 12px; color: var(--ok); margin: 10px 0 0; }
-  /* giriş */
-  .auth { max-width: 360px; margin: 90px auto; } .auth h1 { font-size: 42px; margin-bottom: 6px; }
-  .auth input { display: block; width: 100%; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px 14px; margin-top: 10px; }
-  .auth button.solid { width: 100%; margin-top: 14px; padding: 13px; } .auth .tabs { margin: 20px 0 6px; } .err { color: var(--bad); min-height: 22px; margin: 10px 0 0; font-size: 14px; }
-  /* quiz */
-  .ov { position: fixed; inset: 0; background: rgba(8,7,6,.88); display: grid; place-items: center; padding: 16px; z-index: 9; backdrop-filter: blur(6px); }
-  .q { width: min(520px, 100%); background: #14110f; border: 1px solid var(--line); border-radius: 16px; padding: 26px; }
-  .qh { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; font-size: 14px; font-weight: 600; color: var(--dim); } .qh button { padding: 4px 12px; }
-  .q .w { font: 800 40px var(--serif); text-align: center; margin: 30px 0 6px; word-break: break-word; } .q .hint { text-align: center; color: var(--dim); margin-bottom: 20px; }
-  .opts { display: grid; gap: 9px; } .opts button { text-align: left; padding: 15px 16px; font-size: 17px; font-weight: 500; }
-  .opts .okk { border-color: var(--ok); background: rgba(134,199,154,.12); } .opts .no { border-color: var(--bad); background: rgba(201,80,63,.14); }
-  .combo { color: var(--ember); min-height: 22px; text-align: center; margin-top: 16px; font-weight: 700; }
-  .res { text-align: center; } .res .big { font: 800 68px var(--serif); margin: 6px 0; } .res button { width: 100%; margin-top: 10px; padding: 13px; }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1b1714; border: 1px solid rgba(232,97,60,.5); padding: 12px 22px; border-radius: 999px; z-index: 20; max-width: 90vw; font-weight: 600; }
-  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; gap: 10px; } .stats { grid-template-columns: 1fr 1fr; } .hero { padding: 24px; min-height: 270px; } .hero h1 { font-size: 38px; } .hero > .pcard { display: none; }
-    .ep { grid-template-columns: 1fr 52px 90px; } .ep .tr { display: none; } }
-  @media (prefers-reduced-motion: reduce) { .node.cur { animation: none; } }
-</style>
-</head>
-<body>
-<div id="bd"></div><div id="bdo"></div>
-<main id="app"></main>
-<script>
-const app = document.getElementById("app");
-const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
-async function api(path, body) {
-  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.detail || "Bir hata oluştu.");
-  return d;
-}
-function toast(msg) { const t = el("div", "toast", msg); document.body.append(t); setTimeout(() => t.remove(), 2800); }
-const track = (p, cls) => { const t = el("div", "track " + (cls || "")), i = el("i"); i.style.width = Math.max(0, Math.min(100, p)) + "%"; t.append(i); return t; };
-const shuf = (a) => [...a].sort(() => Math.random() - .5);
+"""CineVocab hesap sistemi: kayıt, giriş, kişisel kelimeler, liderlik tablosu."""
+import hashlib
+import hmac
+import os
+import re
+import secrets
+import time
 
-/* ---- dizi görselleri: static/posters/<dizi-adi>.jpg varsa o, yoksa TVmaze'den otomatik, yoksa renk geçişi ---- */
-const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-function posterBg(show, custom) {
-  const h = hue(show), clean = (u) => u.replace(/["')\\]/g, "");
-  let layers = `url("/static/posters/${slug(show)}.jpg") center/cover`;
-  if (custom) layers += `, url("${clean(custom)}") center/cover`;
-  return layers + `, radial-gradient(120% 90% at 20% 0%, hsl(${h} 40% 30%), transparent 60%), linear-gradient(160deg, hsl(${(h + 30) % 360} 36% 17%), hsl(${h} 28% 7%))`;
-}
-let PO = {}; try { PO = JSON.parse(localStorage.cv_posters || "{}"); } catch (e) {}
-const POPEN = {};
-function loadPosters(names, redraw) {
-  const todo = names.filter((n) => n !== "Kelimelerim" && !POPEN[n] && (!PO[n] || (!PO[n].u && Date.now() - PO[n].t > 6048e5)));
-  if (!todo.length) return;
-  todo.forEach((n) => (POPEN[n] = 1));
-  Promise.all(todo.map((n) => fetch("https://api.tvmaze.com/singlesearch/shows?q=" + encodeURIComponent(n))
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { PO[n] = { u: (d && d.image && (d.image.original || d.image.medium)) || "", t: Date.now() }; })
-    .catch(() => { delete POPEN[n]; })))
-    .then(() => { try { localStorage.cv_posters = JSON.stringify(PO); } catch (e) {} if (todo.some((n) => PO[n] && PO[n].u)) redraw(); });
-}
+import psycopg2
+from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel
 
-function authView() {
-  document.getElementById("bd").style.background = posterBg("CineVocab");
-  let mode = "login";
-  const card = el("div", "auth"), tabs = el("div", "tabs");
-  const tl = el("button", "on", "Giriş yap"), tr = el("button", "", "Kayıt ol");
-  const user = el("input"); user.placeholder = "Kullanıcı adı"; user.autocomplete = "username"; user.maxLength = 16;
-  const pass = el("input"); pass.type = "password"; pass.placeholder = "Parola (en az 6 karakter)";
-  const err = el("p", "err"), go = el("button", "solid", "Giriş yap");
-  const set = (m) => { mode = m; tl.className = m === "login" ? "on" : ""; tr.className = m === "login" ? "" : "on";
-    go.textContent = m === "login" ? "Giriş yap" : "Hesap oluştur"; pass.autocomplete = m === "login" ? "current-password" : "new-password"; err.textContent = ""; };
-  tl.onclick = () => set("login"); tr.onclick = () => set("register");
-  go.onclick = async () => {
-    try { await api(mode === "login" ? "/api/login" : "/api/register", { username: user.value, password: pass.value }); panelView(); }
-    catch (e) { err.textContent = e.message; }
-  };
-  pass.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
-  tabs.append(tl, tr);
-  card.append(el("h1", "", "CineVocab"), el("p", "dim", "Dizi izlerken kelime topla, bölüm bölüm öğren."), tabs, user, pass, err, go);
-  app.replaceChildren(card);
-}
+router = APIRouter()
+DB = {}
+COOKIE = "cv"
 
-/* ---------- ilerleme (tarayıcı + sunucu) ---------- */
-const RANKS = ["Çaylak", "Meraklı", "Replik Avcısı", "Altyazı Ustası", "Sinefil", "Efsane"];
-const lvlOf = (xp) => Math.floor(xp / 200) + 1;
-const wkey = (w) => (w.episode || "") + "|" + w.tr;
-const today = () => new Date().toLocaleDateString("sv");
-let SRV = {}, saveT = null;
-const loadP = (u) => { let l = {}; try { l = JSON.parse(localStorage["cv_" + u]) || {}; } catch (e) {} return (SRV && (SRV.upd || 0) > (l.upd || 0)) ? SRV : l; };
 
-/* Eklenti bölümü "Lost - Season 1 S1 E16" gibi gönderir: dizi = "Lost", bölüm = "S1 E16". */
-const PACK = 25;
-const cleanShow = (s) => (s || "").replace(/[\s,.:\-–—]*S(?:eason|ezon)?\s*\d+\s*$/i, "").replace(/[\s,.:\-–—]+$/, "").trim();
-const EP_RE = /^(.*?)[\s,.:\-]*S(\d+)\s*E(\d+)\s*$/i;
-function splitEp(e) {
-  const m = EP_RE.exec((e || "").trim());
-  return m ? { show: cleanShow(m[1]) || "Kelimelerim", name: "S" + m[2] + " E" + m[3], order: (+m[2]) * 1000 + (+m[3]) } : null;
-}
-function buildBuckets(words) {
-  const shows = new Map();
-  words.forEach((w) => {
-    const p = splitEp(w.episode);
-    const show = p ? p.show : (cleanShow((w.episode || "").trim()) || "Kelimelerim");
-    const name = p ? p.name : "Kelimeler", order = p ? p.order : 1e9;
-    if (!shows.has(show)) shows.set(show, new Map());
-    const m = shows.get(show);
-    if (!m.has(name)) m.set(name, { order, words: [], poster: "" });
-    const e = m.get(name); e.words.push(w); if (!e.poster) e.poster = w.poster || w.image || "";
-  });
-  const out = [];
-  shows.forEach((eps, show) => {
-    const list = [...eps.entries()].sort((a, b) => a[1].order - b[1].order || a[0].localeCompare(b[0], "tr", { numeric: true }));
-    const poster = (list.find(([, e]) => e.poster) || [, {}])[1].poster || "";
-    list.forEach(([name, e]) => {
-      if (e.order === 1e9 && e.words.length > PACK) for (let i = 0; i < e.words.length; i += PACK) out.push({ show, poster, name: "Paket " + (i / PACK + 1), words: e.words.slice(i, i + PACK) });
-      else out.push({ show, poster, name, words: e.words });
-    });
-  });
-  return out;
-}
+def q(sql, params=(), fetch=False):
+    conn = psycopg2.connect(**DB)
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        rows = cur.fetchall() if fetch else None
+        conn.commit()
+        return rows
+    finally:
+        conn.close()
 
-/* ---------- harita: bölüm = basamaklar + sandıklar + bölüm sınavı ---------- */
-const STAGE = 10, STAGE_XP = 20, CHEST_XP = 40, BOSS_XP = 100, BOSS_N = 20, BOSS_PASS = 80, CHEST_EVERY = 5;
-const bkey = (b) => b.show + "|" + b.name;
-function stagesOf(b, P) {
-  const ws = b.words.slice().reverse(), out = []; // en eski kelime önce: yeni kelimeler sona basamak ekler
-  for (let i = 0; i < ws.length; i += STAGE) {
-    const w = ws.slice(i, i + STAGE), m = w.filter((x) => P.mastered[wkey(x)]).length;
-    out.push({ i: out.length, words: w, m, pct: Math.round(m / w.length * 100), done: m === w.length });
-  }
-  return out;
-}
-function nextStep(mine, P) {
-  for (const b of mine) {
-    if (P.boss[bkey(b)]) continue;
-    const st = stagesOf(b, P), idx = st.findIndex((s) => !s.done);
-    return idx >= 0 ? { b, st, idx, kind: "stage" } : { b, st, kind: "boss" };
-  }
-  return null;
-}
 
-let curShow = null, curEp = null, tab = "map", lbp = "week";
+def init_accounts(db_config: dict):
+    DB.update(db_config)
+    for sql in (
+        "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT NOT NULL, "
+        "pw_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT now());",
+        "CREATE UNIQUE INDEX IF NOT EXISTS users_name_idx ON users (lower(username));",
+        "CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INT NOT NULL, "
+        "created_at TIMESTAMP DEFAULT now());",
+        "CREATE TABLE IF NOT EXISTS user_words (user_id INT NOT NULL, tr TEXT NOT NULL, "
+        "episode TEXT NOT NULL DEFAULT '', created_at TIMESTAMP DEFAULT now(), "
+        "PRIMARY KEY (user_id, tr, episode));",
+        "CREATE TABLE IF NOT EXISTS game_results (id SERIAL PRIMARY KEY, user_id INT NOT NULL, "
+        "episode TEXT, score INT NOT NULL, place INT NOT NULL, players INT NOT NULL, "
+        "created_at TIMESTAMP DEFAULT now());",
+    ):
+        q(sql)
 
-async function panelView() {
-  let me, words;
-  try { [me, words] = await Promise.all([api("/api/me"), api("/api/my-words")]); } catch (e) { return authView(); }
-  try { SRV = await api("/api/progress"); } catch (e) { SRV = {}; }
-  draw(me, words);
-}
 
-function draw(me, words) {
-  const P = Object.assign({ xp: 0, mastered: {}, best: {}, ach: {}, qdone: {}, stage: {}, chest: {}, boss: {}, maxCombo: 0, capTotal: 0 }, loadP(me.username));
-  const save = () => { P.upd = Date.now(); localStorage["cv_" + me.username] = JSON.stringify(P); clearTimeout(saveT);
-    saveT = setTimeout(() => { api("/api/progress", { data: P }).then(() => { SRV = P; }).catch(() => {}); }, 700); };
-  const before = JSON.stringify(P);
-  const buckets = buildBuckets(words);
-  const msgs = [], lvBefore = lvlOf(P.xp);
+# ---------- Parola ve oturum ----------
 
-  const t = today();
-  if (P.day !== t) {
-    const y = new Date(Date.now() - 864e5).toLocaleDateString("sv");
-    P.streak = P.day === y ? (P.streak || 0) + 1 : 1;
-    P.day = t; P.today = 0; P.capToday = 0; P.stageToday = 0; P.qdone = {};
-  }
-  if (P.counted === undefined) P.counted = words.length;
-  const nw = words.length - P.counted;
-  if (nw > 0) { P.capToday += nw; P.capTotal += nw; P.xp += 5 * nw; msgs.push("Eklentiyle " + nw + " yeni kelime: +" + 5 * nw + " XP, haritana yeni basamaklar eklendi"); }
-  P.counted = words.length;
+def _hash(pw: str, salt: str = "") -> str:
+    salt = salt or os.urandom(16).hex()
+    h = hashlib.pbkdf2_hmac("sha256", pw.encode(), bytes.fromhex(salt), 200_000).hex()
+    return f"{salt}${h}"
 
-  /* tamamlanan basamaklar bir kez ödül verir */
-  let newStages = 0;
-  buckets.forEach((b) => stagesOf(b, P).forEach((s) => { const k = bkey(b) + "#" + s.i; if (s.done && !P.stage[k]) { P.stage[k] = 1; newStages++; } }));
-  if (newStages) { P.xp += STAGE_XP * newStages; P.stageToday = (P.stageToday || 0) + newStages; msgs.push(newStages + " basamak tamamlandı: +" + STAGE_XP * newStages + " XP"); }
 
-  const masteredN = words.filter((w) => P.mastered[wkey(w)]).length;
-  const QUESTS = [
-    ["10 soru çöz", P.today || 0, 10, 20],
-    ["Eklentiyle 3 kelime yakala", P.capToday || 0, 3, 30],
-    ["Bir basamağı tamamla", P.stageToday || 0, 1, 40],
-  ];
-  QUESTS.forEach((q, i) => { if (q[1] >= q[2] && !P.qdone[i]) { P.qdone[i] = 1; P.xp += q[3]; msgs.push("Görev tamam: +" + q[3] + " XP"); } });
-  const showsAll = [...new Set(buckets.map((b) => b.show))];
-  const ACH = [
-    ["◆", "İlk Sahne", "İlk soruyu çöz", () => Object.keys(P.mastered).length > 0 || (P.today || 0) > 0, 20],
-    ["◐", "Kelime Avcısı", "10 kelime öğren", () => masteredN >= 10, 50],
-    ["❖", "Sözlük Kurdu", "50 kelime öğren", () => masteredN >= 50, 100],
-    ["▤", "Basamak Ustası", "10 basamak tamamla", () => Object.keys(P.stage).length >= 10, 60],
-    ["★", "Bölüm Tamam", "Bir bölümün sınavını geç", () => Object.keys(P.boss).length >= 1, 100],
-    ["◎", "Dizi Fatihi", "3+ bölümü olan bir dizinin tüm sınavlarını geç", () => showsAll.some((s) => { const bs = buckets.filter((b) => b.show === s); return bs.length >= 3 && bs.every((b) => P.boss[bkey(b)]); }), 200],
-    ["↯", "Kombo Ustası", "5'li kombo yap", () => P.maxCombo >= 5, 40],
-    ["✦", "Eklenti Dostu", "Eklentiyle 10 kelime yakala", () => P.capTotal >= 10, 100],
-    ["▲", "Seviye 3", "3. seviyeye ulaş", () => lvlOf(P.xp) >= 3, 60],
-    ["●", "Haftalık Seri", "7 gün üst üste gir", () => (P.streak || 0) >= 7, 150],
-  ];
-  let achN = 0;
-  ACH.forEach((a, i) => { if (a[3]()) { achN++; if (!P.ach[i]) { P.ach[i] = 1; P.xp += a[4]; msgs.push("Başarım: " + a[1] + " (+" + a[4] + " XP)"); } } });
-  if (lvlOf(P.xp) > lvBefore) msgs.push("Seviye atladın: " + lvlOf(P.xp));
-  if (JSON.stringify(P) !== before) save();
-  msgs.forEach((m, i) => setTimeout(() => toast(m), i * 2900));
+def _check(pw: str, stored: str) -> bool:
+    return hmac.compare_digest(_hash(pw, stored.split("$")[0]), stored)
 
-  const showNames = showsAll;
-  if (!showNames.includes(curShow)) { curShow = showNames[0]; curEp = null; }
-  loadPosters(showNames, () => draw(me, words));
-  const mine = buckets.filter((b) => b.show === curShow);
-  const posterOf = (s) => (buckets.find((b) => b.show === s) || {}).poster || (PO[s] && PO[s].u) || "";
-  const tw = mine.reduce((s, b) => s + b.words.length, 0), tm = mine.reduce((s, b) => s + b.words.filter((w) => P.mastered[wkey(w)]).length, 0);
-  const nxt = nextStep(mine, P);
-  if (!mine.some((b) => b.name === curEp)) curEp = nxt ? nxt.b.name : (mine[0] || {}).name;
-  const curB = mine.find((b) => b.name === curEp);
-  document.getElementById("bd").style.background = posterBg(curShow || "CineVocab", posterOf(curShow));
 
-  /* ---- üst bar ---- */
-  const bar = el("div", "bar"), brand = el("div", "brand"), who = el("div", "who"), out = el("button", "", "Çıkış");
-  brand.append("Cine", el("b", "", "Vocab"));
-  out.onclick = async () => { await api("/api/logout", {}); authView(); };
-  who.append(el("span", "", me.username), out); bar.append(brand, who);
+def _sha(t: str) -> str:
+    return hashlib.sha256(t.encode()).hexdigest()
 
-  /* ---- hero ---- */
-  const hero = el("div", "hero"), hbg = el("div", "hbg"); hbg.style.background = posterBg(curShow || "CineVocab", posterOf(curShow)); hero.append(hbg);
-  if (curShow && curShow !== "Kelimelerim") { const pc = el("div", "pcard"); pc.style.background = posterBg(curShow, posterOf(curShow)); hero.append(pc); }
-  hero.append(el("div", "cap", curShow ? "Kaldığın yer" : "Hoş geldin"), el("h1", "", curShow || "İlk kelimeni yakala"));
-  const acts = el("div", "acts"), cta = el("button", "solid", nxt ? "Devam et" : "Eklenti anahtarı al");
-  if (curShow) {
-    const nt = !nxt ? "Bu dizideki tüm bölümler tamam" : nxt.kind === "boss" ? nxt.b.name + " · Bölüm sınavı seni bekliyor" : nxt.b.name + " · Basamak " + (nxt.idx + 1) + "/" + nxt.st.length;
-    hero.append(el("div", "next", nt), track(tw ? tm / tw * 100 : 0), el("div", "pl", tm + " / " + tw + " kelime öğrenildi"));
-  } else hero.append(el("div", "next", "Eklentiyi kur, Prime'da bir bölüm izle; kelimelerin burada oyun haritasına dönüşür."), el("div", "pl", ""));
-  cta.onclick = () => { if (!nxt) return curShow ? toast("Hepsi tamam! Yeni kelime için eklentiyle izle.") : document.getElementById("keybtn").click(); curEp = nxt.b.name; tab = "map"; startNode(nxt.b, nxt.kind === "boss" ? "boss" : nxt.idx); };
-  const duel = el("a", "", "Düelloya gir"); duel.href = "/game";
-  acts.append(cta, duel); hero.append(acts);
 
-  /* ---- özet kutuları ---- */
-  const lv = lvlOf(P.xp), into = P.xp % 200, stats = el("div", "stats");
-  const box = (cap, val, bar, sub) => { const b = el("div", "st"); b.append(el("div", "cap", cap), el("div", "v", val)); if (bar !== null) b.append(track(bar)); b.append(el("div", "s", sub)); return b; };
-  stats.append(
-    box("Seviye " + lv, RANKS[Math.min(lv - 1, RANKS.length - 1)], into / 2, into + " / 200 XP"),
-    box("Bugün", Math.min(P.today || 0, 10) + " / 10 soru", Math.min(P.today || 0, 10) * 10, "Seri: " + (P.streak || 1) + " gün"),
-    box("Öğrenilen kelime", masteredN + " / " + words.length, words.length ? masteredN / words.length * 100 : 0, "Tamamlanan basamak: " + Object.keys(P.stage).length),
-    box("Düello", me.wins + " galibiyet", null, me.games + " oyun · " + me.score + " puan"));
+def _new_session(uid: int) -> str:
+    t = secrets.token_urlsafe(32)
+    q("INSERT INTO sessions (token_hash, user_id) VALUES (%s, %s);", (_sha(t), uid))
+    return t
 
-  /* ---- dizi şeridi ---- */
-  const strip = el("div", "strip");
-  if (showNames.length > 1) showNames.forEach((n) => {
-    const b = el("button", "tile" + (n === curShow ? " on" : "")); b.style.background = posterBg(n, posterOf(n)); b.append(el("span", "", n));
-    b.onclick = () => { curShow = n; curEp = null; tab = "map"; draw(me, words); }; strip.append(b); });
 
-  /* ---- sekmeler ---- */
-  const tabs = el("div", "tabs"), body = el("div");
-  [["map", "Harita"], ["eps", "Bölümler"], ["ach", "Başarımlar " + achN + "/" + ACH.length], ["words", "Kelimelerim"], ["lb", "Liderlik"]].forEach(([k, l]) => {
-    const b = el("button", tab === k ? "on" : "", l); b.onclick = () => { tab = k; draw(me, words); }; tabs.append(b); });
+def user_from_token(t):
+    if not t:
+        return None
+    r = q("SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id "
+          "WHERE s.token_hash = %s;", (_sha(t),), True)
+    return {"id": r[0][0], "username": r[0][1]} if r else None
 
-  /* basamak / sandık / sınav başlat */
-  function startNode(b, which) {
-    const st = stagesOf(b, P);
-    if (which === "boss") {
-      const make = () => shuf(b.words).slice(0, BOSS_N);
-      return play(me, words, make(), P, save, { title: b.show + " · " + b.name + " · Bölüm sınavı", boss: true, make,
-        onDone: (p) => { if (p >= BOSS_PASS && !P.boss[bkey(b)]) { P.boss[bkey(b)] = 1; P.xp += BOSS_XP; toast("Bölüm tamamlandı! +" + BOSS_XP + " XP ve rozet"); } } });
-    }
-    play(me, words, st[which].words, P, save, { title: b.name + " · Basamak " + (which + 1) });
-  }
 
-  if (tab === "map") {
-    if (!mine.length) {
-      body.append(el("div", "empty", "Henüz kelimen yok. Eklentiyi kur, Prime'da bir bölüm izle: yakaladığın kelimeler burada adım adım oynanan bir haritaya dönüşür."));
-    } else {
-      const pick = el("div", "eppick");
-      mine.forEach((b) => { const x = el("button", (b.name === curEp ? "on " : "") + (P.boss[bkey(b)] ? "fin" : ""), b.name); x.onclick = () => { curEp = b.name; draw(me, words); }; pick.append(x); });
-      body.append(pick);
-      const b = curB, st = stagesOf(b, P), bm = st.reduce((s, x) => s + x.m, 0), bp = Math.round(bm / b.words.length * 100), passed = !!P.boss[bkey(b)];
-      const hd = el("div", "mhead");
-      hd.append(el("h3", "", b.show + " · " + b.name), el("div", "dim", b.words.length + " kelime · " + st.length + " basamak"));
-      const l = el("div", "l"); l.append(el("span", "", "Bölüm ilerlemesi"), el("span", "", "%" + bp)); hd.append(l, track(bp, "lg ok"));
-      hd.append(el("div", "rw", "Ödüller: basamak +" + STAGE_XP + " XP · her " + CHEST_EVERY + " basamakta sandık +" + CHEST_XP + " XP · bölüm sınavı +" + BOSS_XP + " XP ve rozet"));
-      body.append(hd);
-      if (passed) { const bn = el("div", "banner"); bn.append(el("b", "", "Bölüm tamamlandı"), el("span", "dim", "Aynı bölümde yeni kelime yakalarsan haritaya yeni basamaklar eklenir. Eklentiyle izlemeye devam et.")); body.append(bn); }
+def user_from_request(req: Request):
+    h = req.headers.get("authorization", "")
+    return user_from_token(h[7:] if h.startswith("Bearer ") else req.cookies.get(COOKIE))
 
-      /* düğümler */
-      const seq = [];
-      st.forEach((s, i) => { seq.push({ t: "stage", s }); if ((i + 1) % CHEST_EVERY === 0 && i + 1 < st.length) seq.push({ t: "chest", after: i, key: bkey(b) + "#c" + (i + 1) }); });
-      seq.push({ t: "boss" });
-      const STEP = 96, H = 56 + (seq.length - 1) * STEP + 56, X = (k) => 200 + Math.sin(k * 0.95) * 72, Y = (k) => 56 + k * STEP;
-      const allDone = st.every((s) => s.done);
-      let curSet = false;
-      seq.forEach((n, k) => {
-        if (n.t === "stage") { const un = n.s.i === 0 || st[n.s.i - 1].done; n.state = n.s.done ? "done" : un ? "open" : "lock"; }
-        else if (n.t === "chest") { n.state = P.chest[n.key] ? "done" : st[n.after].done ? "open" : "lock"; }
-        else n.state = passed ? "done" : allDone ? "open" : "lock";
-        n.cur = n.t !== "chest" && n.state === "open" && !curSet; if (n.cur) curSet = true;
-      });
-      const path = el("div", "path"); path.style.height = H + "px";
-      const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", "0 0 400 " + H); svg.setAttribute("preserveAspectRatio", "none");
-      for (let k = 0; k < seq.length - 1; k++) {
-        const p = document.createElementNS(NS, "path"), x1 = X(k), y1 = Y(k), x2 = X(k + 1), y2 = Y(k + 1), on = seq[k].state === "done";
-        p.setAttribute("d", `M${x1} ${y1} C${x1} ${y1 + 48} ${x2} ${y2 - 48} ${x2} ${y2}`); p.setAttribute("fill", "none"); p.setAttribute("stroke-linecap", "round");
-        p.setAttribute("stroke", on ? "#86c79a" : "rgba(239,230,214,.22)"); p.setAttribute("stroke-width", on ? "5" : "4"); if (!on) p.setAttribute("stroke-dasharray", "1 11");
-        svg.append(p);
-      }
-      path.append(svg);
-      seq.forEach((n, k) => {
-        const x = X(k), y = Y(k), nd = el("button", "node " + n.t + " " + n.state + (n.cur ? " cur" : "")), inn = el("span", "in");
-        nd.style.left = x / 4 + "%"; nd.style.top = y + "px";
-        const lab = el("div", "nl"); lab.style.top = y + "px";
-        if (x >= 200) { lab.style.right = "calc(" + (100 - x / 4) + "% + 52px)"; lab.style.textAlign = "right"; } else { lab.style.left = "calc(" + x / 4 + "% + 52px)"; }
-        if (n.t === "stage") {
-          nd.style.setProperty("--p", n.s.pct + "%"); inn.textContent = n.s.done ? "✓" : String(n.s.i + 1);
-          lab.append(el("b", "", "Basamak " + (n.s.i + 1)), document.createTextNode(n.s.done ? "Tamamlandı" : n.s.words.length + " kelime · %" + n.s.pct));
-          nd.onclick = () => n.state === "lock" ? toast("Önce önceki basamağı tamamla.") : startNode(b, n.s.i);
-        } else if (n.t === "chest") {
-          inn.textContent = n.state === "done" ? "◇" : "◆";
-          lab.append(el("b", "", "Sandık"), document.createTextNode(n.state === "done" ? "Açıldı" : "+" + CHEST_XP + " XP"));
-          nd.onclick = () => { if (n.state === "lock") return toast("Sandık için önceki basamağı tamamla."); if (n.state === "done") return; P.chest[n.key] = 1; P.xp += CHEST_XP; save(); toast("Sandık açıldı: +" + CHEST_XP + " XP"); draw(me, words); };
-        } else {
-          nd.style.setProperty("--p", passed ? "100%" : "0%"); inn.textContent = "★";
-          lab.append(el("b", "", "Bölüm sınavı"), document.createTextNode(passed ? "Geçildi · tekrar çöz" : "+" + BOSS_XP + " XP · rozet"));
-          nd.onclick = () => n.state === "lock" ? toast("Önce tüm basamakları tamamla.") : startNode(b, "boss");
-        }
-        nd.append(inn); path.append(nd, lab);
-      });
-      body.append(path);
-    }
-  } else if (tab === "eps") {
-    if (!mine.length) body.append(el("div", "empty", "Henüz kelime yok."));
-    mine.forEach((b) => {
-      const st = stagesOf(b, P), m = st.reduce((s, x) => s + x.m, 0), p = Math.round(m / b.words.length * 100), fin = !!P.boss[bkey(b)];
-      const r = el("div", "ep"), en = el("div", "en", b.name);
-      if (fin) en.append(el("span", "badge", "Tamam"));
-      en.append(el("small", "", b.words.length + " kelime · " + st.filter((s) => s.done).length + "/" + st.length + " basamak"));
-      const btn = el("button", "lnk", "Haritayı aç"); btn.onclick = () => { curEp = b.name; tab = "map"; draw(me, words); };
-      const ac = el("div", "ac"); ac.append(btn); const trk = track(p, "ok"); trk.classList.add("tr");
-      r.append(en, trk, el("div", "pc", "%" + p), ac); body.append(r);
-    });
-  } else if (tab === "ach") {
-    const g = el("div", "ach");
-    ACH.forEach((a, i) => { const on = !!P.ach[i], d = el("div", "a" + (on ? " on" : "")); d.append(el("i", "", a[0]), el("b", "", a[1]), el("span", "", a[2] + " · +" + a[4] + " XP")); g.append(d); });
-    body.append(g);
-  } else if (tab === "words") {
-    const s = el("input", "search"); s.placeholder = "Kelime ara"; const l = el("div");
-    const fill = () => { l.replaceChildren(); const q = s.value.toLowerCase();
-      words.filter((w) => !q || w.tr.toLowerCase().includes(q) || w.eng.toLowerCase().includes(q)).forEach((w) => { const r = el("div", "row" + (P.mastered[wkey(w)] ? " m" : "")); r.append(el("span", "", w.tr), el("em", "", w.eng)); l.append(r); });
-      if (!l.children.length) l.append(el("div", "empty", "Sonuç yok.")); };
-    s.oninput = fill; fill(); body.append(s, l);
-  } else {
-    const sw = el("div", "tabs"), lb = el("div"); sw.style.marginTop = "10px";
-    [["Bu hafta", "week"], ["Tüm zamanlar", "all"]].forEach(([l, p]) => { const b = el("button", lbp === p ? "on" : "", l); b.onclick = () => { lbp = p; draw(me, words); }; sw.append(b); });
-    api("/api/leaderboard?period=" + lbp).then((rows) => {
-      if (!rows.length) lb.append(el("div", "empty", "Henüz oynanmış oyun yok."));
-      rows.forEach((r, i) => { const row = el("div", "row" + (r.username === me.username ? " me" : ""));
-        row.append(el("span", "", (i + 1) + ". " + r.username), el("span", "", r.score + " puan · " + r.wins + " galibiyet")); lb.append(row); }); });
-    body.append(sw, lb);
-  }
 
-  /* ---- yan: görevler + eklenti ---- */
-  const side = el("div", "side"), s1 = el("section"), s2 = el("section");
-  s1.append(el("div", "cap", "Günlük görevler"));
-  QUESTS.forEach((q) => { const v = Math.min(q[1], q[2]), ok = v >= q[2], d = el("div", "quest" + (ok ? " ok" : "")), r = el("div", "t");
-    r.append(el("span", "", q[0]), el("span", "dim", v + "/" + q[2] + " · +" + q[3])); d.append(r, track(v / q[2] * 100, ok ? "ok" : "")); s1.append(d); });
-  const ec = el("div", "extc"), ext = el("button", "solid", "Eklenti anahtarı oluştur"), key = el("p", "key"); ext.id = "keybtn";
-  ext.onclick = async () => { key.textContent = (await api("/api/ext-key", {})).key; };
-  ec.append(el("div", "cap", "Eklenti"), el("h3", "", "Haritanı eklentiyle uzat"), el("div", "big", "+5 XP"),
-    el("p", "", "İzlerken yakaladığın her yeni kelime haritaya basamak ekler. Daha çok izle, daha uzun harita, daha çok ödül."),
-    el("p", "dim", "Bu cihazda eklentiyle yakalanan: " + P.capTotal + " kelime"), ext, key, el("p", "dim", "Anahtarı eklentinin penceresine yapıştır."));
-  s2.append(ec); side.append(s1, s2);
+def need_user(req: Request) -> dict:
+    u = user_from_request(req)
+    if not u:
+        raise HTTPException(401, "Giriş yapmalısın.")
+    return u
 
-  const cols = el("div", "cols"), main = el("div"); main.append(tabs, body); cols.append(main, side);
-  const credit = el("div", "dim", "Dizi görselleri: TVmaze"); credit.style.cssText = "margin-top:40px;font-size:12px";
-  app.replaceChildren(bar, hero, stats, strip, cols, credit);
-}
 
-/* ---------- tek kişilik oyun ---------- */
-function play(me, words, list, P, save, opts = {}) {
-  if (words.length < 2) return toast("Oynamak için en az 2 kelime lazım.");
-  const ov = el("div", "ov"), q = el("div", "q"); ov.append(q); document.body.append(ov);
-  const items = shuf(list), wrongs = [];
-  let i = 0, ok = 0, combo = 0, xp = 0, locked = false;
-  const close = () => { save(); ov.remove(); draw(me, words); };
-  function ask() {
-    locked = false;
-    const it = items[i];
-    const pool = shuf([...new Set(words.filter((w) => w.eng !== it.eng).map((w) => w.eng))]).slice(0, 3);
-    const optsL = shuf([it.eng, ...pool]);
-    const h = el("div", "qh"), x = el("button", "", "✕"); x.onclick = close;
-    h.append(x, el("span", "", (i + 1) + " / " + items.length), el("span", "", xp + " XP"));
-    const o = el("div", "opts");
-    optsL.forEach((txt) => {
-      const b = el("button", "", txt);
-      b.onclick = () => {
-        if (locked) return; locked = true;
-        const right = txt === it.eng;
-        [...o.children].forEach((c) => { if (c.textContent === it.eng) c.classList.add("okk"); });
-        P.today = (P.today || 0) + 1;
-        if (right) { ok++; combo++; P.maxCombo = Math.max(P.maxCombo || 0, combo); xp += 10 + Math.min(combo, 5) * 2; P.mastered[wkey(it)] = 1; }
-        else { b.classList.add("no"); combo = 0; wrongs.push(it); }
-        setTimeout(() => { i++; i < items.length ? ask() : finish(); }, right ? 650 : 1100);
-      };
-      o.append(b);
-    });
-    q.replaceChildren(el("div", "cap", opts.title || ""), h, track(i / items.length * 100), el("div", "w", it.tr), el("div", "hint", "İngilizcesi nedir?"), o, el("div", "combo", combo > 1 ? combo + "'li kombo" : ""));
-  }
-  function finish() {
-    const p = Math.round(ok / items.length * 100), lv0 = lvlOf(P.xp);
-    P.xp += xp; if (opts.onDone) opts.onDone(p);
-    save(); if (lvlOf(P.xp) > lv0) toast("Seviye atladın: " + lvlOf(P.xp));
-    const r = el("div", "res");
-    const msg = opts.boss ? (p >= BOSS_PASS ? "Bölüm sınavını geçtin." : "Geçmek için %" + BOSS_PASS + " gerekli, tekrar dene.") : (p === 100 ? "Basamak tamam!" : wrongs.length ? "Yanlışları tekrar çalış, basamak tamamlansın." : "Güzel gidiyorsun.");
-    r.append(el("div", "cap", "Sonuç"), el("div", "big", "%" + p), el("div", "dim", ok + "/" + items.length + " doğru · +" + xp + " XP"), el("p", "", msg));
-    if (opts.boss && p < BOSS_PASS) { const rb = el("button", "", "Tekrar dene"); rb.onclick = () => { ov.remove(); play(me, words, opts.make(), P, save, opts); }; r.append(rb); }
-    else if (!opts.boss && wrongs.length) { const rb = el("button", "", "Yanlışları tekrar çalış (" + wrongs.length + ")"); rb.onclick = () => { ov.remove(); play(me, words, wrongs, P, save, { title: opts.title }); }; r.append(rb); }
-    const back = el("button", "solid", "Haritaya dön"); back.onclick = close; r.append(back);
-    q.replaceChildren(r);
-  }
-  ask();
-}
-panelView();
-</script>
-</body>
-</html>
+# ---------- Sunucunun kullandığı yardımcılar ----------
+
+def tag_user_words(uid: int, episode: str, words: list):
+    episode = " ".join((episode or "").split())[:80]
+    if not words:
+        return
+    conn = psycopg2.connect(**DB)
+    try:
+        cur = conn.cursor()
+        for w in words:
+            cur.execute("INSERT INTO user_words (user_id, tr, episode) VALUES (%s, %s, %s) "
+                        "ON CONFLICT DO NOTHING;", (uid, w, episode))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def record_game(episode: str, results: list):
+    """results: [(user_id, puan), ...] puana göre azalan sıralı."""
+    for i, (uid, score) in enumerate(results):
+        q("INSERT INTO game_results (user_id, episode, score, place, players) "
+          "VALUES (%s, %s, %s, %s, %s);", (uid, episode, score, i + 1, len(results)))
+
+
+# ---------- Uç noktalar ----------
+
+class Cred(BaseModel):
+    username: str
+    password: str
+
+
+_HITS = {}
+
+
+def _throttle_ip(request: Request, limit: int = 10, window: int = 60):
+    """Aynı IP'den dakikada en fazla `limit` giriş/kayıt denemesine izin verir."""
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?")).split(",")[0].strip()
+    now = time.time()
+    hits = [h for h in _HITS.get(ip, []) if now - h < window]
+    if len(hits) >= limit:
+        raise HTTPException(429, "Çok fazla deneme. Bir dakika sonra tekrar dene.")
+    hits.append(now)
+    _HITS[ip] = hits
+    if len(_HITS) > 5000:
+        _HITS.clear()
+
+
+def _login_response(uid: int, request: Request, response: Response, username: str):
+    t = _new_session(uid)
+    response.set_cookie(COOKIE, t, httponly=True, samesite="lax", max_age=90 * 86400,
+                        secure=request.headers.get("x-forwarded-proto") == "https")
+    return {"username": username}
+
+
+@router.get("/account")
+def account_page():
+    return FileResponse("templates/account.html")
+
+
+@router.post("/api/register")
+def register(c: Cred, request: Request, response: Response):
+    _throttle_ip(request)
+    name = c.username.strip()
+    if not re.fullmatch(r"\w{3,16}", name):
+        raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
+    if len(c.password) < 6:
+        raise HTTPException(400, "Parola en az 6 karakter olmalı.")
+    if q("SELECT 1 FROM users WHERE lower(username) = lower(%s);", (name,), True):
+        raise HTTPException(409, "Bu kullanıcı adı alınmış.")
+    uid = q("INSERT INTO users (username, pw_hash) VALUES (%s, %s) RETURNING id;",
+            (name, _hash(c.password)), True)[0][0]
+    return _login_response(uid, request, response, name)
+
+
+@router.post("/api/login")
+def login(c: Cred, request: Request, response: Response):
+    _throttle_ip(request)
+    r = q("SELECT id, username, pw_hash FROM users WHERE lower(username) = lower(%s);",
+          (c.username.strip(),), True)
+    if not r or not _check(c.password, r[0][2]):
+        raise HTTPException(401, "Kullanıcı adı ya da parola hatalı.")
+    return _login_response(r[0][0], request, response, r[0][1])
+
+
+@router.post("/api/logout")
+def logout(request: Request, response: Response):
+    t = request.cookies.get(COOKIE)
+    if t:
+        q("DELETE FROM sessions WHERE token_hash = %s;", (_sha(t),))
+    response.delete_cookie(COOKIE)
+    return {"ok": True}
+
+
+@router.get("/api/me")
+def me(request: Request):
+    u = need_user(request)
+    g = q("SELECT count(*), coalesce(sum(score), 0), coalesce(sum((place = 1)::int), 0) "
+          "FROM game_results WHERE user_id = %s;", (u["id"],), True)[0]
+    n = q("SELECT count(DISTINCT tr) FROM user_words WHERE user_id = %s;", (u["id"],), True)[0][0]
+    return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n}
+
+
+@router.post("/api/ext-key")
+def ext_key(request: Request):
+    """Eklentiye yapıştırılacak ayrı bir anahtar üretir."""
+    return {"key": _new_session(need_user(request)["id"])}
+
+
+@router.get("/api/my-words")
+def my_words(request: Request):
+    u = need_user(request)
+    rows = q("SELECT uw.tr, w.eng, uw.episode FROM user_words uw JOIN words w ON w.tr = uw.tr "
+             "WHERE uw.user_id = %s ORDER BY uw.created_at DESC LIMIT 500;", (u["id"],), True)
+    return [{"tr": r[0], "eng": r[1], "episode": r[2]} for r in rows]
+
+
+@router.get("/api/my-episodes")
+def my_episodes(request: Request):
+    u = need_user(request)
+    rows = q("SELECT uw.episode, count(*) FROM user_words uw JOIN words w ON w.tr = uw.tr "
+             "WHERE uw.user_id = %s AND uw.episode <> '' GROUP BY uw.episode "
+             "ORDER BY max(uw.created_at) DESC;", (u["id"],), True)
+    return [{"episode": r[0], "word_count": r[1]} for r in rows]
+
+
+@router.get("/api/leaderboard")
+def leaderboard(period: str = "all"):
+    where = "WHERE r.created_at > now() - interval '7 days'" if period == "week" else ""
+    rows = q("SELECT u.username, sum(r.score), count(*), sum((r.place = 1)::int) "
+             "FROM game_results r JOIN users u ON u.id = r.user_id " + where +
+             " GROUP BY u.username ORDER BY sum(r.score) DESC LIMIT 20;", (), True)
+    return [{"username": r[0], "score": int(r[1]), "games": r[2], "wins": int(r[3])} for r in rows]
+
+PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CineVocab Gizlilik Politikası</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
+<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video ve YouTube'da Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
+<h2>Hangi verileri topluyoruz?</h2><ul>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların.</li>
+<li><b>Kelime listen:</b> İzlerken karşılaştığın Türkçe kelimeler, İngilizce karşılıkları ve izlediğin bölümün ya da videonun adı.</li>
+<li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
+<li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li></ul>
+<h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
+<h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
+<h2>Verilerini silme</h2><p>Hesabının ve tüm verilerinin silinmesi için aşağıdaki adrese yaz.</p>
+<h2>İletişim</h2><p>[E-POSTA ADRESİNİ BURAYA YAZ]</p>
+<p>CineVocab, Amazon, Prime Video, Google ve YouTube ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+def privacy():
+    return PRIVACY

@@ -4,10 +4,11 @@ import hmac
 import os
 import re
 import secrets
+import time
 
 import psycopg2
 from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -118,6 +119,22 @@ class Cred(BaseModel):
     password: str
 
 
+_HITS = {}
+
+
+def _throttle_ip(request: Request, limit: int = 10, window: int = 60):
+    """Aynı IP'den dakikada en fazla `limit` giriş/kayıt denemesine izin verir."""
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?")).split(",")[0].strip()
+    now = time.time()
+    hits = [h for h in _HITS.get(ip, []) if now - h < window]
+    if len(hits) >= limit:
+        raise HTTPException(429, "Çok fazla deneme. Bir dakika sonra tekrar dene.")
+    hits.append(now)
+    _HITS[ip] = hits
+    if len(_HITS) > 5000:
+        _HITS.clear()
+
+
 def _login_response(uid: int, request: Request, response: Response, username: str):
     t = _new_session(uid)
     response.set_cookie(COOKIE, t, httponly=True, samesite="lax", max_age=90 * 86400,
@@ -132,6 +149,7 @@ def account_page():
 
 @router.post("/api/register")
 def register(c: Cred, request: Request, response: Response):
+    _throttle_ip(request)
     name = c.username.strip()
     if not re.fullmatch(r"\w{3,16}", name):
         raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
@@ -146,6 +164,7 @@ def register(c: Cred, request: Request, response: Response):
 
 @router.post("/api/login")
 def login(c: Cred, request: Request, response: Response):
+    _throttle_ip(request)
     r = q("SELECT id, username, pw_hash FROM users WHERE lower(username) = lower(%s);",
           (c.username.strip(),), True)
     if not r or not _check(c.password, r[0][2]):
@@ -201,3 +220,24 @@ def leaderboard(period: str = "all"):
              "FROM game_results r JOIN users u ON u.id = r.user_id " + where +
              " GROUP BY u.username ORDER BY sum(r.score) DESC LIMIT 20;", (), True)
     return [{"username": r[0], "score": int(r[1]), "games": r[2], "wins": int(r[3])} for r in rows]
+
+PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CineVocab Gizlilik Politikası</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
+<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video ve YouTube'da Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
+<h2>Hangi verileri topluyoruz?</h2><ul>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların.</li>
+<li><b>Kelime listen:</b> İzlerken karşılaştığın Türkçe kelimeler, İngilizce karşılıkları ve izlediğin bölümün ya da videonun adı.</li>
+<li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
+<li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li></ul>
+<h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
+<h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
+<h2>Verilerini silme</h2><p>Hesabının ve tüm verilerinin silinmesi için aşağıdaki adrese yaz.</p>
+<h2>İletişim</h2><p>[E-POSTA ADRESİNİ BURAYA YAZ]</p>
+<p>CineVocab, Amazon, Prime Video, Google ve YouTube ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+def privacy():
+    return PRIVACY
