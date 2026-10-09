@@ -1,15 +1,17 @@
+import os
 import re
 import time
 import asyncio
 import random
 import threading
 import concurrent.futures
+from urllib.parse import urlparse
 
 import requests
 import psycopg2
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
@@ -30,13 +32,25 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory="templates")
 
-DB_CONFIG = {
-    "dbname": "lost_vocabulary",
-    "user": "yakupceri",
-    "password": "",
-    "host": "localhost",
-    "port": "5432",
-}
+# Railway'de DATABASE_URL tanımlıdır; Mac'te yoksa eski yerel ayarlar kullanılır.
+_db_url = os.environ.get("DATABASE_URL")
+if _db_url:
+    _u = urlparse(_db_url)
+    DB_CONFIG = {
+        "dbname": _u.path.lstrip("/"),
+        "user": _u.username,
+        "password": _u.password,
+        "host": _u.hostname,
+        "port": _u.port or 5432,
+    }
+else:
+    DB_CONFIG = {
+        "dbname": "lost_vocabulary",
+        "user": "yakupceri",
+        "password": "",
+        "host": "localhost",
+        "port": "5432",
+    }
 
 
 # ======================= Modeller =======================
@@ -232,10 +246,16 @@ TAGGED = set()  # (bölüm, kelime) çiftleri; aynı çifti tekrar yazmamak içi
 
 
 def init_db():
+    """Tabloları oluşturur (yoksa). Railway'deki boş veritabanı için gerekli."""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         try:
             cur = conn.cursor()
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS words ("
+                "id SERIAL PRIMARY KEY, eng TEXT, tr TEXT, "
+                "created_at TIMESTAMP DEFAULT now());"
+            )
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS episode_words ("
                 "episode TEXT NOT NULL, tr TEXT NOT NULL, "
@@ -246,11 +266,15 @@ def init_db():
         finally:
             conn.close()
     except Exception as e:
-        print(f"episode_words tablosu oluşturulamadı: {e}")
+        print(f"Tablolar oluşturulamadı: {e}")
 
 
 init_db()
-init_accounts(DB_CONFIG)
+try:
+    init_accounts(DB_CONFIG)
+except Exception as e:
+    # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
+    print(f"Hesap tabloları oluşturulamadı: {e}")
 
 
 def tag_episode(episode: str, words: list):
@@ -472,7 +496,7 @@ def _warm_local():
         _get_local().translate("merhaba")
         print("   [local] model hazır")
     except LocalMissing as e:
-        print(f"   [local] {e}. Kurmak için: python3 setup_argos.py")
+        print(f"   [local] {e}. (Sorun değil, Google servisleri kullanılacak)")
     except Exception as e:
         print(f"   [local] ısınma hatası: {e}")
     _analyzer()
@@ -648,7 +672,7 @@ def _call(name: str, fn, timeout: int, arg):
     except LocalMissing as e:
         with _state_lock:
             BLOCKED_UNTIL[name] = time.time() + 3600
-        print(f"   [{name}] {e}. Kurmak için: python3 setup_argos.py")
+        print(f"   [{name}] {e}")
     except Exception as e:
         secs = _block(name, rate_limited=False)
         print(f"   [{name}] hata: {e} ({secs} sn atlanacak)")
@@ -1034,14 +1058,21 @@ def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
-@app.get("/play", response_class=HTMLResponse)
-def play_page(request: Request):
-    return templates.TemplateResponse(request, "play.html")
+@app.get("/play")
+def play_page():
+    """play.html silindi; eski adres oyun sayfasına yönlendirir."""
+    return RedirectResponse("/game")
 
 
 @app.get("/game", response_class=HTMLResponse)
 def game_page(request: Request):
     return templates.TemplateResponse(request, "game.html")
+
+
+@app.get("/health")
+def health():
+    """Railway'in sunucunun ayakta olduğunu kontrol etmesi için."""
+    return {"ok": True}
 
 
 @app.get("/episodes")
