@@ -5,7 +5,7 @@
   "description": "Prime Video Türkçe altyazılarını kelime kelime çevirip kaydeder.",
   "permissions": ["storage"],
   "host_permissions": [
-    "https://cinevocab-app-production.up.railway.app/*",
+    "https://cinevocab.up.railway.app/*",
     "https://www.primevideo.com/*",
     "https://*.amazon.com/*"
   ],

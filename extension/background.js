@@ -1,7 +1,7 @@
 // API isteği content script'ten değil buradan yapılır.
 // (Prime sayfası https olduğu için content script'ten http://127.0.0.1'e fetch engellenir.)
 
-const API = "https://cinevocab-app-production.up.railway.app";
+const API = "https://cinevocab.up.railway.app";
 const TIMEOUT_MS = 45000; // sunucudaki servis zinciri (5+10+20 sn + kuyruk) sığsın
 
 function post(path, body, sendResponse) {
