@@ -1,4 +1,4 @@
-const SERVER = "https://cinevocab-app-production.up.railway.app";
+const SERVER = "https://cinevocab-app-production.up.railway.app/account";
 const key = document.getElementById("key"), st = document.getElementById("st");
 chrome.storage.local.get("key", (r) => { if (r.key) { key.value = r.key; st.textContent = "Anahtar kayıtlı."; } });
 document.getElementById("save").onclick = () =>
