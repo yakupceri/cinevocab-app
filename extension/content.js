@@ -1,5 +1,5 @@
-console.log("CineVocab aktif - Saf Altyazı Modu");
 const IS_YT = location.hostname.endsWith("youtube.com");
+const IS_UDEMY = location.hostname.endsWith("udemy.com");
 
 // ---------- Overlay kutusu ----------
 const overlayBox = document.createElement("div");
@@ -19,8 +19,9 @@ Object.assign(overlayBox.style, {
   pointerEvents: "none",
   maxWidth: "640px",
 });
-overlayBox.textContent = "CineVocab: Dinlemede...";
+overlayBox.style.display = "none"; // altyazı gelene kadar görünmez
 document.body.appendChild(overlayBox);
+let hideTimer = null;
 
 document.addEventListener("fullscreenchange", () => {
   (document.fullscreenElement || document.body).appendChild(overlayBox);
@@ -54,6 +55,7 @@ function findEpisodeText() {
 
 function readEpisode() {
   if (IS_YT) return readYouTubeTitle();
+  if (IS_UDEMY) return readUdemyTitle();
   if (location.href !== lastHref) {
     lastHref = location.href;
     currentEpisode = "";
@@ -83,6 +85,28 @@ function readYouTubeTitle() {
     document.title.replace(/^\(\d+\)\s*/, "").replace(/\s*-\s*YouTube\s*$/i, "");
   const title = raw.trim().slice(0, 60);
   return title ? "YouTube · " + title : "";
+}
+
+// Udemy: kurs adı (sınıf adları sık değiştiği için birkaç yedek seçici + sayfa başlığı)
+function readUdemyTitle() {
+  const raw =
+    firstText("[data-purpose='course-header-title'], [class*='header--course-title'], [class*='curriculum-item-view--title']") ||
+    document.title.replace(/\s*[|\-–]\s*Udemy.*$/i, "");
+  const title = raw.trim().slice(0, 60);
+  return title ? "Udemy · " + title : "";
+}
+
+function readUdemySubtitle() {
+  const nodes = [
+    ...document.querySelectorAll(
+      "[data-purpose='captions-cue-text'], [class*='captions-display--captions-cue-text']"
+    ),
+  ];
+  const outer = nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
+  return outer
+    .map((n) => (n.innerText ? n.innerText.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
 }
 
 function readYouTubeSubtitle() {
@@ -122,6 +146,8 @@ function splitWords(sentence) {
 }
 
 let sentenceId = 0;
+const wordCache = new Map(); // tr -> en (sekme açık kaldıkça tekrar sorulmaz)
+const sentCache = new Map(); // cümle -> İngilizcesi
 
 // Gecikmeler: 2 sn, 4 sn, 8 sn (sunucu bloklanmışsa Google'ı yormayalım)
 const RETRY_DELAYS = [2000, 4000, 8000];
@@ -133,6 +159,9 @@ function showSentence(sentence) {
   const words = splitWords(sentence);
   if (words.length === 0) return;
 
+  overlayBox.style.display = "block";
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => (overlayBox.style.display = "none"), 12000);
   overlayBox.textContent = "";
   const epLabel = document.createElement("div");
   Object.assign(epLabel.style, { fontSize: "12px", color: "#8b909c", marginBottom: "4px" });
@@ -165,6 +194,11 @@ function showSentence(sentence) {
   });
 
   const setText = (w, text) => (slots[w] || []).forEach((el) => (el.textContent = text));
+  uniqueWords.forEach((w) => wordCache.has(w) && setText(w, wordCache.get(w)));
+  if (sentCache.has(sentence)) {
+    transLine.textContent = sentCache.get(sentence);
+    transLine.dataset.ok = "1";
+  }
   const markFailed = (list) => list.forEach((w) => setText(w, "?"));
   // Hata/durum mesajını cümle çevirisi satırında göster (cümle çevirisi gelene kadar)
   const status = (msg) => { if (!transLine.dataset.ok) transLine.textContent = msg; };
@@ -206,16 +240,29 @@ function showSentence(sentence) {
           return;
         }
 
-        for (const [w, eng] of Object.entries(res.results || {})) setText(w, eng);
+        for (const [w, eng] of Object.entries(res.results || {})) {
+          wordCache.set(w, eng);
+          setText(w, eng);
+        }
         markFailed(res.failed || []); // sunucu "çevrilemedi" dediyse tekrar deneme
         if (res.sentence_en) {
           transLine.textContent = res.sentence_en;
           transLine.dataset.ok = "1";
+          sentCache.set(sentence, res.sentence_en);
+          if (sentCache.size > 200) sentCache.delete(sentCache.keys().next().value);
         }
 
         if (lookupOnly) {
-          // Hızlı arama bitti; şimdi cümle bağlamıyla gerçek çeviri iste
-          request(uniqueWords, 0, false);
+          // Hızlı arama bitti (kelimeler bölüme/hesaba yazıldı).
+          const unknown = res.pending || [];
+          if (!unknown.length) {
+            // Hepsi biliniyor. YouTube'un kayan otomatik altyazılarında her değişiklik için
+            // cümle çevirisi istemek Google'ı engelletiyordu: orada atlanır.
+            if (IS_YT || sentCache.has(sentence)) { giveUpSentence(); return; }
+            request([], 0, false); // Prime/Udemy: sadece cümle çevirisi
+            return;
+          }
+          request(unknown, 0, false);
           return;
         }
 
@@ -242,6 +289,7 @@ let ytCandidate = "";
 
 function readSubtitle() {
   if (IS_YT) return readYouTubeSubtitle();
+  if (IS_UDEMY) return readUdemySubtitle();
   const nodes = [
     ...document.querySelectorAll(
       ".atvwebplayersdk-captions-text, [class*='captions-text'], .timedTextWindow, [data-automation-id='subtitle-line']"
@@ -256,7 +304,7 @@ function readSubtitle() {
 }
 
 setInterval(() => {
-  const text = readSubtitle();
+  const text = readSubtitle().replace(/\s+/g, " ").trim();
 
   if (!text) {
     lastSubtitle = ""; // altyazı kayboldu; aynı cümle tekrar gelirse yeniden işle

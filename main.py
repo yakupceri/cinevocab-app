@@ -1,5 +1,6 @@
 import os
 import re
+import html
 import time
 import asyncio
 import random
@@ -17,10 +18,12 @@ from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, user_from_request, user_from_token,
-                      record_game, tag_user_words)
+                      record_game, tag_user_words, _throttle_ip)
+import admin
 
 app = FastAPI()
 app.include_router(router)
+app.include_router(admin.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -307,10 +310,10 @@ def tag_episode(episode: str, words: list):
 
 def save_translations(translated: dict, sources: dict):
     """Kaynağa göre kaydet:
-    gtx / deep / dict : güvenilir, eski kaydın üstüne yazar
+    gcloud / gtx / deep / dict : güvenilir, eski kaydın üstüne yazar
     ctx               : yerel model + cümle bağlamıyla doğrulandı, sadece yeni kayıt ekler
     local             : doğrulanamadı, sadece ekranda gösterilir, KAYDEDİLMEZ"""
-    strong = {w: t for w, t in translated.items() if sources.get(w) in ("gtx", "deep", "dict")}
+    strong = {w: t for w, t in translated.items() if sources.get(w) in ("gtx", "deep", "dict", "gcloud")}
     weak = {w: t for w, t in translated.items() if sources.get(w) == "ctx"}
     if strong:
         safe_store(strong)
@@ -382,6 +385,32 @@ def deep_single(words: list):
                 raise
             break
     return out
+
+
+# Resmi Google Cloud Translation API (önerilir). Railway > Variables: GOOGLE_TRANSLATE_API_KEY
+# Ücretsiz gtx ucu Railway IP'sinden sık sık 429 ile engellenir; resmi API engellenmez.
+GCLOUD_KEY = os.environ.get("GOOGLE_TRANSLATE_API_KEY", "").strip()
+
+
+def _gcloud(texts: list):
+    r = requests.post(
+        "https://translation.googleapis.com/language/translate/v2",
+        params={"key": GCLOUD_KEY},
+        json={"q": texts, "source": "tr", "target": "en", "format": "text"},
+        timeout=8,
+    )
+    if r.status_code == 429:
+        raise TooManyRequests()
+    r.raise_for_status()
+    return [html.unescape(t["translatedText"]) for t in r.json()["data"]["translations"]]
+
+
+def gcloud_batch(words: list):
+    return dict(zip(words, _gcloud(words)))
+
+
+def gcloud_sentence(sentence: str):
+    return _gcloud([sentence])[0].strip()
 
 
 class LocalMissing(Exception):
@@ -650,6 +679,9 @@ SENT_PROVIDERS = [
     ("gtx", gtx_sentence, 5),
     ("local", local_sentence, 20),
 ]
+if GCLOUD_KEY:  # anahtar varsa en başa resmi API konur
+    PROVIDERS.insert(0, ("gcloud", gcloud_batch, 8))
+    SENT_PROVIDERS.insert(0, ("gcloud", gcloud_sentence, 8))
 BLOCKED_UNTIL = {name: 0.0 for name, _, _ in PROVIDERS}
 FAILS = {name: 0 for name, _, _ in PROVIDERS}
 _state_lock = threading.Lock()
@@ -1042,6 +1074,9 @@ async def ws_endpoint(ws: WebSocket):
                     await ws.send_json({"t": "error", "msg": "Önce giriş yapmalısın."})
                     continue
                 name = user["username"]
+                if user.get("gban"):
+                    await ws.send_json({"t": "error", "msg": "Oyun odalarına girişin kısıtlandı."})
+                    continue
                 if t == "create":
                     episode = str(msg.get("episode") or "")[:80]
                     n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]])) if episode else 0
@@ -1150,8 +1185,7 @@ def episode_words(episode: str):
             conn.close()
 
 
-@app.get("/debug/providers")
-def debug_providers():
+def provider_status():
     now = time.time()
     with _state_lock:
         return {
@@ -1162,13 +1196,47 @@ def debug_providers():
             "lemma_ready": _zey["a"] is not None,
             "negative_cache": len(FAILED_UNTIL),
             "deferred": len(DEFERRED),
+            "gcloud_key": bool(GCLOUD_KEY),
         }
+
+
+@app.get("/debug/providers")
+def debug_providers(request: Request):
+    if not admin.is_admin(request):
+        raise HTTPException(404, "Not found")
+    return provider_status()
+
+
+def reset_providers():
+    with _state_lock:
+        for n in BLOCKED_UNTIL:
+            BLOCKED_UNTIL[n] = 0.0
+            FAILS[n] = 0
+        FAILED_UNTIL.clear()
+
+
+async def kick_user(uid: int):
+    """Banlanan / yasaklanan kullanıcıyı açık oyun odalarından at."""
+    for room in list(ROOMS.values()):
+        for pid, p in list(room.players.items()):
+            if p.get("uid") == uid:
+                try:
+                    await p["ws"].close()
+                except Exception:
+                    pass
+
+
+admin.hooks.update(rooms=lambda: ROOMS, providers=provider_status,
+                   reset_providers=reset_providers, kick_user=kick_user)
 
 
 @app.post("/translate-words")
 def translate_words(batch: WordsBatch, request: Request):
     """Bir cümlenin kelimelerini alır. Önce veritabanı/sözlük, eksikler için çeviri servisleri."""
     global LATEST_GEN, LAST_REQUEST_TIME
+    _throttle_ip(request, limit=240, window=60, bucket="tr")
+    batch.sentence = batch.sentence[:300]
+    batch.episode = batch.episode[:80]
     LAST_REQUEST_TIME = time.time()
     LATEST_GEN = max(LATEST_GEN, batch.gen)
 

@@ -42,6 +42,14 @@ def init_accounts(db_config: dict):
         "CREATE TABLE IF NOT EXISTS game_results (id SERIAL PRIMARY KEY, user_id INT NOT NULL, "
         "episode TEXT, score INT NOT NULL, place INT NOT NULL, players INT NOT NULL, "
         "created_at TIMESTAMP DEFAULT now());",
+        # --- yönetim: ban / ceza / son görülme ---
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS game_banned_until TIMESTAMP;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS game_ban_reason TEXT;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;",
+        "CREATE TABLE IF NOT EXISTS admin_log (id SERIAL PRIMARY KEY, at TIMESTAMP DEFAULT now(), "
+        "action TEXT NOT NULL, target TEXT, detail TEXT, ip TEXT);",
     ):
         q(sql)
 
@@ -68,12 +76,28 @@ def _new_session(uid: int) -> str:
     return t
 
 
+SESSION_DAYS = 90
+
+
 def user_from_token(t):
+    """Geçerli oturumun kullanıcısı. Banlı kullanıcı için None döner.
+    Dönen sözlük: id, username, gban (oyun yasağı var mı)."""
     if not t:
         return None
-    r = q("SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id "
-          "WHERE s.token_hash = %s;", (_sha(t),), True)
-    return {"id": r[0][0], "username": r[0][1]} if r else None
+    r = q("SELECT u.id, u.username, "
+          "coalesce(u.banned_until > now(), false), "
+          "coalesce(u.game_banned_until > now(), false) "
+          "FROM sessions s JOIN users u ON u.id = s.user_id "
+          "WHERE s.token_hash = %s AND s.created_at > now() - make_interval(days => %s);",
+          (_sha(t), SESSION_DAYS), True)
+    if not r or r[0][2]:
+        return None
+    try:  # dakikada en fazla 1 yazma
+        q("UPDATE users SET last_seen = now() WHERE id = %s "
+          "AND (last_seen IS NULL OR last_seen < now() - interval '1 minute');", (r[0][0],))
+    except Exception:
+        pass
+    return {"id": r[0][0], "username": r[0][1], "gban": bool(r[0][3])}
 
 
 def user_from_request(req: Request):
@@ -122,16 +146,25 @@ class Cred(BaseModel):
 _HITS = {}
 
 
-def _throttle_ip(request: Request, limit: int = 10, window: int = 60):
-    """Aynı IP'den dakikada en fazla `limit` giriş/kayıt denemesine izin verir."""
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?")).split(",")[0].strip()
+def client_ip(request: Request) -> str:
+    """Railway gibi bir proxy arkasında en sağdaki X-Forwarded-For adresi güvenilirdir;
+    soldakiler istemci tarafından sahtelenebilir."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[-1].strip()
+    return request.client.host if request.client else "?"
+
+
+def _throttle_ip(request: Request, limit: int = 10, window: int = 60, bucket: str = "auth"):
+    """Aynı IP'den `window` saniyede en fazla `limit` isteğe izin verir."""
+    key = f"{bucket}:{client_ip(request)}"
     now = time.time()
-    hits = [h for h in _HITS.get(ip, []) if now - h < window]
+    hits = [h for h in _HITS.get(key, []) if now - h < window]
     if len(hits) >= limit:
-        raise HTTPException(429, "Çok fazla deneme. Bir dakika sonra tekrar dene.")
+        raise HTTPException(429, "Çok fazla deneme. Biraz sonra tekrar dene.")
     hits.append(now)
-    _HITS[ip] = hits
-    if len(_HITS) > 5000:
+    _HITS[key] = hits
+    if len(_HITS) > 20000:
         _HITS.clear()
 
 
@@ -165,10 +198,15 @@ def register(c: Cred, request: Request, response: Response):
 @router.post("/api/login")
 def login(c: Cred, request: Request, response: Response):
     _throttle_ip(request)
-    r = q("SELECT id, username, pw_hash FROM users WHERE lower(username) = lower(%s);",
-          (c.username.strip(),), True)
+    r = q("SELECT id, username, pw_hash, banned_until, ban_reason, "
+          "coalesce(banned_until > now(), false) FROM users "
+          "WHERE lower(username) = lower(%s);", (c.username.strip(),), True)
     if not r or not _check(c.password, r[0][2]):
         raise HTTPException(401, "Kullanıcı adı ya da parola hatalı.")
+    if r[0][5]:  # ban aktif mi: karar veritabanı saatiyle verilir
+        until = "süresiz" if r[0][3].year >= 9000 else r[0][3].strftime("%d.%m.%Y %H:%M")
+        why = f" Sebep: {r[0][4]}." if r[0][4] else ""
+        raise HTTPException(403, f"Hesabın askıya alındı ({until}).{why}")
     return _login_response(r[0][0], request, response, r[0][1])
 
 
@@ -188,6 +226,29 @@ def me(request: Request):
           "FROM game_results WHERE user_id = %s;", (u["id"],), True)[0]
     n = q("SELECT count(DISTINCT tr) FROM user_words WHERE user_id = %s;", (u["id"],), True)[0][0]
     return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n}
+
+
+class DeleteReq(BaseModel):
+    password: str
+
+
+@router.post("/api/delete-account")
+def delete_account(c: DeleteReq, request: Request, response: Response):
+    """Kullanıcının kendi hesabını ve tüm kişisel verilerini siler (mağaza/KVKK şartı)."""
+    _throttle_ip(request)
+    u = need_user(request)
+    r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
+    if not r or not _check(c.password, r[0][0]):
+        raise HTTPException(401, "Parola hatalı.")
+    delete_user_data(u["id"])
+    response.delete_cookie(COOKIE)
+    return {"ok": True}
+
+
+def delete_user_data(uid: int):
+    for t in ("sessions", "user_words", "game_results"):
+        q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
+    q("DELETE FROM users WHERE id = %s;", (uid,))
 
 
 @router.post("/api/ext-key")
@@ -227,17 +288,18 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video ve YouTube'da Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
-<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların.</li>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın Türkçe kelimeler, İngilizce karşılıkları ve izlediğin bölümün ya da videonun adı.</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li></ul>
 <h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
 <h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
-<h2>Verilerini silme</h2><p>Hesabının ve tüm verilerinin silinmesi için aşağıdaki adrese yaz.</p>
-<h2>İletişim</h2><p>[E-POSTA ADRESİNİ BURAYA YAZ]</p>
+<h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, hesap sayfandaki <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin.</p>
+<h2>İletişim</h2><p>__CONTACT__</p>
 <p>CineVocab, Amazon, Prime Video, Google ve YouTube ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
 
 
 @router.get("/privacy", response_class=HTMLResponse)
 def privacy():
-    return PRIVACY
+    mail = os.environ.get("CONTACT_EMAIL", "").strip() or "[CONTACT_EMAIL ortam değişkenini ayarla]"
+    return PRIVACY.replace("__CONTACT__", mail)

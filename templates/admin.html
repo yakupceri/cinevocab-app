@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>CineVocab · Yönetim</title>
+<style>
+  :root { --bg:#0c0b0a; --panel:#161412; --ink:#efe6d6; --dim:#a39b8d; --line:rgba(239,230,214,.14);
+          --ember:#e8613c; --gold:#e9b44c; --ok:#86c79a; --bad:#e0604f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 "Segoe UI", system-ui, Arial, sans-serif; }
+  h1,h2,h3 { margin:0; font-family: Georgia, serif; }
+  button, input, select { font:inherit; color:inherit; background:#1d1a17; border:1px solid var(--line);
+          border-radius:8px; padding:8px 11px; }
+  button { cursor:pointer; } button:hover { border-color:var(--gold); }
+  button.primary { background:var(--ember); border:0; color:#fff; font-weight:700; }
+  button.danger { border-color:var(--bad); color:var(--bad); } button.danger:hover { background:var(--bad); color:#fff; }
+  :focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+  .hide { display:none !important; }
+  #login { max-width:340px; margin:14vh auto; padding:26px; background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+  #login input { width:100%; margin-top:10px; } #login button { width:100%; margin-top:14px; }
+  .err { color:var(--bad); min-height:18px; margin-top:8px; }
+  header { display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:20px; } nav { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+  nav button.on { background:var(--ember); border-color:var(--ember); color:#fff; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card b { display:block; font-size:26px; font-family:Georgia,serif; } .card span { color:var(--dim); font-size:12px; }
+  .bar { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; } .bar input { flex:1; min-width:180px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:600; font-size:12px; } tr.click { cursor:pointer; } tr.click:hover td { background:rgba(255,255,255,.03); }
+  .wrap { overflow-x:auto; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; border:1px solid var(--line); }
+  .tag.bad { color:var(--bad); border-color:var(--bad); } .tag.warn { color:var(--gold); border-color:var(--gold); } .tag.ok { color:var(--ok); border-color:var(--ok); }
+  .dim { color:var(--dim); }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:760px){ .grid2{grid-template-columns:1fr;} }
+  .spark { display:flex; align-items:flex-end; gap:4px; height:60px; margin-top:8px; }
+  .spark i { flex:1; background:var(--ember); border-radius:3px 3px 0 0; min-height:2px; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#000; border:1px solid var(--gold); padding:10px 16px; border-radius:10px; z-index:9; }
+</style>
+</head>
+<body>
+
+<div id="login" class="hide">
+  <h2>Yönetim girişi</h2>
+  <form id="lf" autocomplete="on">
+    <input id="lu" name="username" placeholder="Kullanıcı adı" autocomplete="username" required>
+    <input id="lp" name="password" type="password" placeholder="Parola" autocomplete="current-password" required>
+    <button class="primary" type="submit">Giriş</button>
+  </form>
+  <div class="err" id="lerr"></div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <h1>CineVocab · Yönetim</h1>
+    <nav id="nav"></nav>
+    <button id="out">Çıkış</button>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="toast" class="hide"></div>
+
+<script>
+"use strict";
+// ---------- yardımcılar (veriler textContent ile basılır: XSS yok) ----------
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  return e;
+}
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hide"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add("hide"), 2800); }
+async function api(path, method = "GET", body) {
+  const r = await fetch("/admin/api" + path, { method, credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-Admin": "1" }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== "/login") { showLogin(); throw new Error("Oturum bitti"); }
+  if (!r.ok) throw new Error(d.detail || "HTTP " + r.status);
+  return d;
+}
+async function act(fn, okMsg) { try { await fn(); toast(okMsg || "Tamam"); } catch (e) { toast("⚠ " + e.message); } }
+const status = (u) => u.ban ? h("span", { class: "tag bad" }, "BANLI · " + u.ban)
+  : u.game_ban ? h("span", { class: "tag warn" }, "oyun yasağı · " + u.game_ban) : h("span", { class: "tag ok" }, "normal");
+
+// ---------- giriş ----------
+function showLogin() { $("app").classList.add("hide"); $("login").classList.remove("hide"); }
+$("lf").addEventListener("submit", async (e) => {
+  e.preventDefault(); $("lerr").textContent = "";
+  try { await api("/login", "POST", { username: $("lu").value, password: $("lp").value }); $("lp").value = ""; start(); }
+  catch (er) { $("lerr").textContent = er.message; }
+});
+$("out").onclick = async () => { await api("/logout", "POST").catch(() => {}); showLogin(); };
+
+// ---------- sekmeler ----------
+const TABS = { "Özet": viewStats, "Kullanıcılar": viewUsers, "Odalar": viewRooms, "Kelimeler": viewWords, "Sistem": viewSystem, "Günlük": viewLog };
+function start() {
+  $("login").classList.add("hide"); $("app").classList.remove("hide");
+  const nav = $("nav"); nav.textContent = "";
+  Object.keys(TABS).forEach((name, i) => {
+    const b = h("button", { onclick: () => open(name, b) }, name); nav.append(b); if (i === 0) open(name, b);
+  });
+}
+function open(name, btn) {
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b === btn));
+  $("view").textContent = ""; TABS[name]().catch((e) => $("view").append(h("p", { class: "err" }, e.message)));
+}
+
+// ---------- Özet ----------
+async function viewStats() {
+  const s = await api("/stats");
+  const cards = [["Toplam kullanıcı", s.users], ["Bugün kayıt", s.users_today], ["7 günde kayıt", s.users_week],
+    ["Şu an çevrimiçi (5 dk)", s.online_now], ["24 saatte aktif", s.active_24h], ["Banlı", s.banned],
+    ["Çevrilmiş kelime", s.words], ["Kullanıcı kelime kaydı", s.user_words], ["Oynanan oyun", s.games], ["Açık oda", s.rooms]];
+  const max = Math.max(1, ...s.signups.map((x) => x.n));
+  $("view").append(
+    h("div", { class: "cards" }, cards.map(([k, v]) => h("div", { class: "card" }, h("b", {}, v), h("span", {}, k)))),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Son 14 gün kayıtlar"),
+        h("div", { class: "spark" }, s.signups.map((x) => h("i", { title: x.day + ": " + x.n, style: "height:" + (x.n / max) * 100 + "%" })))),
+      h("div", { class: "panel" }, h("h3", {}, "En çok kelime toplanan içerikler"),
+        h("table", {}, s.top_sources.map((x) => h("tr", {}, h("td", {}, x.episode), h("td", {}, x.n)))))));
+}
+
+// ---------- Kullanıcılar ----------
+async function viewUsers() {
+  const box = h("div"), search = h("input", { placeholder: "Kullanıcı ara…" });
+  const load = async () => {
+    const list = await api("/users?q_=" + encodeURIComponent(search.value));
+    box.textContent = "";
+    box.append(h("div", { class: "wrap" }, h("table", {},
+      h("tr", {}, ["#", "Kullanıcı", "Kayıt", "Son görülme", "Kelime", "Oyun", "Puan", "Durum"].map((t) => h("th", {}, t))),
+      list.map((u) => h("tr", { class: "click", onclick: () => userDetail(u.id) },
+        h("td", {}, u.id), h("td", {}, u.username), h("td", { class: "dim" }, u.created), h("td", { class: "dim" }, u.last_seen || "—"),
+        h("td", {}, u.words), h("td", {}, u.games), h("td", {}, u.score), h("td", {}, status(u)))))));
+  };
+  search.addEventListener("input", () => { clearTimeout(load.t); load.t = setTimeout(() => load().catch(() => {}), 300); });
+  $("view").append(h("div", { class: "bar" }, search), box); await load();
+}
+
+async function userDetail(id) {
+  const u = await api("/users/" + id);
+  const v = $("view"); v.textContent = "";
+  const dur = h("select", {}, [["1", "1 saat"], ["24", "1 gün"], ["168", "7 gün"], ["720", "30 gün"], ["", "Süresiz"]].map(([a, b]) => h("option", { value: a }, b)));
+  dur.value = "24";
+  const reason = h("input", { placeholder: "Sebep (kullanıcı giriş yaparken görür)", style: "flex:1;min-width:200px" });
+  const hours = () => (dur.value === "" ? null : parseInt(dur.value, 10));
+  const reload = () => userDetail(id);
+  const run = (path, body, msg, confirmText) => async () => {
+    if (confirmText && !confirm(confirmText)) return;
+    await act(() => api("/users/" + id + path, "POST", body), msg); reload();
+  };
+  const pw = h("input", { placeholder: "Yeni parola (en az 6)", type: "text" });
+
+  v.append(
+    h("button", { onclick: () => open("Kullanıcılar", [...document.querySelectorAll("#nav button")][1]) }, "← Listeye dön"),
+    h("div", { class: "panel", style: "margin-top:12px" },
+      h("h2", {}, u.username, " ", status(u)),
+      h("p", { class: "dim" }, `#${u.id} · kayıt ${u.created} · son görülme ${u.last_seen || "—"} · açık oturum/anahtar: ${u.sessions}`),
+      u.ban_reason ? h("p", {}, "Ban sebebi: ", u.ban_reason) : null,
+      u.game_ban_reason ? h("p", {}, "Oyun yasağı sebebi: ", u.game_ban_reason) : null),
+
+    h("div", { class: "panel" }, h("h3", {}, "Ceza"),
+      h("div", { class: "row" }, dur, reason),
+      h("div", { class: "row" },
+        h("button", { class: "danger", onclick: () => run("/ban", { hours: hours(), reason: reason.value }, "Banlandı", "Bu kullanıcı banlansın mı? Açık oturumları da kapanır.")() }, "Hesabı banla"),
+        h("button", { onclick: () => run("/gameban", { hours: hours(), reason: reason.value }, "Oyun yasağı verildi")() }, "Oyun yasağı ver"),
+        u.ban ? h("button", { onclick: run("/unban", null, "Ban kaldırıldı") }, "Banı kaldır") : null,
+        u.game_ban ? h("button", { onclick: run("/ungameban", null, "Oyun yasağı kaldırıldı") }, "Oyun yasağını kaldır") : null)),
+
+    h("div", { class: "panel" }, h("h3", {}, "Diğer işlemler"),
+      h("div", { class: "row" },
+        h("button", { onclick: run("/logout", null, "Oturumlar kapatıldı") }, "Tüm oturumları kapat"),
+        h("button", { onclick: run("/reset-score", null, "Puanlar sıfırlandı", "Bu kullanıcının tüm oyun puanları silinsin mi?") }, "Puanları sıfırla"),
+        h("button", { onclick: run("/clear-words", null, "Kelimeler silindi", "Kullanıcının kelime listesi silinsin mi?") }, "Kelime listesini temizle")),
+      h("div", { class: "row" }, pw,
+        h("button", { onclick: () => run("/reset-password", { password: pw.value }, "Parola değişti")() }, "Parolayı sıfırla")),
+      h("div", { class: "row" },
+        h("button", { class: "danger", onclick: async () => {
+          const n = prompt("Hesabı KALICI silmek için kullanıcı adını yaz: " + u.username);
+          if (n == null) return;
+          await act(() => api("/users/" + id + "/delete", "POST", { username: n }), "Hesap silindi");
+          open("Kullanıcılar", [...document.querySelectorAll("#nav button")][1]);
+        } }, "Hesabı kalıcı sil"))),
+
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Son oyunlar"),
+        h("table", {}, u.games.map((g) => h("tr", {}, h("td", {}, g.episode), h("td", {}, g.score + " puan"), h("td", {}, g.place + "/" + g.players), h("td", { class: "dim" }, g.at))))),
+      h("div", { class: "panel" }, h("h3", {}, "İzlediği içerikler"),
+        h("table", {}, u.episodes.map((e) => h("tr", {}, h("td", {}, e.episode), h("td", {}, e.n + " kelime"), h("td", { class: "dim" }, e.at)))))),
+    h("div", { class: "panel" }, h("h3", {}, "Son kelimeleri"),
+      h("div", { class: "wrap" }, h("table", {}, u.words.map((w) => h("tr", {}, h("td", {}, w.tr), h("td", {}, w.eng), h("td", { class: "dim" }, w.episode), h("td", { class: "dim" }, w.at)))))));
+}
+
+// ---------- Odalar ----------
+async function viewRooms() {
+  const rooms = await api("/rooms");
+  const v = $("view");
+  if (!rooms.length) v.append(h("p", { class: "dim" }, "Şu an açık oda yok."));
+  rooms.forEach((r) => v.append(h("div", { class: "panel" },
+    h("h3", {}, "Oda " + r.code, " ", h("span", { class: "tag" }, r.state)), h("p", { class: "dim" }, r.episode),
+    h("table", {}, r.players.map((p) => h("tr", {}, h("td", {}, p.name), h("td", {}, p.score + " puan"),
+      h("td", {}, h("button", { onclick: () => userDetail(p.uid) }, "Kullanıcıya git"))))),
+    h("div", { class: "row" }, h("button", { class: "danger", onclick: async () => { await act(() => api("/rooms/" + r.code + "/close", "POST"), "Oda kapatıldı"); open("Odalar", [...document.querySelectorAll("#nav button")][2]); } }, "Odayı kapat")))));
+  v.append(h("button", { onclick: () => open("Odalar", [...document.querySelectorAll("#nav button")][2]) }, "Yenile"));
+}
+
+// ---------- Kelimeler ----------
+async function viewWords() {
+  const box = h("div"), search = h("input", { placeholder: "Türkçe ya da İngilizce kelime ara…" });
+  const load = async () => {
+    const list = await api("/words?q_=" + encodeURIComponent(search.value));
+    box.textContent = "";
+    box.append(h("div", { class: "wrap" }, h("table", {}, list.map((w) => {
+      const inp = h("input", { value: w.eng, style: "width:100%" });
+      return h("tr", {}, h("td", {}, w.tr), h("td", {}, inp), h("td", { class: "dim" }, w.at),
+        h("td", {}, h("button", { onclick: () => act(() => api("/words/" + w.id + "/edit", "POST", { eng: inp.value }), "Kaydedildi") }, "Kaydet"), " ",
+          h("button", { class: "danger", onclick: async () => { await act(() => api("/words/" + w.id + "/delete", "POST"), "Silindi"); load(); } }, "Sil")));
+    }))));
+  };
+  search.addEventListener("input", () => { clearTimeout(load.t); load.t = setTimeout(() => load().catch(() => {}), 300); });
+  $("view").append(h("p", { class: "dim" }, "Yanlış çevirileri burada düzeltebilir ya da silebilirsin. (main.py'deki DICTIONARY her zaman önceliklidir.)"), h("div", { class: "bar" }, search), box);
+  await load();
+}
+
+// ---------- Sistem ----------
+async function viewSystem() {
+  const s = await api("/providers"), v = $("view");
+  v.append(h("div", { class: "panel" }, h("h3", {}, "Çeviri servisleri"),
+    h("p", { class: this_ok(s) }, s.gcloud_key ? "Resmi Google Cloud Translation anahtarı tanımlı ✔" : "⚠ GOOGLE_TRANSLATE_API_KEY tanımlı değil: ücretsiz uçlar Railway IP'sinde engellenebilir (YouTube'da '?' sorunu)."),
+    h("table", {}, Object.entries(s.providers).map(([n, p]) => h("tr", {}, h("td", {}, n),
+      h("td", {}, p.blocked_for_s > 0 ? h("span", { class: "tag bad" }, "engelli · " + Math.ceil(p.blocked_for_s / 60) + " dk") : h("span", { class: "tag ok" }, "açık")),
+      h("td", { class: "dim" }, "ardışık hata: " + p.fails)))),
+    h("p", { class: "dim" }, `Kök bulucu (zeyrek): ${s.lemma_ready ? "hazır" : "yok"} · çevrilemeyen önbellek: ${s.negative_cache} · bekleyen: ${s.deferred}`),
+    h("div", { class: "row" }, h("button", { onclick: async () => { await act(() => api("/providers/reset", "POST"), "Engeller sıfırlandı"); open("Sistem", [...document.querySelectorAll("#nav button")][4]); } }, "Engelleri sıfırla"))));
+}
+const this_ok = (s) => (s.gcloud_key ? "tag ok" : "err");
+
+// ---------- Günlük ----------
+async function viewLog() {
+  const rows = await api("/log");
+  $("view").append(h("div", { class: "wrap" }, h("table", {},
+    h("tr", {}, ["Zaman", "İşlem", "Hedef", "Ayrıntı", "IP"].map((t) => h("th", {}, t))),
+    rows.map((r) => h("tr", {}, h("td", { class: "dim" }, r.at), h("td", {}, r.action), h("td", {}, r.target), h("td", {}, r.detail), h("td", { class: "dim" }, r.ip))))));
+}
+
+// ---------- açılış ----------
+(async () => {
+  try { const s = await api("/session"); s.admin ? start() : showLogin(); }
+  catch (e) { document.body.textContent = "Not found"; }
+})();
+</script>
+</body>
+</html>

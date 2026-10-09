@@ -310,7 +310,14 @@ function draw(me, words) {
   const bar = el("div", "bar"), brand = el("div", "brand"), who = el("div", "who"), out = el("button", "", "Çıkış");
   brand.append("Cine", el("b", "", "Vocab"));
   out.onclick = async () => { await api("/api/logout", {}); authView(); };
-  who.append(el("span", "", me.username), out); bar.append(brand, who);
+  const del = el("button", "", "Hesabımı sil");
+  del.onclick = async () => {
+    const pw = prompt("Hesabın ve tüm verilerin KALICI olarak silinecek. Onaylamak için parolanı yaz:");
+    if (!pw) return;
+    try { await api("/api/delete-account", { password: pw }); toast("Hesabın silindi."); authView(); }
+    catch (e) { toast(e.message); }
+  };
+  who.append(el("span", "", me.username), out, del); bar.append(brand, who);
 
   /* ---- hero ---- */
   const hero = el("div", "hero"), hbg = el("div", "hbg"); hbg.style.background = posterBg(curShow || "CineVocab", posterOf(curShow)); hero.append(hbg);
@@ -320,7 +327,7 @@ function draw(me, words) {
   if (curShow) {
     const nt = !nxt ? "Bu dizideki tüm bölümler tamam" : nxt.kind === "boss" ? nxt.b.name + " · Bölüm sınavı seni bekliyor" : nxt.b.name + " · Basamak " + (nxt.idx + 1) + "/" + nxt.st.length;
     hero.append(el("div", "next", nt), track(tw ? tm / tw * 100 : 0), el("div", "pl", tm + " / " + tw + " kelime öğrenildi"));
-  } else hero.append(el("div", "next", "Eklentiyi kur, Prime'da bir bölüm izle; kelimelerin burada oyun haritasına dönüşür."), el("div", "pl", ""));
+  } else hero.append(el("div", "next", "Eklentiyi kur, Prime Video, YouTube ya da Udemy'de bir şey izle; kelimelerin burada oyun haritasına dönüşür."), el("div", "pl", ""));
   cta.onclick = () => { if (!nxt) return curShow ? toast("Hepsi tamam! Yeni kelime için eklentiyle izle.") : document.getElementById("keybtn").click(); curEp = nxt.b.name; tab = "map"; startNode(nxt.b, nxt.kind === "boss" ? "boss" : nxt.idx); };
   const duel = el("a", "", "Düelloya gir"); duel.href = "/game";
   acts.append(cta, duel); hero.append(acts);

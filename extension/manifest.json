@@ -1,15 +1,14 @@
 {
   "manifest_version": 3,
   "name": "CineVocab",
-  "version": "1.5",
-  "description": "Prime Video ve YouTube'da Türkçe altyazıları kelime kelime çevirip kaydeder.",
+  "version": "1.6.0",
+  "description": "Prime Video, YouTube ve Udemy'de Türkçe altyazıları kelime kelime İngilizceye çevirir ve kelime listene kaydeder.",
+  "minimum_chrome_version": "102",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "https://cinevocab.up.railway.app/*",
-    "https://www.primevideo.com/*",
-    "https://www.youtube.com/*"
+    "https://cinevocab.up.railway.app/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -26,7 +25,8 @@
     {
       "matches": [
         "https://www.primevideo.com/*",
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://www.udemy.com/*"
       ],
       "js": [
         "content.js"
