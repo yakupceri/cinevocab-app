@@ -491,7 +491,34 @@ def lemma_gloss(lemma: str):
     return g
 
 
+def ensure_argos_model():
+    """tr->en çeviri modeli kurulu değilse indirip kurar (ilk açılışta ~1 kez)."""
+    try:
+        import argostranslate.package
+        import argostranslate.translate as at
+    except ImportError:
+        print("   [local] argostranslate kurulu değil (requirements.txt kontrol et)")
+        return
+    installed = at.get_installed_languages()
+    if any(l.code == "tr" for l in installed) and any(l.code == "en" for l in installed):
+        return
+    try:
+        print("   [local] tr->en modeli indiriliyor...")
+        argostranslate.package.update_package_index()
+        available = argostranslate.package.get_available_packages()
+        pkg = next((p for p in available if p.from_code == "tr" and p.to_code == "en"), None)
+        if pkg is None:
+            print("   [local] tr->en paketi indeks listesinde bulunamadı")
+            return
+        path = pkg.download()
+        argostranslate.package.install_from_path(path)
+        print("   [local] tr->en modeli kuruldu")
+    except Exception as e:
+        print(f"   [local] model kurulum hatası: {e}")
+
+
 def _warm_local():
+    ensure_argos_model()
     try:
         _get_local().translate("merhaba")
         print("   [local] model hazır")

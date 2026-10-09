@@ -4,3 +4,4 @@ requests
 psycopg2-binary
 jinja2
 deep-translator
+argostranslate
