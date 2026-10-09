@@ -14,8 +14,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
+from accounts import (router, init_accounts, user_from_request, user_from_token,
+                      record_game, tag_user_words)
 
 app = FastAPI()
+app.include_router(router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -247,6 +250,7 @@ def init_db():
 
 
 init_db()
+init_accounts(DB_CONFIG)
 
 
 def tag_episode(episode: str, words: list):
@@ -844,11 +848,11 @@ def valid_pairs(rows) -> list:
     ]
 
 
-def episode_pool(episode: str) -> list:
-    """Bölümün kelimeleri (aynı İngilizce karşılığı tekrar etmeden)."""
+def episode_pool(episode: str, uids: list) -> list:
+    """Odadaki oyuncuların o bölümde topladığı kelimeler (aynı İngilizce karşılığı tekrar etmeden)."""
     rows = db_rows(
-        "SELECT ew.tr, w.eng FROM episode_words ew JOIN words w ON w.tr = ew.tr "
-        "WHERE ew.episode = %s;", (episode,))
+        "SELECT DISTINCT uw.tr, w.eng FROM user_words uw JOIN words w ON w.tr = uw.tr "
+        "WHERE uw.episode = %s AND uw.user_id = ANY(%s);", (episode, uids))
     seen, out = set(), []
     for w in valid_pairs(rows):
         if w["eng"].lower() not in seen:
@@ -857,9 +861,9 @@ def episode_pool(episode: str) -> list:
     return out
 
 
-def build_questions(episode: str, n: int = N_QUESTIONS) -> list:
+def build_questions(episode: str, uids: list, n: int = N_QUESTIONS) -> list:
     """Bölüm kelimelerinden çoktan seçmeli sorular; yanlış şıklar tüm kelime havuzundan."""
-    ep = episode_pool(episode)
+    ep = episode_pool(episode, uids)
     if len(ep) < 4:
         raise ValueError(f"Bu bölümde en az 4 kelime gerekiyor (şu an {len(ep)}).")
     all_eng = list({w["eng"] for w in valid_pairs(db_rows("SELECT tr, eng FROM words;"))})
@@ -915,7 +919,8 @@ def room_info(room: Room) -> dict:
 
 async def run_game(room: Room):
     try:
-        questions = await asyncio.to_thread(build_questions, room.episode)
+        questions = await asyncio.to_thread(
+            build_questions, room.episode, [p["uid"] for p in room.players.values()])
     except Exception as e:
         room.state = "lobby"
         await broadcast(room, {"t": "error", "msg": str(e)})
@@ -944,6 +949,11 @@ async def run_game(room: Room):
         await asyncio.sleep(REVEAL_SECONDS)
     room.state = "done"
     final = sorted(room.players.items(), key=lambda kv: -kv[1]["score"])
+    try:
+        await asyncio.to_thread(record_game, room.episode,
+                                [(p["uid"], p["score"]) for _, p in final])
+    except Exception as e:
+        print(f"Skor kaydı hatası: {e}")
     await broadcast(room, {"t": "end", "scores": [{"id": pid, "name": p["name"], "score": p["score"]}
                                                   for pid, p in final]})
     room.state = "lobby"  # aynı odada tekrar oynanabilir
@@ -973,12 +983,17 @@ async def ws_endpoint(ws: WebSocket):
         while True:
             msg = await ws.receive_json()
             t = msg.get("t")
-            name = (str(msg.get("name") or "Oyuncu").strip() or "Oyuncu")[:16]
+            name = ""
 
             if t in ("create", "join") and room is None:
+                user = user_from_token(ws.cookies.get("cv"))
+                if not user:
+                    await ws.send_json({"t": "error", "msg": "Önce giriş yapmalısın."})
+                    continue
+                name = user["username"]
                 if t == "create":
                     episode = str(msg.get("episode") or "")[:80]
-                    n = len(await asyncio.to_thread(episode_pool, episode)) if episode else 0
+                    n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]])) if episode else 0
                     if n < 4:
                         await ws.send_json({"t": "error", "msg": f"Bu bölümde en az 4 kelime gerekiyor (şu an {n})."})
                         continue
@@ -992,11 +1007,12 @@ async def ws_endpoint(ws: WebSocket):
                         room = None
                         await ws.send_json({"t": "error", "msg": "Oda bulunamadı veya oyun başlamış."})
                         continue
-                room.players[pid] = {"name": name, "ws": ws, "score": 0}
+                room.players[pid] = {"name": name, "ws": ws, "score": 0, "uid": user["id"]}
                 await ws.send_json({"t": "me", "id": pid})
                 await broadcast(room, room_info(room))
 
             elif t == "start" and room and room.host == pid and room.state == "lobby":
+                room.state = "playing"  # çift başlatmayı engeller
                 room.task = asyncio.create_task(run_game(room))
 
             elif t == "answer" and room and room.state == "playing" and pid not in room.answers:
@@ -1092,7 +1108,7 @@ def debug_providers():
 
 
 @app.post("/translate-words")
-def translate_words(batch: WordsBatch):
+def translate_words(batch: WordsBatch, request: Request):
     """Bir cümlenin kelimelerini alır. Önce veritabanı/sözlük, eksikler için çeviri servisleri."""
     global LATEST_GEN, LAST_REQUEST_TIME
     LAST_REQUEST_TIME = time.time()
@@ -1106,6 +1122,12 @@ def translate_words(batch: WordsBatch):
     words = words[:30]
 
     tag_episode(batch.episode, words)
+    try:
+        u = user_from_request(request)
+        if u:
+            tag_user_words(u["id"], batch.episode, words)
+    except Exception as e:
+        print(f"Kullanıcı etiketi hatası: {e}")
 
     db_found = safe_lookup(words)
     results = dict(db_found)

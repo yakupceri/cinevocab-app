@@ -5,24 +5,29 @@ const API = "http://127.0.0.1:8000";
 const TIMEOUT_MS = 45000; // sunucudaki servis zinciri (5+10+20 sn + kuyruk) sığsın
 
 function post(path, body, sendResponse) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  fetch(API + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: ctrl.signal,
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
+  chrome.storage.local.get("key", ({ key }) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    fetch(API + path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: "Bearer " + key } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
     })
-    .then((data) => sendResponse(data))
-    .catch((err) => {
-      console.error("API Hatası:", err);
-      sendResponse({ status: "error", message: String(err) });
-    })
-    .finally(() => clearTimeout(timer));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => sendResponse(data))
+      .catch((err) => {
+        console.error("API Hatası:", err);
+        sendResponse({ status: "error", message: String(err) });
+      })
+      .finally(() => clearTimeout(timer));
+  });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

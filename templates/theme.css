@@ -1,0 +1,73 @@
+/* CineVocab tema: ada alacakaranlığı. Sayfaların kendi stilinin ÜSTÜNE biner. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap');
+
+:root {
+  --bg:#07161a; --panel:rgba(8,26,30,.62); --line:rgba(233,220,192,.16);
+  --ink:#f1ead9; --dim:#9fb0a8; --gold:#ff9a4a; --ok:#6fe0b8; --bad:#ff7a6b;
+  --ember:#ff8a3d; --serif:"Fraunces", Georgia, "Times New Roman", serif;
+}
+html { background: #07161a; }
+body {
+  min-height: 100vh; color: var(--ink);
+  background:
+    radial-gradient(110% 55% at 72% 100%, rgba(255,138,61,.38), transparent 62%),
+    radial-gradient(80% 50% at 15% 0%, rgba(40,120,110,.35), transparent 60%),
+    linear-gradient(180deg, #06141a 0%, #0b2a30 58%, #18423f 100%) fixed;
+}
+main { position: relative; z-index: 1; }
+
+/* Ada, palmiyeler ve düşmüş uçağın silüeti (orijinal çizim) */
+body::before {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; min-height: 240px;
+  pointer-events: none; z-index: 0;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 360' preserveAspectRatio='xMidYMax slice'><rect y='262' width='1440' height='100' fill='%23061a1e'/><path d='M0 300C120 270 200 250 300 262C380 272 430 220 520 214C600 208 640 250 720 258C820 268 900 236 980 246C1080 258 1160 280 1260 270C1340 262 1400 280 1440 286V360H0Z' fill='%23040f12'/><g stroke='%23040f12' stroke-width='5' fill='none' stroke-linecap='round'><path d='M520 214Q530 150 560 110M560 110Q600 95 640 122M560 110Q590 82 622 70M560 110Q530 88 490 108M560 110Q548 80 522 62'/><path d='M1180 272Q1188 215 1210 185M1210 185Q1240 172 1268 192M1210 185Q1232 160 1256 152M1210 185Q1184 168 1158 184'/></g><path d='M880 250L960 240L964 252L884 262ZM884 250L872 226L894 240Z' fill='%23040f12'/></svg>") center bottom / cover no-repeat;
+}
+/* Tek hareket: adadan yükselen duman */
+body::after {
+  content: ""; position: fixed; left: 56%; bottom: 20vh; width: 20vw; min-width: 160px; height: 62vh;
+  pointer-events: none; z-index: 0; filter: blur(26px); opacity: .8;
+  background: radial-gradient(ellipse at 50% 100%, rgba(233,220,192,.2), transparent 70%);
+  animation: rise 18s ease-in-out infinite alternate;
+}
+@keyframes rise { from { transform: translateY(6vh) scaleX(.9); opacity: .5; } to { transform: translateY(-4vh) scaleX(1.15); opacity: .85; } }
+/* Film greni */
+html::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 2; opacity: .07;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+@media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
+
+::selection { background: var(--ember); color: #2a1204; }
+:focus-visible { outline: 2px solid var(--ember) !important; outline-offset: 2px; }
+
+/* Başlıklar */
+h1, .code, .stats b { font-family: var(--serif); }
+h1 { font-weight: 800; letter-spacing: -.01em; text-shadow: 0 0 36px rgba(255,138,61,.3); }
+
+/* Cam paneller */
+.card, main:not(:has(.card)) {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 14px 44px rgba(0,0,0,.38);
+}
+main:not(:has(.card)) { padding: 32px; }
+.stats b { font-size: 36px; color: var(--ember); }
+
+/* Alanlar ve düğmeler */
+input, select { background: rgba(4,15,18,.72); border-color: var(--line); border-radius: 10px; }
+button, a.btn { border-radius: 10px; transition: transform .12s, border-color .12s, background .12s; }
+button:hover:not(:disabled), a.btn:hover { transform: translateY(-1px); border-color: var(--ember); }
+button.go, a.btn.go { background: linear-gradient(135deg, #ffb866, #ff7a2f); color: #2a1204; border: 0; font-weight: 800; }
+.tabs .on { border-color: var(--ember); color: var(--ember); }
+
+/* Düello: kelime, şıklar, süre, oda kodu */
+main:not(:has(.card)) h2 { font-family: var(--serif); font-weight: 800; text-shadow: 0 0 44px rgba(255,138,61,.4); }
+.opts button { padding: 18px; text-align: left; background: rgba(4,15,18,.75); border-radius: 12px; }
+.opts button.ok { background: rgba(111,224,184,.15); }
+.opts button.bad { background: rgba(255,122,107,.15); }
+.opts button.pick { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember); }
+.bar:has(> i) { height: 6px; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.1); }
+.bar i { background: linear-gradient(90deg, #ffd08a, var(--ember)); }
+.code { color: var(--ember); letter-spacing: .18em; text-shadow: 0 0 32px rgba(255,138,61,.55);
+  border: 1px dashed var(--line); border-radius: 14px; padding: 6px 0; }
+ul li:first-child b { color: var(--ember); }
