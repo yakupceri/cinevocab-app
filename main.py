@@ -12,7 +12,7 @@ import requests
 import psycopg2
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
@@ -1115,9 +1115,10 @@ async def ws_endpoint(ws: WebSocket):
 
 # ======================= Endpoint'ler =======================
 
-@app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    return templates.TemplateResponse(request, "index.html")
+@app.get("/")
+def landing():
+    """Herkese açık tanıtım sayfası (eski 'Kelime Arşivim' sayfası artık kökte gösterilmez)."""
+    return FileResponse("templates/landing.html")
 
 
 @app.get("/play")

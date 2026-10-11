@@ -180,7 +180,7 @@ def stats(request: Request):
             "SELECT created_at::date d, count(*) FROM users WHERE created_at > now() - interval '14 days' "
             "GROUP BY d ORDER BY d;", (), True)],
         "top_sources": [{"episode": r[0], "n": r[1]} for r in q(
-            "SELECT episode, count(*) FROM user_words WHERE episode <> '' GROUP BY episode "
+            "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
     }
 
@@ -214,8 +214,8 @@ def user_detail(uid: int, request: Request):
     words = q("SELECT uw.tr, coalesce(w.eng, ''), uw.episode, uw.created_at FROM user_words uw "
               "LEFT JOIN words w ON w.tr = uw.tr WHERE uw.user_id = %s "
               "ORDER BY uw.created_at DESC LIMIT 60;", (uid,), True)
-    eps = q("SELECT episode, count(*), max(created_at) FROM user_words WHERE user_id = %s AND episode <> '' "
-            "GROUP BY episode ORDER BY max(created_at) DESC LIMIT 10;", (uid,), True)
+    eps = q("SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*), max(created_at) FROM user_words "
+            "WHERE user_id = %s GROUP BY e ORDER BY max(created_at) DESC LIMIT 15;", (uid,), True)
     games = q("SELECT episode, score, place, players, created_at FROM game_results WHERE user_id = %s "
               "ORDER BY created_at DESC LIMIT 15;", (uid,), True)
     sessions = q("SELECT count(*) FROM sessions WHERE user_id = %s;", (uid,), True)[0][0]

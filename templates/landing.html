@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineVocab · İzlerken Türkçe öğren</title>
+<meta name="description" content="CineVocab, Prime Video, YouTube ve Udemy'de Türkçe altyazıdaki kelimeleri anında İngilizceye çevirir, kelime listene kaydeder ve quiz ile düelloda pratik yaptırır.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0c0b0a; --ink:#efe6d6; --dim:#a39b8d; --line:rgba(239,230,214,.14); --soft:rgba(239,230,214,.05); --ember:#e8613c;
+          --serif:"Fraunces", Georgia, "Times New Roman", serif; --sans:"Manrope","Avenir Next","Helvetica Neue","Segoe UI",sans-serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 var(--sans); }
+  a { color:inherit; }
+  :focus-visible { outline:2px solid #e9b44c; outline-offset:3px; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 24px; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:22px 0; }
+  .brand { font:800 26px var(--serif); } .brand b { color:var(--ember); }
+  .btn { display:inline-block; padding:12px 22px; border-radius:12px; border:1px solid var(--line); text-decoration:none; font-weight:700; }
+  .btn.main { background:var(--ember); border-color:var(--ember); color:#fff; }
+  .hero { padding:56px 0 40px; }
+  h1 { font:800 clamp(34px,6vw,60px)/1.1 var(--serif); margin:0 0 18px; }
+  .lead { color:var(--dim); font-size:18px; max-width:620px; margin:0 0 28px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .sites { display:flex; gap:10px; flex-wrap:wrap; margin-top:26px; }
+  .chip { padding:6px 14px; border:1px solid var(--line); border-radius:99px; background:var(--soft); font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:36px 0; }
+  .card { border:1px solid var(--line); background:var(--soft); border-radius:16px; padding:22px; }
+  .card h2 { font:600 20px var(--serif); margin:0 0 8px; } .card p { margin:0; color:var(--dim); font-size:15px; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; color:var(--dim); font-size:14px; }
+  footer a { margin-right:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Cine<b>Vocab</b></div>
+    <a class="btn" href="/account">Giriş yap</a>
+  </header>
+
+  <section class="hero">
+    <h1>İzlerken Türkçe öğren.</h1>
+    <p class="lead">Türkçe altyazıdaki her kelimenin İngilizce karşılığını anında gör. Tanımadığın kelimeler listene kaydolsun, quiz ve düelloyla pekiştir.</p>
+    <div class="row">
+      <a class="btn main" href="/account">Hesap oluştur, ücretsiz</a>
+      <a class="btn" href="/privacy">Gizlilik</a>
+    </div>
+    <div class="sites">
+      <span class="chip">Prime Video</span><span class="chip">YouTube</span><span class="chip">Udemy</span>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h2>1. Eklentiyi kur</h2><p>Chrome eklentisi altyazıyı okur ve kelimeleri ekranda çevirir. Hesap açmadan da çalışır.</p></div>
+    <div class="card"><h2>2. İzle</h2><p>Türkçe altyazıyı aç. Kelimeler İngilizce karşılıklarıyla görünür ve hesabındaki listeye eklenir.</p></div>
+    <div class="card"><h2>3. Pratik yap</h2><p>İzlediğin içerikten gelen kelimelerle quiz çöz, arkadaşlarınla düelloya gir.</p></div>
+  </section>
+
+  <footer>
+    <a href="/account">Hesabım</a><a href="/privacy">Gizlilik politikası</a>
+    <p>CineVocab; Amazon, Prime Video, Google, YouTube ve Udemy ile bağlantılı değildir.</p>
+  </footer>
+</div>
+</body>
+</html>
