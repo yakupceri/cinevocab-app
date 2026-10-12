@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CineVocab",
-  "version": "1.6.0",
-  "description": "Prime Video, YouTube ve Udemy'de Türkçe altyazıları kelime kelime İngilizceye çevirir ve kelime listene kaydeder.",
+  "version": "1.6.1",
+  "description": "Prime Video, YouTube ve Udemy'de Türkçe altyazıyı İngilizceye çevirir, kelimeleri kaydeder, arkadaşlarınla online düello yaptırır.",
   "minimum_chrome_version": "102",
   "permissions": [
     "storage"
