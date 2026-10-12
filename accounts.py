@@ -286,7 +286,7 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
-<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video ve YouTube'da Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
+<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube ve Udemy'de Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın Türkçe kelimeler, İngilizce karşılıkları ve izlediğin bölümün ya da videonun adı.</li>
@@ -296,7 +296,7 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
 <h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, hesap sayfandaki <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin.</p>
 <h2>İletişim</h2><p>__CONTACT__</p>
-<p>CineVocab, Amazon, Prime Video, Google ve YouTube ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
+<p>CineVocab, Amazon, Prime Video, Google, YouTube ve Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
 
 
 @router.get("/privacy", response_class=HTMLResponse)
