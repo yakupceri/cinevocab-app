@@ -48,6 +48,8 @@ def init_accounts(db_config: dict):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS game_banned_until TIMESTAMP;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS game_ban_reason TEXT;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;",
         "CREATE TABLE IF NOT EXISTS admin_log (id SERIAL PRIMARY KEY, at TIMESTAMP DEFAULT now(), "
         "action TEXT NOT NULL, target TEXT, detail TEXT, ip TEXT);",
     ):
@@ -225,7 +227,9 @@ def me(request: Request):
     g = q("SELECT count(*), coalesce(sum(score), 0), coalesce(sum((place = 1)::int), 0) "
           "FROM game_results WHERE user_id = %s;", (u["id"],), True)[0]
     n = q("SELECT count(DISTINCT tr) FROM user_words WHERE user_id = %s;", (u["id"],), True)[0][0]
-    return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n}
+    ex = q("SELECT country, avatar FROM users WHERE id = %s;", (u["id"],), True)[0]
+    return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n,
+            "country": ex[0] or "", "avatar": ex[1] or ""}
 
 
 class DeleteReq(BaseModel):
@@ -274,13 +278,65 @@ def my_episodes(request: Request):
     return [{"episode": r[0], "word_count": r[1]} for r in rows]
 
 
+_PERIODS = {"week": "7 days", "month": "30 days", "year": "365 days"}
+
+
 @router.get("/api/leaderboard")
-def leaderboard(period: str = "all"):
-    where = "WHERE r.created_at > now() - interval '7 days'" if period == "week" else ""
-    rows = q("SELECT u.username, sum(r.score), count(*), sum((r.place = 1)::int) "
+def leaderboard(period: str = "all", by: str = "people"):
+    where = f"WHERE r.created_at > now() - interval '{_PERIODS[period]}'" if period in _PERIODS else ""
+    if by == "country":
+        cond = (" AND" if where else " WHERE") + " u.country IS NOT NULL AND u.country <> ''"
+        rows = q("SELECT u.country, sum(r.score), count(DISTINCT u.id), sum((r.place = 1)::int) "
+                 "FROM game_results r JOIN users u ON u.id = r.user_id " + where + cond +
+                 " GROUP BY u.country ORDER BY sum(r.score) DESC LIMIT 20;", (), True)
+        return [{"username": r[0], "country": r[0], "score": int(r[1]), "players": r[2], "wins": int(r[3])} for r in rows]
+    rows = q("SELECT u.username, max(u.country), sum(r.score), count(*), sum((r.place = 1)::int) "
              "FROM game_results r JOIN users u ON u.id = r.user_id " + where +
              " GROUP BY u.username ORDER BY sum(r.score) DESC LIMIT 20;", (), True)
-    return [{"username": r[0], "score": int(r[1]), "games": r[2], "wins": int(r[3])} for r in rows]
+    return [{"username": r[0], "country": r[1] or "", "score": int(r[2]), "players": 1, "games": r[3], "wins": int(r[4])} for r in rows]
+
+
+class SettingsReq(BaseModel):
+    username: str = ""
+    country: str = ""
+    avatar: str = ""
+
+
+@router.post("/api/settings")
+def settings(s: SettingsReq, request: Request):
+    u = need_user(request)
+    _throttle_ip(request, 20, 60, "settings")
+    name = s.username.strip()
+    if name and name != u["username"]:
+        if not re.fullmatch(r"\w{3,16}", name):
+            raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
+        if q("SELECT 1 FROM users WHERE lower(username) = lower(%s) AND id <> %s;", (name, u["id"]), True):
+            raise HTTPException(409, "Bu kullanıcı adı alınmış.")
+        q("UPDATE users SET username = %s WHERE id = %s;", (name, u["id"]))
+    cc = s.country.strip().upper()
+    if cc and not re.fullmatch(r"[A-Z]{2}", cc):
+        raise HTTPException(400, "Ülke geçersiz.")
+    q("UPDATE users SET country = %s WHERE id = %s;", (cc or None, u["id"]))
+    if s.avatar:
+        if len(s.avatar) > 60000 or not re.fullmatch(r"data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+", s.avatar):
+            raise HTTPException(400, "Fotoğraf geçersiz ya da çok büyük.")
+        q("UPDATE users SET avatar = %s WHERE id = %s;", (s.avatar, u["id"]))
+    return {"ok": True}
+
+
+class DelEps(BaseModel):
+    episodes: list[str]
+
+
+@router.post("/api/delete-episodes")
+def delete_episodes(d: DelEps, request: Request):
+    u = need_user(request)
+    eps = [e[:80] for e in d.episodes[:500]]
+    if not eps:
+        return {"deleted": 0}
+    r = q("DELETE FROM user_words WHERE user_id = %s AND episode = ANY(%s) RETURNING 1;", (u["id"], eps), True)
+    return {"deleted": len(r)}
+
 
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>

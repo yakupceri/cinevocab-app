@@ -10,6 +10,8 @@
 <style>
   :root { --bg:#0c0b0a; --ink:#efe6d6; --dim:#a39b8d; --line:rgba(239,230,214,.12); --soft:rgba(239,230,214,.045); --ember:#e8613c; --gold:#e9b44c; --ok:#86c79a; --bad:#c9503f;
           --serif:"Fraunces", Georgia, "Times New Roman", serif; --sans:"Manrope", "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif; }
+  html[data-theme="light"] { --bg:#f6f1e7; --ink:#1d1a16; --dim:#6d655a; --line:rgba(29,26,22,.14); --soft:rgba(29,26,22,.05); }
+  html[data-theme="light"] #bdo { background: linear-gradient(180deg, rgba(246,241,231,.5), var(--bg) 78%); }
   * { box-sizing: border-box; }
   html { background: var(--bg); }
   body { margin: 0; color: var(--ink); font: 400 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
@@ -130,6 +132,33 @@ async function api(path, body) {
   if (!r.ok) throw new Error(d.detail || "Bir hata oluştu.");
   return d;
 }
+try { document.documentElement.dataset.theme = localStorage.getItem("cv-theme") || "dark"; } catch (e) {}
+const COUNTRIES = "TR:Türkiye;DE:Almanya;GB:Birleşik Krallık;US:ABD;NL:Hollanda;FR:Fransa;AZ:Azerbaycan;RU:Rusya;UA:Ukrayna;KZ:Kazakistan;SA:Suudi Arabistan;AE:BAE;EG:Mısır;IQ:Irak;IR:İran;ES:İspanya;IT:İtalya;SE:İsveç;BE:Belçika;AT:Avusturya;CH:İsviçre;CA:Kanada;AU:Avustralya;BR:Brezilya;IN:Hindistan;PK:Pakistan;JP:Japonya;KR:Güney Kore;CN:Çin;ID:Endonezya;MX:Meksika;AR:Arjantin;PL:Polonya;GR:Yunanistan;BG:Bulgaristan;RO:Romanya".split(";").map((s) => s.split(":"));
+const flag = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) + " " : "");
+const cname = (cc) => (COUNTRIES.find((c) => c[0] === cc) || [cc, cc])[1];
+function toggleTheme() { const t = document.documentElement.dataset.theme === "light" ? "dark" : "light"; document.documentElement.dataset.theme = t; try { localStorage.setItem("cv-theme", t); } catch (e) {} }
+async function delEps(list, label) {
+  const eps = [...new Set(list)];
+  if (!confirm(label + " için " + eps.length + " kayıt grubundaki kelimeler listenden silinecek. Emin misin?")) return;
+  try { const r = await api("/api/delete-episodes", { episodes: eps }); toast(r.deleted + " kelime silindi."); panelView(); } catch (e) { toast(e.message); }
+}
+function openSettings(me) {
+  const ov = el("div"); ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:50;padding:16px";
+  const bx = el("div"); bx.style.cssText = "background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:22px;width:min(380px,100%);display:grid;gap:10px";
+  const name = el("input", "search"); name.value = me.username; name.maxLength = 16;
+  const sel = el("select", "search"); sel.append(new Option("Ülke seç (isteğe bağlı)", ""));
+  COUNTRIES.forEach(([c, n]) => sel.append(new Option(flag(c) + n, c))); sel.value = me.country || "";
+  const file = el("input"); file.type = "file"; file.accept = "image/*"; let avatar = "";
+  file.onchange = () => { const f = file.files[0]; if (!f) return; const img = new Image();
+    img.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 96; const s = Math.min(img.width, img.height);
+      c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 96, 96); avatar = c.toDataURL("image/jpeg", 0.8); };
+    img.src = URL.createObjectURL(f); };
+  const save = el("button", "solid", "Kaydet"), cancel = el("button", "", "Kapat"), err = el("div", "dim", "");
+  save.onclick = async () => { try { await api("/api/settings", { username: name.value.trim(), country: sel.value, avatar }); ov.remove(); panelView(); } catch (e) { err.textContent = e.message; } };
+  cancel.onclick = () => ov.remove();
+  bx.append(el("h3", "", "Ayarlar"), el("div", "dim", "Kullanıcı adı"), name, el("div", "dim", "Ülke"), sel, el("div", "dim", "Profil fotoğrafı"), file, err, save, cancel);
+  ov.append(bx); document.body.append(ov);
+}
 function toast(msg) { const t = el("div", "toast", msg); document.body.append(t); setTimeout(() => t.remove(), 2800); }
 const track = (p, cls) => { const t = el("div", "track " + (cls || "")), i = el("i"); i.style.width = Math.max(0, Math.min(100, p)) + "%"; t.append(i); return t; };
 const shuf = (a) => [...a].sort(() => Math.random() - .5);
@@ -236,7 +265,7 @@ function nextStep(mine, P) {
   return null;
 }
 
-let curShow = null, curEp = null, tab = "map", lbp = "week";
+let curShow = null, curEp = null, tab = "map", lbp = "week", lbs = "people";
 
 async function panelView() {
   let me, words;
@@ -317,7 +346,11 @@ function draw(me, words) {
     try { await api("/api/delete-account", { password: pw }); toast("Hesabın silindi."); authView(); }
     catch (e) { toast(e.message); }
   };
-  who.append(el("span", "", me.username), out, del); bar.append(brand, who);
+  const tg = el("button", "", "☀/☾"), st = el("button", "", "Ayarlar");
+  tg.onclick = toggleTheme; st.onclick = () => openSettings(me);
+  const av = me.avatar ? Object.assign(new Image(), { src: me.avatar }) : null;
+  if (av) av.style.cssText = "width:28px;height:28px;border-radius:50%;object-fit:cover";
+  who.append(...(av ? [av] : []), el("span", "", flag(me.country) + me.username), tg, st, out, del); bar.append(brand, who);
 
   /* ---- hero ---- */
   const hero = el("div", "hero"), hbg = el("div", "hbg"); hbg.style.background = posterBg(curShow || "CineVocab", posterOf(curShow)); hero.append(hbg);
@@ -424,13 +457,15 @@ function draw(me, words) {
     }
   } else if (tab === "eps") {
     if (!mine.length) body.append(el("div", "empty", "Henüz kelime yok."));
+    else { const ds = el("button", "lnk", "Bu diziyi / videoyu tümüyle sil"); ds.onclick = () => delEps(mine.flatMap((b) => b.words.map((w) => w.episode)), curShow || "Bu içerik"); body.append(ds); }
     mine.forEach((b) => {
       const st = stagesOf(b, P), m = st.reduce((s, x) => s + x.m, 0), p = Math.round(m / b.words.length * 100), fin = !!P.boss[bkey(b)];
       const r = el("div", "ep"), en = el("div", "en", b.name);
       if (fin) en.append(el("span", "badge", "Tamam"));
       en.append(el("small", "", b.words.length + " kelime · " + st.filter((s) => s.done).length + "/" + st.length + " basamak"));
       const btn = el("button", "lnk", "Haritayı aç"); btn.onclick = () => { curEp = b.name; tab = "map"; draw(me, words); };
-      const ac = el("div", "ac"); ac.append(btn); const trk = track(p, "ok"); trk.classList.add("tr");
+      const delb = el("button", "lnk", "Sil"); delb.onclick = () => delEps(b.words.map((w) => w.episode), b.name);
+      const ac = el("div", "ac"); ac.append(btn, delb); const trk = track(p, "ok"); trk.classList.add("tr");
       r.append(en, trk, el("div", "pc", "%" + p), ac); body.append(r);
     });
   } else if (tab === "ach") {
@@ -445,11 +480,14 @@ function draw(me, words) {
     s.oninput = fill; fill(); body.append(s, l);
   } else {
     const sw = el("div", "tabs"), lb = el("div"); sw.style.marginTop = "10px";
-    [["Bu hafta", "week"], ["Tüm zamanlar", "all"]].forEach(([l, p]) => { const b = el("button", lbp === p ? "on" : "", l); b.onclick = () => { lbp = p; draw(me, words); }; sw.append(b); });
-    api("/api/leaderboard?period=" + lbp).then((rows) => {
+    [["Hafta", "week"], ["Ay", "month"], ["Yıl", "year"], ["Tümü", "all"]].forEach(([l, p]) => { const b = el("button", lbp === p ? "on" : "", l); b.onclick = () => { lbp = p; draw(me, words); }; sw.append(b); });
+    [["Kişiler", "people"], ["Ülkeler", "country"]].forEach(([l, s]) => { const b = el("button", lbs === s ? "on" : "", l); b.onclick = () => { lbs = s; draw(me, words); }; sw.append(b); });
+    api("/api/leaderboard?period=" + lbp + "&by=" + lbs).then((rows) => {
       if (!rows.length) lb.append(el("div", "empty", "Henüz oynanmış oyun yok."));
       rows.forEach((r, i) => { const row = el("div", "row" + (r.username === me.username ? " me" : ""));
-        row.append(el("span", "", (i + 1) + ". " + r.username), el("span", "", r.score + " puan · " + r.wins + " galibiyet")); lb.append(row); }); });
+        const medal = ["🥇", "🥈", "🥉"][i] || (i + 1) + ".";
+        const nm = lbs === "country" ? flag(r.country) + cname(r.country) + " · " + r.players + " oyuncu" : flag(r.country) + r.username;
+        row.append(el("span", "", medal + " " + nm), el("span", "", r.score + " puan · " + r.wins + " galibiyet")); lb.append(row); }); });
     body.append(sw, lb);
   }
 
