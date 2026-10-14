@@ -19,6 +19,7 @@
 </div></header>
 <main class="wrap" id="app"></main>
 <script src="/static/common.js"></script>
+<script src="/static/fx.js"></script>
 <script>
 const app = document.getElementById("app");
 let me = null, pairs = [], PAIR = loadPair(), V = { words: [], known: [] }, VIDS = [];
@@ -138,6 +139,7 @@ function authView() {
 /* ---------- ana akış ---------- */
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { me = null; return authView(); }
+  loadG(); await syncG();
   try { pairs = await api("/api/pairs"); } catch (e) { pairs = []; }
   let saved = false; try { saved = !!localStorage.getItem("cv-pair"); } catch (e) {}
   if (!saved && pairs.length) PAIR = { src: pairs[0].src, dst: pairs[0].dst };
@@ -186,6 +188,7 @@ const counts = () => ({ words: uniqWords().length, videos: VIDS.length, known: V
 function render() {
   document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
   mountTools(document.getElementById("tools"));
+  mountGameChip();
   renderPair();
   const c = counts(), nav = el("nav", "nav"), bar = el("nav", "tabbar");
   TABS.forEach(([k, ic]) => {
@@ -396,72 +399,204 @@ function tKnown() {
   return box;
 }
 
+/* ---------- Oyun durumu: XP, seri, rekor (tarayıcıda + hesapta) ---------- */
+const XP_LEVEL = 200, DAILY_GOAL = 20;
+const todayStr = () => new Date().toLocaleDateString("sv");
+const yesterdayStr = () => new Date(Date.now() - 864e5).toLocaleDateString("sv");
+let G = { xp: 0, best: 0, bestCombo: 0, streak: 0, last: "", day: "", n: 0, upd: 0 }, gTimer = null;
+const gKey = () => "cv-game:" + (me ? me.username : "");
+function loadG() {
+  let l = {}; try { l = JSON.parse(localStorage.getItem(gKey())) || {}; } catch (e) {}
+  G = Object.assign({ xp: 0, best: 0, bestCombo: 0, streak: 0, last: "", day: "", n: 0, upd: 0 }, l);
+}
+function saveG() {
+  G.upd = Date.now(); try { localStorage.setItem(gKey(), JSON.stringify(G)); } catch (e) {}
+  clearTimeout(gTimer); gTimer = setTimeout(() => api("/api/progress", { data: { game: G } }).catch(() => {}), 800);
+}
+async function syncG() {
+  try { const d = await api("/api/progress"); if (d && d.game && (d.game.upd || 0) > G.upd) { G = Object.assign(G, d.game); try { localStorage.setItem(gKey(), JSON.stringify(G)); } catch (e) {} } } catch (e) {}
+}
+const levelOf = (xp) => Math.floor(xp / XP_LEVEL) + 1;
+const streakNow = () => (G.last === todayStr() || G.last === yesterdayStr() ? G.streak : 0);
+const todayN = () => (G.day === todayStr() ? G.n : 0);
+const ICO = {
+  flame: '<path d="M12 2s5 4.5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 1-6 1-9z"/>',
+  heart: '<path d="M12 21s-8-5.3-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 10c0 5.7-8 11-8 11z"/>',
+  star: '<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sound: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/>',
+  mute: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/>',
+};
+function ring(frac, center, cls) {
+  const w = el("div", "ring " + (cls || "")), C = 251.3;
+  w.innerHTML = '<svg viewBox="0 0 100 100"><circle class="bgc" cx="50" cy="50" r="40"/><circle class="fg" cx="50" cy="50" r="40" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '"/></svg>';
+  w.append(el("b", "", center));
+  const fg = w.querySelector(".fg");
+  requestAnimationFrame(() => requestAnimationFrame(() => { fg.style.strokeDashoffset = C * (1 - Math.max(0, Math.min(1, frac))); }));
+  return w;
+}
+const chip = (icon, text, cls) => { const c = el("span", "chip " + (cls || "")); if (icon) c.append(svg(icon)); c.append(document.createTextNode(text)); return c; };
+
+function mountGameChip() {
+  const box = document.getElementById("tools"); if (!box || !me) return;
+  box.querySelectorAll(".gchip").forEach((n) => n.remove());
+  const st = streakNow(), c = chip(ICO.flame, st + " · " + t("lvl", levelOf(G.xp)), st ? "fire gchip" : "gchip");
+  box.prepend(c);
+}
+
 /* ---------- Pratik ---------- */
-let PR = { scope: "", n: 10 };
+let PR = { scope: "", n: 10, mode: "classic" };
 const mkQ = (w, engs) => ({ w, opts: shuf([w.eng, ...shuf(engs.filter((e) => e !== w.eng)).slice(0, 3)]) });
 function tPractice() {
   const box = el("div");
   box.append(head(t("nav_practice"), t("practiceSub")));
   const words = uniqWords(), engs = [...new Set(V.words.map((w) => w.eng))];
   if (words.length < 4 || engs.length < 4) { box.append(empty(t("needWords"), t("needWordsText"), otherPairs())); return box; }
-  const card = el("div", "card"), area = el("div");
-  const sc = el("select"), nn = el("select"), go = el("button", "primary", t("start"));
+
+  const intro = el("div"), area = el("div");
+  // oyuncu kartı: seviye halkası, seri, günlük hedef
+  const L = levelOf(G.xp), into = G.xp % XP_LEVEL, st = streakNow(), dn = todayN();
+  const pc = el("div", "card lvl in"), mid = el("div"), goal = el("div", "goal");
+  const chips = el("div", "chips");
+  chips.append(chip(ICO.flame, st ? t("streakDays", st) : t("streakStart"), st ? "fire" : ""));
+  if (G.best) chips.append(chip(ICO.star, t("bestScore", G.best)));
+  mid.append(el("h2", "", t("lvl", L)), el("p", "dim small", t("xpTo", XP_LEVEL - into, L + 1)), chips);
+  goal.append(ring(dn / DAILY_GOAL, dn >= DAILY_GOAL ? "✓" : dn), el("span", "", dn >= DAILY_GOAL ? t("dailyDone") : t("dailyGoal") + " · " + t("dailyOf", dn, DAILY_GOAL)));
+  pc.append(ring(into / XP_LEVEL, L), mid, goal);
+
+  // mod seçimi
+  const modes = el("div", "modes");
+  [["classic", t("modeClassic"), t("modeClassicD"), ICONS.known], ["speed", t("modeSpeed"), t("modeSpeedD"), ICO.clock], ["survival", t("modeSurv"), t("modeSurvD"), ICO.heart]].forEach(([k, n, d, ic]) => {
+    const b = el("button", "mode" + (PR.mode === k ? " on" : "")), h = el("b"); h.append(svg(ic), document.createTextNode(n)); b.append(h, el("span", "", d));
+    b.onclick = () => { PR.mode = k; [...modes.children].forEach((x) => x.classList.remove("on")); b.classList.add("on"); }; modes.append(b);
+  });
+  const setup = el("div", "card in"), sc = el("select"), nn = el("select"), go = el("button", "primary go-btn", t("start"));
   sc.append(new Option(t("allWords"), ""));
   VIDS.filter((v) => v.count >= 4).forEach((v) => sc.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
   [5, 10, 20, 30].forEach((n) => nn.append(new Option(t("nQuestions", n), n)));
   sc.value = PR.scope; nn.value = PR.n;
-  const f1 = el("label", "f"), f2 = el("label", "f");
+  const f1 = el("label", "f"), f2 = el("label", "f"), row = el("div", "row");
   f1.append(el("span", "", t("source")), sc); f2.append(el("span", "", t("questions")), nn);
-  const row = el("div", "row"); f1.style.flex = "1 1 220px"; f2.style.flex = "0 0 150px"; f1.style.margin = f2.style.margin = "0";
-  go.style.alignSelf = "flex-end"; row.append(f1, f2, go); card.append(row);
+  f1.style.cssText = "flex:1 1 220px;margin:0"; f2.style.cssText = "flex:0 0 150px;margin:0"; row.append(f1, f2); row.style.marginBottom = "14px";
+  setup.append(row, go);
   go.onclick = () => {
-    PR = { scope: sc.value, n: +nn.value };
+    PR.scope = sc.value; PR.n = +nn.value; FX.play("go");
     const pool = shuf(words.filter((w) => !PR.scope || (w.episode || "\u0000") === PR.scope));
-    runQuiz(area, card, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs)));
+    runQuiz(area, intro, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs)), PR.mode);
   };
-  box.append(card, area); area.style.marginTop = "16px";
+  intro.append(pc, modes, setup);
+  box.append(intro, area);
   return box;
 }
-function runQuiz(area, setup, qs) {
-  setup.classList.add("hide");
-  let i = 0, score = 0; const wrongs = [];
-  const step = () => {
-    if (i >= qs.length) return end();
-    const { w, opts } = qs[i], card = el("div", "card"), bar = el("div", "bar"), fill = el("i");
-    fill.style.width = (i / qs.length * 100) + "%"; bar.append(fill);
-    const top = el("div", "row"); top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)), el("span", "pill", score));
-    const og = el("div", "opts"); let locked = false;
-    opts.forEach((o) => {
-      const b = el("button", "", o);
-      b.onclick = () => {
-        if (locked) return; locked = true;
-        const ok = o === w.eng; if (ok) score++; else wrongs.push(w);
-        [...og.children].forEach((x) => { if (x.textContent === w.eng) x.classList.add("ok"); else if (x === b) x.classList.add("no"); });
-        setTimeout(() => { i++; step(); }, ok ? 700 : 1500);
-      };
-      og.append(b);
-    });
-    top.style.marginBottom = "8px";
-    card.append(top, bar, el("div", "qword", w.tr), og);
-    area.replaceChildren(card);
+
+function runQuiz(area, intro, qs, mode) {
+  intro.classList.add("hide");
+  const SPEED = 8;
+  let i = 0, score = 0, combo = 0, bestCombo = 0, lives = 3, correct = 0, answered = 0, cur = null, advance = null, tmo = [];
+  const wrongs = [], engs = [...new Set(V.words.map((x) => x.eng))];
+  const clearT = () => { tmo.forEach(clearTimeout); tmo = []; };
+  const onKey = (e) => {
+    if (!cur || !document.body.contains(cur.card)) { document.removeEventListener("keydown", onKey); return; }
+    if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 4 && !cur.locked) cur.btns[n - 1] && cur.btns[n - 1].click();
+    else if ((e.key === "Enter" || e.key === " ") && cur.locked && advance) { e.preventDefault(); advance(); }
   };
-  const end = () => {
-    const card = el("div", "card"), pct = Math.round(score / qs.length * 100), r = el("div", "row");
-    card.append(el("h2", "", t("result", score, qs.length)), el("p", "dim", pct + "%")); r.style.marginTop = "16px";
-    const engs = [...new Set(V.words.map((x) => x.eng))];
-    if (wrongs.length) {
-      const b = el("button", "primary", t("retryWrong", wrongs.length));
-      b.onclick = () => runQuiz(area, setup, shuf(wrongs).map((w) => mkQ(w, engs))); r.append(b);
+  document.addEventListener("keydown", onKey);
+
+  function step() {
+    if (i >= qs.length) return end("done");
+    const { w, opts } = qs[i], card = el("div", "card qcard in"), hud = el("div", "hud");
+    const hearts = el("div", "hearts"), comboEl = el("span", "combo"), scEl = el("span", "sc", String(score)), snd = el("button", "ghost icon-sm");
+    comboEl.append(svg(ICO.flame), el("span", "", ""));
+    const paintCombo = () => { comboEl.lastChild.textContent = combo >= 2 ? t("combo", combo) : "×" + Math.max(combo, 1); comboEl.className = "combo" + (combo >= 3 ? " hot" : "") + (combo >= 6 ? " fire" : ""); };
+    const paintHearts = () => { hearts.replaceChildren(...[0, 1, 2].map((k) => { const h = svg(ICO.heart); if (k >= lives) h.classList.add("lost"); return h; })); };
+    const paintSnd = () => { snd.replaceChildren(svg(FX.isMuted() ? ICO.mute : ICO.sound)); snd.setAttribute("aria-label", t("sound")); };
+    snd.onclick = () => { FX.setMuted(!FX.isMuted()); paintSnd(); }; paintSnd(); paintCombo(); paintHearts();
+    if (mode === "survival") hud.append(hearts);
+    hud.append(comboEl, el("span", "dim small", t("qOf", i + 1, qs.length)), scEl, snd);
+    const bar = el("div", mode === "speed" ? "tbar" : "bar"), fill = el("i"); bar.append(fill);
+    if (mode !== "speed") fill.style.width = (i / qs.length * 100) + "%";
+    const og = el("div", "opts"), btns = [];
+    opts.forEach((o, k) => {
+      const b = el("button"); b.append(el("span", "k", k + 1), el("span", "", o));
+      b.onclick = () => answer(b, o); og.append(b); btns.push(b);
+    });
+    card.append(hud, bar, el("div", "qword", w.tr), og);
+    area.replaceChildren(card);
+    cur = { card, btns, locked: false };
+    const t0 = performance.now();
+
+    if (mode === "speed") {
+      fill.style.transition = "none"; fill.style.transform = "scaleX(1)";
+      requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = "transform " + SPEED + "s linear"; fill.style.transform = "scaleX(0)"; }));
+      tmo.push(setTimeout(() => { bar.classList.add("low"); FX.play("tick"); }, (SPEED - 3) * 1000));
+      tmo.push(setTimeout(() => FX.play("tick"), (SPEED - 2) * 1000), setTimeout(() => FX.play("tick"), (SPEED - 1) * 1000));
+      tmo.push(setTimeout(() => answer(null, null), SPEED * 1000));
     }
-    const again = el("button", "", t("again")); again.onclick = () => { area.replaceChildren(); setup.classList.remove("hide"); }; r.append(again);
-    card.append(r);
+
+    function answer(btn, choice) {
+      if (cur.locked) return; cur.locked = true; clearT();
+      const el_ = (performance.now() - t0) / 1000, ok = choice === w.eng; answered++;
+      btns.forEach((x) => { if (x.lastChild.textContent === w.eng) x.classList.add("ok"); else if (x === btn) x.classList.add("no"); });
+      fill.style.transition = "none";
+      if (ok) {
+        combo++; correct++; bestCombo = Math.max(bestCombo, combo);
+        const lim = mode === "speed" ? SPEED : 10, bonus = Math.round(50 * Math.max(0, 1 - el_ / lim)), pts = 100 + bonus + Math.min(50, 10 * (combo - 1));
+        score += pts; scEl.textContent = score; FX.bump(scEl);
+        card.classList.add("ok"); FX.play("correct", combo); FX.vibrate(14); FX.float(btn, "+" + pts, combo >= 3 ? "hot" : "");
+        if (combo > 0 && combo % 5 === 0) { FX.confetti(0.55); FX.play("combo"); }
+      } else {
+        combo = 0; wrongs.push(w); if (mode === "survival") lives--;
+        card.classList.add("no"); FX.shake(card); FX.play("wrong"); FX.vibrate([50, 40, 50]);
+        if (!btn) FX.float(card.querySelector(".qword"), t("timeUp"), "bad");
+      }
+      paintCombo(); FX.bump(comboEl); paintHearts();
+      let done = false;
+      advance = () => { if (done) return; done = true; advance = null; i++; if (mode === "survival" && lives <= 0) end("lives"); else step(); };
+      tmo.push(setTimeout(() => advance && advance(), ok ? 800 : 1500));
+    }
+  }
+
+  function end(reason) {
+    clearT(); document.removeEventListener("keydown", onKey); cur = null;
+    const pct = answered ? Math.round(correct / answered * 100) : 0;
+    const xpGain = correct * 10 + bestCombo * 2 + (pct === 100 && answered >= 5 ? 20 : 0);
+    const lvBefore = levelOf(G.xp), fracBefore = (G.xp % XP_LEVEL) / XP_LEVEL;
+    G.xp += xpGain; const lvAfter = levelOf(G.xp), leveled = lvAfter > lvBefore, newBest = score > G.best;
+    if (newBest) G.best = score; G.bestCombo = Math.max(G.bestCombo || 0, bestCombo);
+    const td = todayStr(); if (G.day !== td) { G.day = td; G.n = 0; } G.n += answered;
+    if (G.last !== td) { G.streak = G.last === yesterdayStr() ? G.streak + 1 : 1; G.last = td; }
+    saveG(); mountGameChip();
+
+    const card = el("div", "card result in"), stars = el("div", "stars"), big = el("div", "big", "0");
+    const title = reason === "lives" ? t("outOfLives") : pct === 100 ? t("rPerfect") : pct >= 80 ? t("rGreat") : pct >= 50 ? t("rGood") : t("rKeep");
+    const n = pct >= 90 ? 3 : pct >= 65 ? 2 : pct >= 35 ? 1 : 0;
+    for (let k = 0; k < 3; k++) stars.append(svg(ICO.star));
+    const info = el("div", "chips"); info.style.justifyContent = "center";
+    info.append(chip(ICO.star, t("accuracyN", pct)), chip(ICO.flame, t("bestCombo", bestCombo), bestCombo >= 3 ? "fire" : ""), chip(null, t("result", correct, answered)));
+    const xpb = el("div", "xpbar"), xpi = el("i"); xpb.append(xpi); xpi.style.width = (fracBefore * 100) + "%";
+    const xpl = el("p", "dim small", t("xpGain", xpGain) + " · " + t("lvl", lvAfter));
+    const banners = el("div");
+    if (newBest) banners.append(el("span", "banner", t("newBest")));
+    if (leveled) banners.append(el("span", "banner", t("levelUp", lvAfter)));
+    const r = el("div", "row"); r.style.marginTop = "16px";
+    if (wrongs.length) { const b = el("button", "primary", t("retryWrong", wrongs.length)); b.onclick = () => runQuiz(area, intro, shuf(wrongs).map((w) => mkQ(w, engs)), mode); r.append(b); }
+    const again = el("button", wrongs.length ? "" : "primary", t("again")); again.onclick = () => { area.replaceChildren(); render(); }; r.append(again);
+    card.append(el("h2", "", title), stars, big, el("p", "dim small", t("ptsN", "")), info, xpb, xpl, banners, r);
     if (wrongs.length) {
-      const l = el("div", "list"); l.style.marginTop = "16px";
+      const l = el("div", "list"); l.style.cssText = "margin-top:16px;text-align:left";
       wrongs.forEach((w) => { const li = el("div", "li"); li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng)); l.append(li); });
       card.append(l);
     }
     area.replaceChildren(card);
-  };
+    FX.count(big, score, 1000);
+    requestAnimationFrame(() => requestAnimationFrame(() => { xpi.style.width = (leveled ? 100 : (G.xp % XP_LEVEL) / XP_LEVEL * 100) + "%"; }));
+    [...stars.children].forEach((sv, k) => { if (k < n) setTimeout(() => { sv.classList.add("on"); FX.play("correct", k * 2 + 1); }, 500 + k * 380); });
+    setTimeout(() => {
+      if (leveled) { FX.play("level"); FX.confetti(1.2); } else if (pct >= 80) { FX.play("win"); FX.confetti(0.9); } else if (n === 0) FX.play("lose");
+    }, 500 + n * 380);
+  }
   step();
 }
 

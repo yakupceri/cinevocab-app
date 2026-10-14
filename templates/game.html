@@ -16,7 +16,7 @@
   .opts button .k { width:24px; height:24px; border-radius:6px; background:var(--bg2); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; color:var(--dim); flex:none; }
   .opts button.pick { border-color:var(--accent); background:var(--accent-soft); }
   .d { color:var(--ok); margin-left:10px; font-size:14px; font-weight:700; } .d.x { color:var(--bad); }
-  .timer { height:5px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
+  .timer.hot i { background:var(--bad) !important; } .timer { height:8px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
 </style>
 <script src="/static/i18n.js"></script>
 </head>
@@ -29,6 +29,7 @@
 </div></header>
 <main class="wrap"><div class="stage" id="app"></div></main>
 <script src="/static/common.js"></script>
+<script src="/static/fx.js"></script>
 <script>
 const app = document.getElementById("app");
 let ws, myId = "", room = null, chosen = null, me = { username: "" }, lastQ = null, mode = "home";
@@ -69,23 +70,36 @@ async function home(error, auto) {
   app.replaceChildren(h, card);
 }
 
+const hue = (n) => { let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const avatar = (name) => { const a = el("span", "av c", (name || "?").slice(0, 1).toUpperCase()); a.style.setProperty("--h", hue(name)); return a; };
+let prevRank = {}, timers = [], streaks = {};
 function playerList(rows, opts = {}) {
   const ul = el("ul", "players");
   rows.forEach((p, i) => {
     const li = el("li");
-    li.append(opts.rank ? el("span", "rk", i + 1) : el("span", "av", (p.name || "?").slice(0, 1).toUpperCase()));
-    const nm = el("span", "nm", p.name + (p.id === myId ? "" : ""));
+    if (opts.rank) { const rk = el("span", "rk", i + 1); li.append(rk); }
+    li.append(avatar(p.name));
+    const nm = el("span", "nm", p.name);
     if (p.id === myId) nm.append(el("span", "tag", t("you")));
     if (opts.host && p.id === opts.host) nm.append(el("span", "tag", t("host")));
+    if (opts.delta && p.id in prevRank && prevRank[p.id] !== i) nm.append(el("span", prevRank[p.id] > i ? "rank-up" : "rank-dn", prevRank[p.id] > i ? "▲" : "▼"));
+    if (opts.delta && p.streak >= 2) nm.append(el("span", "fire-n", "🔥 " + t("inARow", p.streak)));
     li.append(nm);
     if (p.score !== undefined) {
-      const r = el("span"); r.append(el("b", "", p.score));
+      const r = el("span"), sc = el("b", "", p.score); r.append(sc);
       if (opts.delta && p.delta !== undefined) r.append(el("span", "d" + (p.ok ? "" : " x"), p.ok ? "+" + p.delta : "✗"));
       li.append(r);
+      if (opts.delta && p.ok && p.delta) { FX.count(sc, p.score, 700, null, p.score - p.delta); }
     }
     ul.append(li);
   });
   return ul;
+}
+
+function strip(players) {
+  const s = el("div", "pstrip"); s.id = "pstrip";
+  (players || []).forEach((p) => { const c = el("div", "pc"); c.dataset.id = p.id; c.append(avatar(p.name), el("span", "", p.name.slice(0, 12)), el("b", "", p.score || 0)); s.append(c); });
+  return s;
 }
 
 function lobby(info) {
@@ -111,14 +125,29 @@ function handle(m) {
   if (m.t === "me") myId = m.id;
   else if (m.t === "room") { room = m; if (mode !== "play") lobby(m); else room = m; }
   else if (m.t === "error") { const msg = I18N.err(m.msg); if (room) { errBox.textContent = msg; toast(msg); } else { ws.close(); home(msg); } }
+  else if (m.t === "countdown") countdown(m.seconds || 3);
+  else if (m.t === "answered") { const c = document.querySelector('#pstrip .pc[data-id="' + m.id + '"]'); if (c) { c.classList.add("done"); FX.bump(c); } if (m.id !== myId) FX.play("tick"); }
   else if (m.t === "question") question(m);
   else if (m.t === "reveal") reveal(m);
   else if (m.t === "end") finish(m);
 }
 
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function countdown(n) {
+  mode = "play"; clearTimers(); prevRank = {}; streaks = {};
+  const box = el("div", "card center"), num = el("div", "cd");
+  box.append(el("p", "dim", t("getReady")), num);
+  app.replaceChildren(box);
+  const step = (k) => {
+    if (k > 0) { num.replaceWith(num = Object.assign(el("div", "cd"), { textContent: k })); FX.play("beep"); FX.vibrate(20); timers.push(setTimeout(() => step(k - 1), 1000)); }
+    else { num.replaceWith(num = Object.assign(el("div", "cd"), { textContent: t("goText") })); FX.play("go"); }
+  };
+  step(n);
+}
+
 function question(m) {
-  mode = "play"; chosen = null; lastQ = m;
-  const card = el("div", "card"), top = el("div", "row");
+  mode = "play"; chosen = null; lastQ = m; clearTimers();
+  const card = el("div", "card qcard"), top = el("div", "row");
   top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
   const bar = el("div", "timer"), fill = el("i"); bar.append(fill);
   const grid = el("div", "opts");
@@ -128,29 +157,56 @@ function question(m) {
   });
   top.style.marginBottom = "8px";
   card.append(top, bar, el("div", "qword", m.tr), grid);
-  app.replaceChildren(card);
+  const ps = room && room.players ? strip(room.players.map((p) => ({ ...p, score: (prevScores[p.id] || 0) }))) : el("div");
+  app.replaceChildren(ps, card);
   fill.style.transition = `width ${m.seconds}s linear`;
   requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  const hot = Math.max(0, (m.seconds - 3) * 1000);
+  timers.push(setTimeout(() => { bar.classList.add("hot"); [0, 1, 2].forEach((i) => timers.push(setTimeout(() => chosen === null && FX.play("tick"), i * 1000))); }, hot));
 }
+let prevScores = {};
 function pick(btn, opt, grid) {
   if (chosen !== null) return;
   chosen = opt; btn.classList.add("pick");
   grid.querySelectorAll("button").forEach((b) => (b.disabled = true));
   send({ t: "answer", choice: opt });
+  const c = document.querySelector('#pstrip .pc[data-id="' + myId + '"]'); if (c) c.classList.add("done");
 }
 function reveal(m) {
+  clearTimers();
+  const card = app.querySelector(".qcard");
   app.querySelectorAll(".opts button").forEach((b) => {
     b.disabled = true; b.classList.remove("pick");
     if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("no");
   });
+  const mine = m.results.find((r) => r.id === myId);
+  if (mine && card) {
+    if (mine.ok) {
+      card.classList.add("ok"); FX.play("correct", mine.streak || 1); FX.vibrate(25);
+      FX.float(card, "+" + mine.delta, "good");
+      if (mine.streak >= 3) { FX.play("combo"); FX.confetti(0.3); }
+    } else { card.classList.add("no"); FX.play("wrong"); FX.shake(card); FX.vibrate([60, 40, 60]); }
+  }
   const rows = [...m.results].sort((a, b) => b.score - a.score), c = el("div", "card");
   c.style.marginTop = "14px"; c.append(playerList(rows, { delta: true, rank: true }));
   const old = app.querySelector(".rv"); if (old) old.remove(); c.classList.add("rv");
   app.append(c);
+  prevRank = {}; rows.forEach((p, i) => (prevRank[p.id] = i));
+  prevScores = {}; rows.forEach((p) => (prevScores[p.id] = p.score));
+}
+function podium(sc) {
+  const order = [sc[1], sc[0], sc[2]].filter(Boolean), pod = el("div", "pod");
+  order.forEach((p) => {
+    const place = sc.indexOf(p) + 1, d = el("div", "p" + place);
+    d.append(avatar(p.name), el("span", "nm", p.name), el("span", "pt", p.score), el("div", "blk", place));
+    pod.append(d);
+  });
+  return pod;
 }
 function finish(m) {
-  mode = "lobby";
+  mode = "lobby"; clearTimers(); prevRank = {}; prevScores = {};
   const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
+  const myPlace = m.scores.findIndex((p) => p.id === myId) + 1, won = myPlace === 1 && !tie;
   const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
   again.onclick = () => { if (room && room.host === myId) send({ t: "start" }); };
   leave.onclick = () => { room = null; ws.close(); home(); };
@@ -158,9 +214,14 @@ function finish(m) {
   const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:16px";
   if (room && room.host === myId) act.append(again);
   act.append(leave);
-  card.append(el("p", "dim small", t("gameOver")), el("h1", "", tie ? t("tie") : t("winner", top.name)), pl, act);
+  const head = won ? t("youWon") : tie ? t("tie") : t("winner", top.name);
+  card.append(el("p", "dim small", t("gameOver")), el("h1", "", head));
+  if (myPlace && !won) card.append(el("p", "dim", t("youPlace", myPlace)));
+  if (m.scores.length >= 2) card.append(podium(m.scores));
+  card.append(pl, act);
   if (!(room && room.host === myId)) { const w = el("p", "dim small", t("hostRestarts")); w.style.marginTop = "12px"; card.append(w); }
   app.replaceChildren(card);
+  if (won || tie) { FX.play("win"); FX.confetti(1); FX.vibrate([80, 40, 80, 40, 160]); } else FX.play("lose");
 }
 
 document.addEventListener("keydown", (e) => {

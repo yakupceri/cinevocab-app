@@ -2,7 +2,7 @@
 (function (root) {
   const STOP = {
     tr: "ve bir bu da için ne ama çok daha gibi var yok ben sen biz siz ki mi mı mu mü değil evet hayır şey ile her şu kadar sonra ya şimdi nasıl neden bana sana onu bunu olarak çünkü hiç bile artık tamam lütfen",
-    en: "the and you that is it to of in not this for are was with have be what he she we they do but your me my on at so if can will just don't i'm it's that's there here know no yes about like get go out up how why when who all one",
+    en: "let the and you that is it to of in not this for are was with have be what he she we they do but your me my on at so if can will just don't i'm it's that's there here know no yes about like get go out up how why when who all one",
     fr: "le la les des est une un et en que qui pas pour dans ce je tu il elle nous vous ils sur avec ne se mais au du plus suis très oui non c'est qu'il est-ce pourquoi comment quoi bien tout fait être avoir ça cette sont fais",
     it: "il lo la gli che non di un una per sono con è ma come più questo questa anche mi ti ci se perché cosa dove quando tutto sei hai ho ha siamo molto bene già solo niente",
     es: "el la los las que de no un una es en por con para se lo me mi tu yo pero muy sí como más está estoy eres soy qué cómo porque cuando todo hay esto esta bien ya aquí nada",
@@ -45,6 +45,26 @@
     let best = "", bestScore = 0;
     for (const k in scores) if (scores[k] > bestScore) { best = k; bestScore = scores[k]; }
     return { best, bestScore, scores, scripts: sc };
+  }
+
+
+  // Satırın içine karışmış yabancı kelimeleri bul (ör. Türkçe satırda "let get on with the dialogue").
+  // words: küçük harfli kelime listesi, src: beklenen dil. Dönen: aynı uzunlukta boolean dizisi.
+  function foreign(words, src) {
+    const own = SETS[src] || new Set(), h = HINTS[src];
+    const f = words.map((w) => {
+      if (own.has(w) || (h && w.match(h))) return false;
+      if (/[qwx]/.test(w) && src !== "en") return true;
+      for (const k in SETS) if (k !== src && SETS[k].has(w)) return true;
+      return false;
+    });
+    // en az 2 yabancı kelimelik bir öbeğin hemen ardındaki, kendi dilinin izi olmayan kelime de yabancı sayılır
+    let run = 0;
+    for (let i = 0; i < words.length; i++) {
+      if (f[i]) { run++; continue; }
+      if (run >= 2 && !own.has(words[i]) && !(h && words[i].match(h)) && !/[çğıöşü]/.test(words[i])) { f[i] = true; run++; } else run = 0;
+    }
+    return f;
   }
 
   // Beklenen dil (src) ile karşılaştır: "match" | "mismatch" | "unknown"
@@ -107,6 +127,6 @@
     return s;
   }
   const langName = (c) => (NAMES[ui()] || NAMES.en)[c] || c;
-  root.CVL = { detect, verdict, Guard, t, langName, ui };
+  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui };
   if (typeof module !== "undefined") module.exports = root.CVL;
 })(typeof self !== "undefined" ? self : globalThis);

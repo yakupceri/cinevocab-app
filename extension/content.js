@@ -178,7 +178,9 @@ function showSentence(sentence) {
   const episode = readEpisode();
   let thumb = "";
   if (episode && !thumbSent.has(episode)) { thumb = readThumb(); if (thumb) thumbSent.add(episode); }
-  const words = splitWords(sentence);
+  let words = splitWords(sentence);
+  const fr = CVL.foreign(words, SRC);
+  words = words.filter((_, i) => !fr[i]);
   if (words.length === 0) return;
 
   overlayBox.style.display = "block";

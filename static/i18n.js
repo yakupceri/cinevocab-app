@@ -345,6 +345,49 @@
     landHowT: "Cómo funciona", landHowSub: "Tres pasos, unos dos minutos."
   });
 
+  Object.assign(D.en, {
+    lvl: "Level {0}", xpTo: "{0} XP to level {1}", streakDays: "{0}-day streak", streakStart: "Start a streak today", dailyGoal: "Daily goal", dailyOf: "{0}/{1} today", dailyDone: "Goal reached!",
+    modeClassic: "Classic", modeClassicD: "No timer. Take your time.", modeSpeed: "Speed run", modeSpeedD: "8 seconds per question.", modeSurv: "Survival", modeSurvD: "3 lives. Every miss costs one.",
+    combo: "Combo ×{0}", timeUp: "Time's up!", outOfLives: "Out of lives", rPerfect: "Perfect run!", rGreat: "Great run!", rGood: "Nice work", rKeep: "Keep going",
+    xpGain: "+{0} XP", levelUp: "Level up! You reached level {0}", newBest: "New best score!", bestScore: "Best: {0}", ptsN: "{0} pts", accuracyN: "{0}% accuracy", bestCombo: "Best combo ×{0}", sound: "Sound",
+    getReady: "Get ready", goText: "Go!", answeredLbl: "answered", youPlace: "You finished #{0}", youWon: "You won!", inARow: "{0} in a row"
+  });
+  Object.assign(D.tr, {
+    lvl: "Seviye {0}", xpTo: "{1}. seviyeye {0} XP", streakDays: "{0} günlük seri", streakStart: "Bugün seriye başla", dailyGoal: "Günlük hedef", dailyOf: "bugün {0}/{1}", dailyDone: "Hedef tamam!",
+    modeClassic: "Klasik", modeClassicD: "Süre yok. Rahatça çöz.", modeSpeed: "Hız modu", modeSpeedD: "Soru başına 8 saniye.", modeSurv: "Hayatta kal", modeSurvD: "3 can. Her yanlış bir can götürür.",
+    combo: "Kombo ×{0}", timeUp: "Süre doldu!", outOfLives: "Canların bitti", rPerfect: "Kusursuz!", rGreat: "Harika gidiyorsun!", rGood: "Güzel iş", rKeep: "Devam et",
+    xpGain: "+{0} XP", levelUp: "Seviye atladın! {0}. seviyedesin", newBest: "Yeni rekor!", bestScore: "En iyi: {0}", ptsN: "{0} puan", accuracyN: "%{0} doğru", bestCombo: "En iyi kombo ×{0}", sound: "Ses",
+    getReady: "Hazır ol", goText: "Başla!", answeredLbl: "cevapladı", youPlace: "{0}. oldun", youWon: "Kazandın!", inARow: "{0} üst üste"
+  });
+  Object.assign(D.fr, {
+    lvl: "Niveau {0}", xpTo: "{0} XP avant le niveau {1}", streakDays: "Série de {0} jours", streakStart: "Lance ta série aujourd'hui", dailyGoal: "Objectif du jour", dailyOf: "{0}/{1} aujourd'hui", dailyDone: "Objectif atteint !",
+    modeClassic: "Classique", modeClassicD: "Sans minuteur. Prends ton temps.", modeSpeed: "Contre la montre", modeSpeedD: "8 secondes par question.", modeSurv: "Survie", modeSurvD: "3 vies. Chaque erreur en coûte une.",
+    combo: "Combo ×{0}", timeUp: "Temps écoulé !", outOfLives: "Plus de vies", rPerfect: "Sans faute !", rGreat: "Superbe partie !", rGood: "Bien joué", rKeep: "Continue",
+    xpGain: "+{0} XP", levelUp: "Niveau supérieur ! Tu es niveau {0}", newBest: "Nouveau record !", bestScore: "Record : {0}", ptsN: "{0} pts", accuracyN: "{0} % de réussite", bestCombo: "Meilleur combo ×{0}", sound: "Son",
+    getReady: "Prépare-toi", goText: "Partez !", answeredLbl: "a répondu", youPlace: "Tu finis {0}ᵉ", youWon: "Tu as gagné !", inARow: "{0} d'affilée"
+  });
+  Object.assign(D.it, {
+    lvl: "Livello {0}", xpTo: "{0} XP al livello {1}", streakDays: "Serie di {0} giorni", streakStart: "Inizia una serie oggi", dailyGoal: "Obiettivo giornaliero", dailyOf: "{0}/{1} oggi", dailyDone: "Obiettivo raggiunto!",
+    modeClassic: "Classica", modeClassicD: "Senza timer. Con calma.", modeSpeed: "Contro il tempo", modeSpeedD: "8 secondi a domanda.", modeSurv: "Sopravvivenza", modeSurvD: "3 vite. Ogni errore ne costa una.",
+    combo: "Combo ×{0}", timeUp: "Tempo scaduto!", outOfLives: "Vite esaurite", rPerfect: "Perfetto!", rGreat: "Grande partita!", rGood: "Bel lavoro", rKeep: "Continua così",
+    xpGain: "+{0} XP", levelUp: "Livello su! Sei al livello {0}", newBest: "Nuovo record!", bestScore: "Record: {0}", ptsN: "{0} pt", accuracyN: "{0}% corrette", bestCombo: "Miglior combo ×{0}", sound: "Suono",
+    getReady: "Preparati", goText: "Via!", answeredLbl: "ha risposto", youPlace: "Sei arrivato {0}°", youWon: "Hai vinto!", inARow: "{0} di fila"
+  });
+  Object.assign(D.de, {
+    lvl: "Level {0}", xpTo: "{0} XP bis Level {1}", streakDays: "{0} Tage in Folge", streakStart: "Starte heute eine Serie", dailyGoal: "Tagesziel", dailyOf: "{0}/{1} heute", dailyDone: "Ziel erreicht!",
+    modeClassic: "Klassisch", modeClassicD: "Ohne Zeitlimit. Lass dir Zeit.", modeSpeed: "Zeitrennen", modeSpeedD: "8 Sekunden pro Frage.", modeSurv: "Überleben", modeSurvD: "3 Leben. Jeder Fehler kostet eins.",
+    combo: "Combo ×{0}", timeUp: "Zeit abgelaufen!", outOfLives: "Keine Leben mehr", rPerfect: "Perfekt!", rGreat: "Starke Runde!", rGood: "Gut gemacht", rKeep: "Weiter so",
+    xpGain: "+{0} XP", levelUp: "Level-Up! Du bist Level {0}", newBest: "Neuer Rekord!", bestScore: "Bestwert: {0}", ptsN: "{0} Pkt.", accuracyN: "{0} % richtig", bestCombo: "Beste Combo ×{0}", sound: "Ton",
+    getReady: "Mach dich bereit", goText: "Los!", answeredLbl: "hat geantwortet", youPlace: "Du bist Platz {0}", youWon: "Du hast gewonnen!", inARow: "{0} in Folge"
+  });
+  Object.assign(D.es, {
+    lvl: "Nivel {0}", xpTo: "{0} XP para el nivel {1}", streakDays: "Racha de {0} días", streakStart: "Empieza una racha hoy", dailyGoal: "Meta diaria", dailyOf: "{0}/{1} hoy", dailyDone: "¡Meta cumplida!",
+    modeClassic: "Clásico", modeClassicD: "Sin tiempo. Con calma.", modeSpeed: "Contrarreloj", modeSpeedD: "8 segundos por pregunta.", modeSurv: "Supervivencia", modeSurvD: "3 vidas. Cada fallo cuesta una.",
+    combo: "Combo ×{0}", timeUp: "¡Se acabó el tiempo!", outOfLives: "Sin vidas", rPerfect: "¡Perfecto!", rGreat: "¡Gran partida!", rGood: "Buen trabajo", rKeep: "Sigue así",
+    xpGain: "+{0} XP", levelUp: "¡Subes de nivel! Ahora eres nivel {0}", newBest: "¡Nuevo récord!", bestScore: "Récord: {0}", ptsN: "{0} pts", accuracyN: "{0} % de aciertos", bestCombo: "Mejor combo ×{0}", sound: "Sonido",
+    getReady: "Prepárate", goText: "¡Ya!", answeredLbl: "respondió", youPlace: "Quedaste {0}.º", youWon: "¡Has ganado!", inARow: "{0} seguidas"
+  });
+
   var LIST = [["tr", "Türkçe"], ["en", "English"], ["fr", "Français"], ["it", "Italiano"], ["de", "Deutsch"], ["es", "Español"]];
   var ERRS = [["Önce giriş", "eLogin"], ["Giriş yapmalısın", "eLogin"], ["Oyun odalarına", "eBanned"], ["Dil çifti", "ePair"], ["En az 4 kelime", "eNeed4"],
     ["Oda bulunamadı", "eNoRoom"], ["Oda şifresi", "ePw"], ["Çok fazla", "eRate"], ["Kullanıcı adı 3-16", "eUser"], ["Parola en az", "ePass6"],

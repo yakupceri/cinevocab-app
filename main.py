@@ -1036,6 +1036,9 @@ async def run_game(room: Room):
     room.state = "playing"
     for p in room.players.values():
         p["score"] = 0
+        p["streak"] = 0
+    await broadcast(room, {"t": "countdown", "seconds": 3})  # 3-2-1, sonra ilk soru
+    await asyncio.sleep(3.2)
     for i, q in enumerate(questions):
         if not room.players:
             return
@@ -1050,9 +1053,13 @@ async def run_game(room: Room):
         for pid, p in list(room.players.items()):
             a = room.answers.get(pid)
             ok = a is not None and a[0] == q["eng"]
-            delta = 100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / room.seconds)) if ok else 0
+            p["streak"] = p.get("streak", 0) + 1 if ok else 0
+            # 100 taban + hız bonusu (0-50) + seri bonusu (arka arkaya doğru başına +10, en fazla +50)
+            delta = (100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / room.seconds))
+                     + min(50, 10 * (p["streak"] - 1))) if ok else 0
             p["score"] += delta
-            results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"]})
+            results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"],
+                            "streak": p["streak"]})
         await broadcast(room, {"t": "reveal", "correct": q["eng"], "results": results})
         await asyncio.sleep(REVEAL_SECONDS)
     room.state = "done"
@@ -1142,6 +1149,7 @@ async def ws_endpoint(ws: WebSocket):
 
             elif t == "answer" and room and room.state == "playing" and pid not in room.answers:
                 room.answers[pid] = (str(msg.get("choice")), time.time())
+                await broadcast(room, {"t": "answered", "id": pid})  # kim cevapladı (seçimi gizli)
                 if len(room.answers) >= len(room.players):
                     room.event.set()
     except (WebSocketDisconnect, RuntimeError):

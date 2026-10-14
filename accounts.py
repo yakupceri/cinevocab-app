@@ -457,10 +457,10 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
-<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube ve Udemy'de Türkçe altyazılı içerik izlerken altyazıdaki kelimelerin İngilizce karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
+<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube ve Udemy'de altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
-<li><b>Kelime listen:</b> İzlerken karşılaştığın Türkçe kelimeler, İngilizce karşılıkları ve izlediğin bölümün ya da videonun adı.</li>
+<li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li></ul>
 <h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
