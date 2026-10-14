@@ -1,7 +1,8 @@
 __pycache__/
 *.pyc
-*.bak*
-.DS_Store
 .env
-uygula*.py
-extension.zip
+*.zip
+.venv/
+venv/
+.DS_Store
+*.sqlite3
