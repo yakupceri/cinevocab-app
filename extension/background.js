@@ -5,7 +5,7 @@ const API = "https://cinevocab.up.railway.app";
 const TIMEOUT_MS = 45000; // sunucudaki servis zinciri (5+10+20 sn + kuyruk) sığsın
 
 function post(path, body, sendResponse) {
-  chrome.storage.local.get("key", ({ key }) => {
+  chrome.storage.local.get(["key", "src", "dst"], ({ key, src, dst }) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     fetch(API + path, {
@@ -14,7 +14,7 @@ function post(path, body, sendResponse) {
         "Content-Type": "application/json",
         ...(key ? { Authorization: "Bearer " + key } : {}),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, src: src || "tr", dst: dst || "en" }),
       signal: ctrl.signal,
     })
       .then((r) => {

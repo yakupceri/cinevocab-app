@@ -21,6 +21,8 @@ from accounts import (router, init_accounts, user_from_request, user_from_token,
                       record_game, tag_user_words, _throttle_ip)
 import admin
 
+import multilang
+
 app = FastAPI()
 app.include_router(router)
 app.include_router(admin.router)
@@ -69,6 +71,8 @@ class WordsBatch(BaseModel):
     lookup_only: bool = False  # True: sadece veritabanına bak (anında döner)
     sentence: str = ""  # cümlenin tamamı (bağlam için)
     episode: str = ""  # ör. "Lost S1 E13" (kelimeleri bölüme etiketlemek için)
+    src: str = "tr"  # altyazı dili
+    dst: str = "en"  # çeviri dili
 
 
 # ======================= Yerel sözlük =======================
@@ -275,6 +279,7 @@ def init_db():
 init_db()
 try:
     init_accounts(DB_CONFIG)
+    multilang.init(DB_CONFIG)
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")
@@ -1238,6 +1243,8 @@ def translate_words(batch: WordsBatch, request: Request):
     _throttle_ip(request, limit=240, window=60, bucket="tr")
     batch.sentence = batch.sentence[:300]
     batch.episode = batch.episode[:80]
+    if (batch.src, batch.dst) != ("tr", "en"):
+        return multilang.handle(batch, user_from_request(request))
     LAST_REQUEST_TIME = time.time()
     LATEST_GEN = max(LATEST_GEN, batch.gen)
 

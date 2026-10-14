@@ -118,6 +118,45 @@
   @media (max-width: 860px) { .cols { grid-template-columns: 1fr; gap: 10px; } .stats { grid-template-columns: 1fr 1fr; } .hero { padding: 24px; min-height: 270px; } .hero h1 { font-size: 38px; } .hero > .pcard { display: none; }
     .ep { grid-template-columns: 1fr 52px 90px; } .ep .tr { display: none; } }
   @media (prefers-reduced-motion: reduce) { .node.cur { animation: none; } }
+
+  /* ===== v2 tasarım ===== */
+  :root { --ember:#ff7a45; --gold:#ffc766; --ok:#7be0a6; --card:rgba(255,255,255,.045); --r:20px; }
+  body { background: radial-gradient(1100px 560px at 88% -8%, rgba(255,122,69,.2), transparent 60%), radial-gradient(800px 480px at -8% 28%, rgba(96,140,255,.1), transparent 60%), var(--bg); }
+  main { max-width: 1180px; padding: 0 24px 96px; }
+  .bar { position: sticky; top: 0; z-index: 20; margin: 0 -24px 26px; padding: 14px 24px; background: rgba(12,11,10,.74); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
+  html[data-theme="light"] .bar { background: rgba(246,241,231,.82); }
+  .brand { font-size: 26px; letter-spacing: -.03em; }
+  .bar .who button { border-radius: 999px; background: var(--card); }
+  button { border-radius: 999px; transition: transform .15s, border-color .15s, background .15s, box-shadow .15s; }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  .solid { background: linear-gradient(135deg, var(--gold), var(--ember)); border: 0; color: #1a0d08; box-shadow: 0 10px 28px rgba(255,122,69,.32); }
+  .solid:hover:not(:disabled) { background: linear-gradient(135deg, #ffd488, #ff8a5a); box-shadow: 0 14px 34px rgba(255,122,69,.42); }
+  .hero { border-radius: 30px; min-height: 360px; border: 1px solid var(--line); box-shadow: 0 34px 90px rgba(0,0,0,.5); }
+  .hero h1 { font-size: clamp(38px, 6.4vw, 68px); letter-spacing: -.03em; }
+  .hero .acts button { padding: 15px 32px; font-size: 16px; }
+  .stats { gap: 16px; margin: 20px 0 26px; }
+  .st { background: var(--card); border-radius: var(--r); padding: 20px 22px; transition: transform .2s, border-color .2s; }
+  .st:hover { transform: translateY(-3px); border-color: rgba(255,122,69,.5); }
+  .st .v { font-size: 34px; color: var(--ember); }
+  .tile { border-radius: 16px; width: 104px; height: 146px; transition: transform .2s, opacity .2s, border-color .2s; }
+  .tabs { width: fit-content; max-width: 100%; gap: 6px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; margin-bottom: 18px; }
+  .tabs button { border: 0; border-radius: 999px; padding: 10px 20px; border-bottom: 0; color: var(--dim); }
+  .tabs button.on { background: var(--ember); color: #1a0d08; border-bottom: 0; }
+  .row { padding: 14px 16px; border: 0; border-radius: 14px; margin-bottom: 4px; transition: background .15s; }
+  .row:hover { background: var(--card); } .row.me { background: rgba(255,122,69,.14); }
+  .search { border-radius: 999px; padding: 13px 20px; }
+  .ep { padding: 22px; border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 12px; background: var(--card); }
+  .track i { background: linear-gradient(90deg, var(--ember), var(--gold)); }
+  .track.ok i { background: linear-gradient(90deg, #5fc98c, var(--ok)); }
+  .lnk.del { color: var(--bad); text-decoration-color: rgba(201,80,63,.4); }
+  .extc { border-radius: 24px; padding: 22px; }
+  .a, .mhead, .banner { border-radius: 18px; }
+  .cols { gap: 44px; }
+  main > * { animation: up .55s cubic-bezier(.2,.7,.2,1) both; }
+  main > *:nth-child(2) { animation-delay: .06s; } main > *:nth-child(3) { animation-delay: .12s; } main > *:nth-child(4) { animation-delay: .18s; } main > *:nth-child(5) { animation-delay: .24s; }
+  @keyframes up { from { opacity: 0; transform: translateY(16px); } }
+  @media (prefers-reduced-motion: reduce) { main > * { animation: none; } }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .ep { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -457,14 +496,14 @@ function draw(me, words) {
     }
   } else if (tab === "eps") {
     if (!mine.length) body.append(el("div", "empty", "Henüz kelime yok."));
-    else { const ds = el("button", "lnk", "Bu diziyi / videoyu tümüyle sil"); ds.onclick = () => delEps(mine.flatMap((b) => b.words.map((w) => w.episode)), curShow || "Bu içerik"); body.append(ds); }
+    else { const ds = el("button", "lnk del", "🗑 Bu diziyi / videoyu tümüyle sil"); ds.onclick = () => delEps(mine.flatMap((b) => b.words.map((w) => w.episode)), curShow || "Bu içerik"); body.append(ds); }
     mine.forEach((b) => {
       const st = stagesOf(b, P), m = st.reduce((s, x) => s + x.m, 0), p = Math.round(m / b.words.length * 100), fin = !!P.boss[bkey(b)];
       const r = el("div", "ep"), en = el("div", "en", b.name);
       if (fin) en.append(el("span", "badge", "Tamam"));
       en.append(el("small", "", b.words.length + " kelime · " + st.filter((s) => s.done).length + "/" + st.length + " basamak"));
       const btn = el("button", "lnk", "Haritayı aç"); btn.onclick = () => { curEp = b.name; tab = "map"; draw(me, words); };
-      const delb = el("button", "lnk", "Sil"); delb.onclick = () => delEps(b.words.map((w) => w.episode), b.name);
+      const delb = el("button", "lnk del", "🗑 Sil"); delb.onclick = () => delEps(b.words.map((w) => w.episode), b.name);
       const ac = el("div", "ac"); ac.append(btn, delb); const trk = track(p, "ok"); trk.classList.add("tr");
       r.append(en, trk, el("div", "pc", "%" + p), ac); body.append(r);
     });
@@ -504,7 +543,7 @@ function draw(me, words) {
   s2.append(ec); side.append(s1, s2);
 
   const cols = el("div", "cols"), main = el("div"); main.append(tabs, body); cols.append(main, side);
-  const credit = el("div", "dim", "Dizi görselleri: TVmaze"); credit.style.cssText = "margin-top:40px;font-size:12px";
+  const credit = el("div", "dim", "Dizi görselleri: TVmaze · v2.0"); credit.style.cssText = "margin-top:40px;font-size:12px";
   app.replaceChildren(bar, hero, stats, strip, cols, credit);
 }
 

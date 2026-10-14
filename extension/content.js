@@ -1,4 +1,6 @@
 const IS_YT = location.hostname.endsWith("youtube.com");
+let SRC = "tr";
+try { chrome.storage.local.get("src", (r) => { if (r && r.src) SRC = r.src; }); } catch (e) {}
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
 
 // ---------- Overlay kutusu ----------
@@ -141,7 +143,7 @@ function splitWords(sentence) {
   return sentence
     .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]]/g, " ")
     .split(/\s+/)
-    .map((w) => w.trim().toLocaleLowerCase("tr"))
+    .map((w) => w.trim().toLocaleLowerCase(SRC))
     .filter((w) => w.length >= 2 && !/\d/.test(w));
 }
 
