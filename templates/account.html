@@ -644,7 +644,7 @@ function leaderboard() {
     rows.forEach((r, i) => {
       const li = el("li"), nm = el("span", "nm", LBS === "country" ? flag(r.country) + countryName(r.country) : flag(r.country) + r.username);
       if (LBS !== "country" && r.username === me.username) nm.append(el("span", "tag", t("you")));
-      li.append(el("span", "rk", i + 1), nm, el("span", "dim small", LBS === "country" ? t("playersN", r.players) : t("winsN", r.wins)), el("b", "", r.score));
+      li.append(el("span", "rk", i + 1), nm, el("span", "dim small", LBS === "country" ? t("playersN", r.players) : t(r.wins === 1 ? "winOne" : "winsN", r.wins)), el("b", "", r.score));
       ul.append(li);
     });
     list.replaceChildren(ul);
