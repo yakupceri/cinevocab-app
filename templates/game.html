@@ -3,131 +3,83 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CineVocab Düello</title>
+<title>CineVocab · Duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
 <style>
-  :root { --bg:#0c0b0a; --ink:#efe6d6; --dim:#9a9285; --line:rgba(239,230,214,.10); --soft:rgba(239,230,214,.04); --ember:#e8613c; --ok:#86c79a; --bad:#c9503f; }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body { margin: 0; color: var(--ink); font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
-  body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .07;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); }
-  .glow { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(60% 50% at 80% 0%, rgba(232,97,60,.16), transparent 70%), radial-gradient(50% 50% at 0% 100%, rgba(120,90,160,.12), transparent 70%); }
-  .wrap { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; padding: 22px 20px 60px; }
-  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 36px; font-size: 14px; }
-  .brand { font: 700 18px Georgia, serif; text-decoration: none; color: var(--ink); } .brand b { color: var(--ember); }
-  .top a.back { color: var(--dim); text-decoration: none; } .top a.back:hover { color: var(--ink); }
-  h1 { font: 700 38px/1.1 Georgia, serif; margin: 0 0 8px; letter-spacing: -.01em; }
-  h3 { font: 700 18px Georgia, serif; margin: 0 0 4px; }
-  .cap { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
-  .dim, .msg { color: var(--dim); font-size: 14px; line-height: 1.6; } .msg { text-align: center; }
-  section { padding: 24px 0; border-top: 1px solid var(--line); }
-  label { display: block; color: var(--dim); font-size: 13px; margin: 16px 0 6px; }
-  input, select, button { font: inherit; font-size: 16px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 13px 14px; width: 100%; }
-  select option { background: #1a1714; }
-  button { cursor: pointer; background: none; transition: border-color .15s, background .15s; }
-  button:hover:not(:disabled) { border-color: rgba(239,230,214,.4); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
-  button.go { background: var(--ember); border-color: var(--ember); color: #1a0d08; font-weight: 700; margin-top: 18px; }
-  button.go:hover:not(:disabled) { background: #f0734f; border-color: #f0734f; }
-  .row { display: flex; gap: 10px; } .row > * { flex: 1; } .row > button { flex: 0 0 auto; width: auto; padding: 13px 22px; }
-  details { margin-top: 14px; } summary { cursor: pointer; color: var(--dim); font-size: 14px; } summary:hover { color: var(--ink); }
-  .err { color: var(--bad); text-align: center; min-height: 24px; margin-top: 14px; font-size: 14px; }
-  /* oda */
-  .code { font: 700 76px Georgia, serif; letter-spacing: .14em; text-align: center; margin: 4px 0 6px; padding-left: .14em; }
-  .copy { width: auto; display: block; margin: 0 auto 6px; padding: 7px 16px; font-size: 13px; color: var(--dim); }
-  .players { list-style: none; padding: 0; margin: 22px 0; border-top: 1px solid var(--line); }
-  .players li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 700 14px Georgia, serif; background: var(--soft); border: 1px solid var(--line); flex: none; }
-  .players .nm { flex: 1; } .tag { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ember); }
-  .players li b { font-variant-numeric: tabular-nums; } .d { color: var(--ok); margin-left: 10px; font-size: 14px; } .d.x { color: var(--bad); }
-  .rk { width: 18px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  /* soru */
-  .qtop { display: flex; justify-content: space-between; color: var(--dim); font-size: 14px; margin-bottom: 10px; }
-  .bar { height: 3px; background: var(--line); } .bar i { display: block; height: 100%; width: 100%; background: var(--ember); }
-  .word { font: 700 clamp(40px, 10vw, 68px)/1.05 Georgia, serif; text-align: center; margin: 44px 0 14px; word-break: break-word; letter-spacing: -.01em; }
-  .hint { text-align: center; color: var(--dim); font-size: 14px; margin-bottom: 30px; }
-  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .opts button { text-align: left; padding: 16px 14px; display: flex; gap: 12px; align-items: baseline; }
-  .opts .k { font-size: 12px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; flex: none; }
-  .opts button.pick { border-color: var(--ink); opacity: 1; }
-  .opts button.ok { border-color: var(--ok); background: rgba(134,199,154,.10); opacity: 1; }
-  .opts button.bad { border-color: var(--bad); background: rgba(201,80,63,.12); opacity: 1; }
-  .final { text-align: center; padding: 30px 0 10px; } .final h1 { font-size: 44px; }
-  .final .players li:first-child .nm { font: 700 20px Georgia, serif; }
-  @media (max-width: 480px) { .opts { grid-template-columns: 1fr; } .code { font-size: 60px; } }
+  .stage { max-width:640px; margin:0 auto; }
+  .code { font:800 clamp(56px,16vw,92px)/1 var(--display); letter-spacing:.14em; text-align:center; padding-left:.14em; margin:8px 0 4px; }
+  .center { text-align:center; }
+  .opts button { position:relative; text-align:left; display:flex; gap:12px; align-items:center; }
+  .opts button .k { width:24px; height:24px; border-radius:6px; background:var(--bg2); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; color:var(--dim); flex:none; }
+  .opts button.pick { border-color:var(--accent); background:var(--accent-soft); }
+  .d { color:var(--ok); margin-left:10px; font-size:14px; font-weight:700; } .d.x { color:var(--bad); }
+  .timer { height:5px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
 </style>
+<script src="/static/i18n.js"></script>
 </head>
 <body>
-<div class="glow"></div>
-<div class="wrap">
-  <div class="top"><a class="brand" href="/">Cine<b>Vocab</b></a><a class="back" href="/account">← Panele dön</a></div>
-  <main id="app"></main>
-</div>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <a href="/account" id="back" class="dim small" style="text-decoration:none"></a>
+  <div id="tools" class="row" style="gap:6px"></div>
+</div></header>
+<main class="wrap"><div class="stage" id="app"></div></main>
+<script src="/static/common.js"></script>
 <script>
 const app = document.getElementById("app");
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-const field = (label, node) => { const w = el("div"); w.append(el("label", "", label), node); return w; };
-
-let ws, myId = "", room = null, chosen = null, me = { username: "" };
+let ws, myId = "", room = null, chosen = null, me = { username: "" }, lastQ = null, mode = "home";
 const errBox = el("div", "err");
+const setBack = () => { document.getElementById("back").textContent = "← " + t("backToPanel"); };
 
 function connect(first) {
   ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
   ws.onopen = () => ws.send(JSON.stringify(first));
   ws.onmessage = (e) => handle(JSON.parse(e.data));
-  ws.onclose = () => { if (room) { room = null; home("Bağlantı koptu."); } };
+  ws.onclose = () => { if (room) { room = null; home(t("connLost")); } };
 }
 const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+const field = (label, node) => { const w = el("label", "f"); w.append(el("span", "", label), node); return w; };
 
-async function home(error) {
-  room = null;
-  let eps = [];
+async function home(error, auto) {
+  room = null; mode = "home";
   try {
-    const [a, b] = await Promise.all([fetch("/api/me"), fetch("/api/my-episodes")]);
-    if (a.status === 401 || b.status === 401) { location = "/account"; return; }
-    me = await a.json(); eps = await b.json();
+    const r = await fetch("/api/me");
+    if (r.status === 401) { location = "/account"; return; }
+    me = await r.json();
   } catch (e) {}
+  let saved = null;
+  if (auto) { try { saved = JSON.parse(sessionStorage.getItem("cv-duel") || "null"); sessionStorage.removeItem("cv-duel"); } catch (e) {} }
+  if (saved && saved.t) { connect(saved); return; }
 
-  const sel = el("select");
-  if (!eps.length) sel.append(new Option("Henüz bölüm yok", ""));
-  eps.forEach((x) => sel.append(new Option(`${x.episode} · ${x.word_count} kelime`, x.episode)));
-  const nIn = el("input"); nIn.type = "number"; nIn.min = 4; nIn.max = 100; nIn.value = 10;
-  const secIn = el("input"); secIn.type = "number"; secIn.min = 5; secIn.max = 60; secIn.value = 12;
-  const pwIn = el("input"); pwIn.placeholder = "Boş bırakırsan herkes katılabilir"; pwIn.maxLength = 20;
-  const opt = el("details"), nr = el("div", "row"); nr.append(field("Soru sayısı", nIn), field("Süre (sn)", secIn));
-  opt.append(el("summary", "", "Oda ayarları"), nr, field("Oda şifresi (isteğe bağlı)", pwIn));
-  const create = el("button", "go", "Oda kur");
-  create.disabled = !eps.length;
-  create.onclick = () => { if (sel.value) connect({ t: "create", episode: sel.value, n: +nIn.value, seconds: +secIn.value, password: pwIn.value }); };
-
-  const codeIn = el("input"); codeIn.placeholder = "4 haneli kod"; codeIn.inputMode = "numeric"; codeIn.maxLength = 4;
-  const jpIn = el("input"); jpIn.placeholder = "Şifre (varsa)"; jpIn.maxLength = 20; jpIn.style.marginTop = "10px";
-  const join = el("button", "", "Katıl");
-  join.onclick = () => connect({ t: "join", code: codeIn.value.trim(), password: jpIn.value });
-  codeIn.onkeydown = (e) => { if (e.key === "Enter") join.click(); };
-  const jr = el("div", "row"); jr.append(codeIn, join);
-
+  const code = el("input"), pw = el("input"), join = el("button", "primary", t("join"));
+  code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.style.cssText = "font:800 28px var(--display);letter-spacing:.3em;text-align:center";
+  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30;
+  join.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) { errBox.textContent = t("codeHint"); return; } connect({ t: "join", code: code.value.trim(), password: pw.value }); };
+  code.onkeydown = (e) => { if (e.key === "Enter") join.click(); };
+  const card = el("div", "card"), form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:14px";
   errBox.textContent = error || "";
-  const head = el("div"); head.append(el("div", "cap", "Düello · " + (me.username || "")), el("h1", "", "Aynı bölüm, kıyasıya yarış."), el("p", "dim", "Bölümde topladığınız kelimelerden sorular gelir. Hızlı ve doğru cevap daha çok puan getirir."));
-  const s1 = el("section"), s2 = el("section");
-  s1.append(el("h3", "", "Oda kur"), el("p", "dim", eps.length ? "Bir bölüm seç, kodu arkadaşına ver. Bölümde en az 4 kelimen olmalı." : "Önce eklentiyle bir bölüm izle, kelimelerin burada görünsün."), field("Bölüm", sel), opt, create);
-  s2.append(el("h3", "", "Odaya katıl"), el("p", "dim", "Arkadaşının verdiği 4 haneli kodu gir."), jr, jpIn, errBox);
-  app.replaceChildren(head, s1, s2);
-  head.style.marginBottom = "26px";
+  form.append(code, pw, join, errBox);
+  const mk = el("a"); mk.href = "/account"; mk.className = "dim small"; mk.textContent = t("createInPanel"); mk.style.cssText = "display:block;text-align:center;margin-top:14px";
+  card.append(el("h2", "", t("joinRoom")), el("p", "dim", t("joinSub")), form, mk);
+  const h = el("div", "head"); const l = el("div"); l.append(el("h1", "", t("gameTitle")), el("p", "", t("gameSub"))); h.append(l);
+  app.replaceChildren(h, card);
 }
 
 function playerList(rows, opts = {}) {
   const ul = el("ul", "players");
   rows.forEach((p, i) => {
     const li = el("li");
-    if (opts.rank) li.append(el("span", "rk", String(i + 1)));
-    else li.append(el("span", "av", (p.name || "?").slice(0, 1).toUpperCase()));
-    const nm = el("span", "nm", p.name + (p.id === myId ? " (sen)" : ""));
-    if (opts.host && p.id === opts.host) nm.append(" ", el("span", "tag", "oda sahibi"));
+    li.append(opts.rank ? el("span", "rk", i + 1) : el("span", "av", (p.name || "?").slice(0, 1).toUpperCase()));
+    const nm = el("span", "nm", p.name + (p.id === myId ? "" : ""));
+    if (p.id === myId) nm.append(el("span", "tag", t("you")));
+    if (opts.host && p.id === opts.host) nm.append(el("span", "tag", t("host")));
     li.append(nm);
     if (p.score !== undefined) {
-      const r = el("span"); r.append(el("b", "", String(p.score)));
+      const r = el("span"); r.append(el("b", "", p.score));
       if (opts.delta && p.delta !== undefined) r.append(el("span", "d" + (p.ok ? "" : " x"), p.ok ? "+" + p.delta : "✗"));
       li.append(r);
     }
@@ -137,66 +89,78 @@ function playerList(rows, opts = {}) {
 }
 
 function lobby(info) {
-  const start = el("button", "go", "Başlat");
+  mode = "lobby";
+  const card = el("div", "card center"), start = el("button", "primary", t("startGame")), copy = el("button", "", t("copyCode")), leave = el("button", "ghost", t("leave"));
   start.onclick = () => send({ t: "start" });
-  const copy = el("button", "copy", "Kodu kopyala");
-  copy.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(info.code); copy.textContent = "Kopyalandı"; setTimeout(() => (copy.textContent = "Kodu kopyala"), 1500); };
-  const meta = info.episode + (info.n ? " · " + info.n + " soru · " + info.seconds + " sn" : "") + (info.locked ? " · şifreli" : "");
-  const nodes = [el("div", "cap", "Oda"), el("p", "dim", meta), el("div", "code", info.code), copy,
-    el("p", "msg", "Bu kodu diğer oyuncuya ver."), playerList(info.players, { host: info.host })];
-  nodes.push(info.host === myId ? start : el("p", "msg", "Oda sahibinin başlatması bekleniyor…"));
-  errBox.textContent = ""; nodes.push(errBox);
-  app.replaceChildren(...nodes);
+  copy.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(info.code); copy.textContent = t("copied"); setTimeout(() => (copy.textContent = t("copyCode")), 1500); };
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
+  if (info.locked) meta.push(t("locked"));
+  const m = el("p", "dim small", meta.join(" · "));
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:18px"; pl.append(playerList(info.players, { host: info.host }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:18px";
+  act.append(copy, leave);
+  card.append(el("p", "dim small", t("room")), el("div", "code", info.code), m, el("p", "dim", t("shareCode")), pl);
+  if (info.host === myId) { start.disabled = info.players.length < 1; start.style.cssText = "width:100%;margin-top:16px"; card.append(start); }
+  else { const w = el("p", "dim", t("waitHost")); w.style.marginTop = "16px"; card.append(w); }
+  errBox.textContent = ""; card.append(act, errBox);
+  app.replaceChildren(card);
 }
 
 function handle(m) {
   if (m.t === "me") myId = m.id;
-  else if (m.t === "room") { room = m; lobby(m); }
-  else if (m.t === "error") { if (room) errBox.textContent = m.msg; else { ws.close(); home(m.msg); } }
+  else if (m.t === "room") { room = m; if (mode !== "play") lobby(m); else room = m; }
+  else if (m.t === "error") { const msg = I18N.err(m.msg); if (room) { errBox.textContent = msg; toast(msg); } else { ws.close(); home(msg); } }
   else if (m.t === "question") question(m);
   else if (m.t === "reveal") reveal(m);
   else if (m.t === "end") finish(m);
 }
 
 function question(m) {
-  chosen = null;
-  const top = el("div", "qtop"); top.append(el("span", "", `${m.idx + 1} / ${m.total}`), el("span", "", "Hızlı cevap = bonus puan"));
-  const bar = el("div", "bar"), fill = el("i"); bar.append(fill);
+  mode = "play"; chosen = null; lastQ = m;
+  const card = el("div", "card"), top = el("div", "row");
+  top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
+  const bar = el("div", "timer"), fill = el("i"); bar.append(fill);
   const grid = el("div", "opts");
   m.options.forEach((o, i) => {
-    const b = el("button"); b.dataset.opt = o; b.append(el("span", "k", String(i + 1)), el("span", "", o));
+    const b = el("button"); b.dataset.opt = o; b.append(el("span", "k", i + 1), el("span", "", o));
     b.onclick = () => pick(b, o, grid); grid.append(b);
   });
-  app.replaceChildren(top, bar, el("div", "word", m.tr), el("div", "hint", "İngilizcesi nedir?"), grid);
+  top.style.marginBottom = "8px";
+  card.append(top, bar, el("div", "qword", m.tr), grid);
+  app.replaceChildren(card);
   fill.style.transition = `width ${m.seconds}s linear`;
   requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
 }
-
 function pick(btn, opt, grid) {
   if (chosen !== null) return;
   chosen = opt; btn.classList.add("pick");
   grid.querySelectorAll("button").forEach((b) => (b.disabled = true));
   send({ t: "answer", choice: opt });
 }
-
 function reveal(m) {
   app.querySelectorAll(".opts button").forEach((b) => {
-    b.disabled = true;
-    if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("bad");
+    b.disabled = true; b.classList.remove("pick");
+    if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("no");
   });
-  const rows = [...m.results].sort((a, b) => b.score - a.score);
-  app.append(playerList(rows, { delta: true, rank: true }));
+  const rows = [...m.results].sort((a, b) => b.score - a.score), c = el("div", "card");
+  c.style.marginTop = "14px"; c.append(playerList(rows, { delta: true, rank: true }));
+  const old = app.querySelector(".rv"); if (old) old.remove(); c.classList.add("rv");
+  app.append(c);
 }
-
 function finish(m) {
+  mode = "lobby";
   const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
-  const again = el("button", "go", "Tekrar oyna");
+  const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
   again.onclick = () => { if (room && room.host === myId) send({ t: "start" }); };
-  const leave = el("button", "", "Çık"); leave.style.marginTop = "10px"; leave.onclick = () => { room = null; ws.close(); home(); };
-  const box = el("div", "final");
-  box.append(el("div", "cap", "Oyun bitti"), el("h1", "", tie ? "Berabere!" : `${top.name} kazandı`));
-  app.replaceChildren(box, playerList(m.scores, { rank: true }),
-    room && room.host === myId ? again : el("p", "msg", "Oda sahibi yeni oyun başlatabilir."), leave);
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:16px"; pl.append(playerList(m.scores, { rank: true }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:16px";
+  if (room && room.host === myId) act.append(again);
+  act.append(leave);
+  card.append(el("p", "dim small", t("gameOver")), el("h1", "", tie ? t("tie") : t("winner", top.name)), pl, act);
+  if (!(room && room.host === myId)) { const w = el("p", "dim small", t("hostRestarts")); w.style.marginTop = "12px"; card.append(w); }
+  app.replaceChildren(card);
 }
 
 document.addEventListener("keydown", (e) => {
@@ -205,7 +169,9 @@ document.addEventListener("keydown", (e) => {
   if (n >= 1 && n <= btns.length && !btns[n - 1].disabled) btns[n - 1].click();
 });
 
-home();
+I18N.onChange(() => { mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("nav_duel"); if (mode === "home") home(); else if (mode === "lobby" && room) lobby(room); });
+mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("nav_duel");
+home("", true);
 </script>
 </body>
 </html>

@@ -30,6 +30,7 @@ def q(sql, params=(), fetch=False):
 
 def init_accounts(db_config: dict):
     DB.update(db_config)
+    q("CREATE TABLE IF NOT EXISTS progress (user_id INT PRIMARY KEY, data JSONB NOT NULL DEFAULT '{}');")
     for sql in (
         "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT NOT NULL, "
         "pw_hash TEXT NOT NULL, created_at TIMESTAMP DEFAULT now());",
@@ -227,6 +228,10 @@ def me(request: Request):
     g = q("SELECT count(*), coalesce(sum(score), 0), coalesce(sum((place = 1)::int), 0) "
           "FROM game_results WHERE user_id = %s;", (u["id"],), True)[0]
     n = q("SELECT count(DISTINCT tr) FROM user_words WHERE user_id = %s;", (u["id"],), True)[0][0]
+    try:
+        n += q("SELECT count(DISTINCT (src, dst, word)) FROM user_words_ml WHERE user_id = %s;", (u["id"],), True)[0][0]
+    except Exception:
+        pass
     ex = q("SELECT country, avatar FROM users WHERE id = %s;", (u["id"],), True)[0]
     return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n,
             "country": ex[0] or "", "avatar": ex[1] or ""}
@@ -250,8 +255,11 @@ def delete_account(c: DeleteReq, request: Request, response: Response):
 
 
 def delete_user_data(uid: int):
-    for t in ("sessions", "user_words", "game_results"):
-        q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
+    for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress"):
+        try:
+            q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
+        except Exception as e:
+            print(f"Silme hatası ({t}): {e}")
     q("DELETE FROM users WHERE id = %s;", (uid,))
 
 
@@ -335,7 +343,32 @@ def delete_episodes(d: DelEps, request: Request):
     if not eps:
         return {"deleted": 0}
     r = q("DELETE FROM user_words WHERE user_id = %s AND episode = ANY(%s) RETURNING 1;", (u["id"], eps), True)
-    return {"deleted": len(r)}
+    r2 = q("DELETE FROM user_words_ml WHERE user_id = %s AND episode = ANY(%s) RETURNING 1;", (u["id"], eps), True)
+    return {"deleted": len(r) + len(r2)}
+
+
+class ProgressReq(BaseModel):
+    data: dict
+
+
+@router.get("/api/progress")
+def get_progress(request: Request):
+    """Arayüz tercihleri / ilerleme (tarayıcılar arası senkron)."""
+    u = need_user(request)
+    r = q("SELECT data FROM progress WHERE user_id = %s;", (u["id"],), True)
+    return r[0][0] if r else {}
+
+
+@router.post("/api/progress")
+def set_progress(d: ProgressReq, request: Request):
+    import json
+    u = need_user(request)
+    raw = json.dumps(d.data)
+    if len(raw) > 20000:
+        raise HTTPException(400, "Veri çok büyük.")
+    q("INSERT INTO progress (user_id, data) VALUES (%s, %s) ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data;",
+      (u["id"], raw))
+    return {"ok": True}
 
 
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

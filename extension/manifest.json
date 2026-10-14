@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CineVocab",
-  "version": "1.7.0",
-  "description": "Prime Video, YouTube ve Udemy'de altyazıyı kelime kelime istediğin dile çevirir, kelimeleri kaydeder, online düello.",
+  "version": "1.8.0",
+  "description": "Prime Video, YouTube ve Udemy altyazılarını kelime kelime çevirir (her dil çifti). Aç/kapa düğmesi, altyazı dili kontrolü, kelime listesi, online düello.",
   "minimum_chrome_version": "102",
   "permissions": [
     "storage"
@@ -29,6 +29,7 @@
         "https://www.udemy.com/*"
       ],
       "js": [
+        "lang.js",
         "content.js"
       ],
       "run_at": "document_idle"

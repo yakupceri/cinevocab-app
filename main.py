@@ -22,10 +22,13 @@ from accounts import (router, init_accounts, user_from_request, user_from_token,
 import admin
 
 import multilang
+import vocab
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 app.include_router(router)
 app.include_router(admin.router)
+app.include_router(vocab.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +39,8 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Railway'de DATABASE_URL tanımlıdır; Mac'te yoksa eski yerel ayarlar kullanılır.
 _db_url = os.environ.get("DATABASE_URL")
@@ -936,11 +941,14 @@ def valid_pairs(rows) -> list:
     ]
 
 
-def episode_pool(episode: str, uids: list) -> list:
-    """Odadaki oyuncuların o bölümde topladığı kelimeler (aynı İngilizce karşılığı tekrar etmeden)."""
-    rows = db_rows(
-        "SELECT DISTINCT uw.tr, w.eng FROM user_words uw JOIN words w ON w.tr = uw.tr "
-        "WHERE uw.episode = %s AND uw.user_id = ANY(%s);", (episode, uids))
+def episode_pool(episode: str, uids: list, src: str = "tr", dst: str = "en") -> list:
+    """Oyuncuların kelimeleri (bölüm boşsa hepsi). Bir oyuncunun bildiği kelimeler onun havuzundan çıkar;
+    herkesin bildiği kelime hiç çıkmaz. Aynı çeviri tekrar etmez."""
+    rows = []
+    for uid in uids:
+        for w, t, ep, _ in vocab.rows_for(uid, src, dst):
+            if not episode or ep == episode:
+                rows.append((w, t))
     seen, out = set(), []
     for w in valid_pairs(rows):
         if w["eng"].lower() not in seen:
@@ -949,12 +957,20 @@ def episode_pool(episode: str, uids: list) -> list:
     return out
 
 
-def build_questions(episode: str, uids: list, n: int = N_QUESTIONS) -> list:
-    """Bölüm kelimelerinden çoktan seçmeli sorular; yanlış şıklar tüm kelime havuzundan."""
-    ep = episode_pool(episode, uids)
+def all_translations(src: str, dst: str) -> list:
+    if (src, dst) == ("tr", "en"):
+        rows = db_rows("SELECT tr, eng FROM words;")
+    else:
+        rows = db_rows("SELECT word, trans FROM words_ml WHERE src = %s AND dst = %s;", (src, dst))
+    return list({w["eng"] for w in valid_pairs(rows)})
+
+
+def build_questions(episode: str, uids: list, n: int = N_QUESTIONS, src: str = "tr", dst: str = "en") -> list:
+    """Kelimelerden çoktan seçmeli sorular; yanlış şıklar aynı dil çiftinin tüm havuzundan."""
+    ep = episode_pool(episode, uids, src, dst)
     if len(ep) < 4:
-        raise ValueError(f"Bu bölümde en az 4 kelime gerekiyor (şu an {len(ep)}).")
-    all_eng = list({w["eng"] for w in valid_pairs(db_rows("SELECT tr, eng FROM words;"))})
+        raise ValueError(f"En az 4 kelime gerekiyor (şu an {len(ep)}).")
+    all_eng = all_translations(src, dst)
     random.shuffle(ep)
     qs = []
     for w in ep:
@@ -978,8 +994,9 @@ def build_questions(episode: str, uids: list, n: int = N_QUESTIONS) -> list:
 
 
 class Room:
-    def __init__(self, code: str, episode: str):
+    def __init__(self, code: str, episode: str, src="tr", dst="en", n=N_QUESTIONS, seconds=Q_SECONDS, password=""):
         self.code, self.episode = code, episode
+        self.src, self.dst, self.n, self.seconds, self.password = src, dst, n, seconds, password
         self.players = {}      # pid -> {"name", "ws", "score"}
         self.host = None
         self.state = "lobby"   # lobby | playing | done
@@ -1000,6 +1017,8 @@ async def broadcast(room: Room, msg: dict):
 def room_info(room: Room) -> dict:
     return {
         "t": "room", "code": room.code, "episode": room.episode, "host": room.host,
+        "src": room.src, "dst": room.dst, "n": room.n, "seconds": room.seconds,
+        "locked": bool(room.password),
         "players": [{"id": pid, "name": p["name"], "score": p["score"]}
                     for pid, p in room.players.items()],
     }
@@ -1008,7 +1027,7 @@ def room_info(room: Room) -> dict:
 async def run_game(room: Room):
     try:
         questions = await asyncio.to_thread(
-            build_questions, room.episode, [p["uid"] for p in room.players.values()])
+            build_questions, room.episode, [p["uid"] for p in room.players.values()], room.n, room.src, room.dst)
     except Exception as e:
         room.state = "lobby"
         await broadcast(room, {"t": "error", "msg": str(e)})
@@ -1021,16 +1040,16 @@ async def run_game(room: Room):
             return
         room.answers, room.event, room.q_start = {}, asyncio.Event(), time.time()
         await broadcast(room, {"t": "question", "idx": i, "total": len(questions),
-                               "tr": q["tr"], "options": q["options"], "seconds": Q_SECONDS})
+                               "tr": q["tr"], "options": q["options"], "seconds": room.seconds})
         try:
-            await asyncio.wait_for(room.event.wait(), Q_SECONDS)
+            await asyncio.wait_for(room.event.wait(), room.seconds)
         except asyncio.TimeoutError:
             pass
         results = []
         for pid, p in list(room.players.items()):
             a = room.answers.get(pid)
             ok = a is not None and a[0] == q["eng"]
-            delta = 100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / Q_SECONDS)) if ok else 0
+            delta = 100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / room.seconds)) if ok else 0
             p["score"] += delta
             results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"]})
         await broadcast(room, {"t": "reveal", "correct": q["eng"], "results": results})
@@ -1084,19 +1103,33 @@ async def ws_endpoint(ws: WebSocket):
                     continue
                 if t == "create":
                     episode = str(msg.get("episode") or "")[:80]
-                    n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]])) if episode else 0
+                    src, dst = str(msg.get("src") or "tr"), str(msg.get("dst") or "en")
+                    if src not in vocab.LANGS or dst not in vocab.LANGS or src == dst:
+                        await ws.send_json({"t": "error", "msg": "Dil çifti geçersiz."})
+                        continue
+                    try:
+                        qn = max(4, min(30, int(msg.get("n") or N_QUESTIONS)))
+                        qsec = max(5, min(60, int(msg.get("seconds") or Q_SECONDS)))
+                    except (TypeError, ValueError):
+                        qn, qsec = N_QUESTIONS, Q_SECONDS
+                    pw = str(msg.get("password") or "")[:30]
+                    n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]], src, dst))
                     if n < 4:
-                        await ws.send_json({"t": "error", "msg": f"Bu bölümde en az 4 kelime gerekiyor (şu an {n})."})
+                        await ws.send_json({"t": "error", "msg": f"En az 4 kelime gerekiyor (şu an {n})."})
                         continue
                     code = next(c for c in (f"{random.randint(0, 9999):04d}" for _ in range(1000))
                                 if c not in ROOMS)
-                    room = ROOMS[code] = Room(code, episode)
+                    room = ROOMS[code] = Room(code, episode, src, dst, qn, qsec, pw)
                     room.host = pid
                 else:
                     room = ROOMS.get(str(msg.get("code") or "").strip())
                     if room is None or room.state == "playing":
                         room = None
                         await ws.send_json({"t": "error", "msg": "Oda bulunamadı veya oyun başlamış."})
+                        continue
+                    if room.password and str(msg.get("password") or "") != room.password:
+                        room = None
+                        await ws.send_json({"t": "error", "msg": "Oda şifresi yanlış."})
                         continue
                 room.players[pid] = {"name": name, "ws": ws, "score": 0, "uid": user["id"]}
                 await ws.send_json({"t": "me", "id": pid})
@@ -1255,9 +1288,20 @@ def translate_words(batch: WordsBatch, request: Request):
             words.append(w)
     words = words[:30]
 
-    tag_episode(batch.episode, words)
+    known_hit = []
+    u = None
     try:
         u = user_from_request(request)
+        if u:
+            ks = vocab.known_set(u["id"], "tr")
+            known_hit = [w for w in words if w in ks]
+            words = [w for w in words if w not in ks]
+    except Exception as e:
+        print(f"Bilinen kelime hatası: {e}")
+
+    if not batch.lookup_only or words:
+        tag_episode(batch.episode, words)
+    try:
         if u:
             tag_user_words(u["id"], batch.episode, words)
     except Exception as e:
@@ -1279,7 +1323,7 @@ def translate_words(batch: WordsBatch, request: Request):
     if batch.lookup_only:
         return {
             "status": "success", "results": results, "pending": missing,
-            "failed": [], "sentence_en": cached_sentence(batch.sentence),
+            "failed": [], "sentence_en": cached_sentence(batch.sentence), "known": known_hit,
         }
 
     stale = bool(batch.gen) and batch.gen < LATEST_GEN
@@ -1290,7 +1334,7 @@ def translate_words(batch: WordsBatch, request: Request):
             for w in missing:
                 DEFERRED[w] = True
         return {"status": "success", "results": results, "pending": [], "failed": [],
-                "sentence_en": cached_sentence(batch.sentence)}
+                "sentence_en": cached_sentence(batch.sentence), "known": known_hit}
 
     sentence_en = "" if stale else translate_sentence(batch.sentence)
 
@@ -1307,7 +1351,7 @@ def translate_words(batch: WordsBatch, request: Request):
     failed = [w for w in words if w not in results and is_failed(w)]
     pending = [w for w in words if w not in results and w not in failed]
     return {"status": "success", "results": results, "pending": pending,
-            "failed": failed, "sentence_en": sentence_en}
+            "failed": failed, "sentence_en": sentence_en, "known": known_hit}
 
 
 @app.post("/add-word")

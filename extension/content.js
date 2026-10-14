@@ -1,6 +1,9 @@
 const IS_YT = location.hostname.endsWith("youtube.com");
 let SRC = "tr";
-try { chrome.storage.local.get("src", (r) => { if (r && r.src) SRC = r.src; }); } catch (e) {}
+let DST = "en";
+let ENABLED = false; // varsayılan KAPALI: kullanıcı açmadıkça hiçbir şey çevrilmez
+const guard = new CVL.Guard(); // altyazı dili kontrolü
+const knownCache = new Set(); // "biliyorum" dediğin kelimeler (çevirisi gösterilmez)
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
 
 // ---------- Overlay kutusu ----------
@@ -78,7 +81,7 @@ function readEpisode() {
   return currentEpisode;
 }
 
-setInterval(readEpisode, 3000);
+setInterval(() => { if (ENABLED) readEpisode(); }, 3000);
 
 // YouTube: "bölüm" yerine video başlığı kullanılır (oyun odalarında bu ad görünür).
 function readYouTubeTitle() {
@@ -169,7 +172,7 @@ function showSentence(sentence) {
   Object.assign(epLabel.style, { fontSize: "12px", color: "#8b909c", marginBottom: "4px" });
   epLabel.textContent = episode
     ? "📺 " + episode
-    : "⚠ Bölüm okunamadı, kelimeler bölüme etiketlenmiyor";
+    : CVL.t("epMissing");
   overlayBox.appendChild(epLabel);
   const row = document.createElement("div");
   overlayBox.appendChild(row);
@@ -196,7 +199,9 @@ function showSentence(sentence) {
   });
 
   const setText = (w, text) => (slots[w] || []).forEach((el) => (el.textContent = text));
-  uniqueWords.forEach((w) => wordCache.has(w) && setText(w, wordCache.get(w)));
+  // Bildiğin kelime: çeviri yok, soluk görünür
+  const markKnown = (w) => (slots[w] || []).forEach((el) => { el.textContent = ""; el.parentNode.style.opacity = "0.4"; });
+  uniqueWords.forEach((w) => (knownCache.has(w) ? markKnown(w) : wordCache.has(w) && setText(w, wordCache.get(w))));
   if (sentCache.has(sentence)) {
     transLine.textContent = sentCache.get(sentence);
     transLine.dataset.ok = "1";
@@ -212,13 +217,13 @@ function showSentence(sentence) {
   function request(list, attempt, lookupOnly) {
     if (myId !== sentenceId) return;
     if (!chrome.runtime?.id) {
-      status("⚠ Uzantı yenilendi. Bu Prime sekmesini F5'le.");
+      status(CVL.t("reload"));
       return;
     }
 
     let answered = false;
     const watchdog = setTimeout(() => {
-      if (!answered) status("⚠ Sunucudan cevap gelmiyor. Sunucu açık mı?");
+      if (!answered) status(CVL.t("noAnswer"));
     }, 10000);
 
     chrome.runtime.sendMessage(
@@ -227,12 +232,13 @@ function showSentence(sentence) {
         answered = true;
         clearTimeout(watchdog);
         if (myId !== sentenceId) return;
+        if (res && res.status === "disabled") return; // kapatıldı
         console.log("CineVocab cevap:", lookupOnly ? "hızlı" : "tam", res);
 
         if (chrome.runtime.lastError || res?.status !== "success") {
           const why = chrome.runtime.lastError?.message || res?.message || "cevap yok";
           console.warn("CineVocab hata:", why);
-          status(/401/.test(why) ? "⚠ Eklenti anahtarı girilmemiş: eklenti simgesine tıklayıp anahtarı yapıştır." : "⚠ " + why);
+          status(/401/.test(why) ? CVL.t("noKey") : "⚠ " + why);
           if (attempt < RETRY_DELAYS.length) {
             setTimeout(() => request(list, attempt + 1, false), RETRY_DELAYS[attempt]);
           } else {
@@ -242,7 +248,9 @@ function showSentence(sentence) {
           return;
         }
 
+        for (const w of res.known || []) { knownCache.add(w); markKnown(w); }
         for (const [w, eng] of Object.entries(res.results || {})) {
+          if (knownCache.has(w)) continue;
           wordCache.set(w, eng);
           setText(w, eng);
         }
@@ -305,7 +313,31 @@ function readSubtitle() {
     .join(" ");
 }
 
+let lastNoticeAt = 0, lastReport = { lang: "", ok: true, ts: 0 }, lastBadLang = "";
+
+function report(g) {
+  const lang = g.v === "match" ? SRC : g.lang;
+  if (!lang) return;
+  const now = Date.now();
+  if (lang === lastReport.lang && g.ok === lastReport.ok && now - lastReport.ts < 5000) return;
+  lastReport = { lang, ok: g.ok, ts: now };
+  try { chrome.storage.local.set({ det: { lang, ok: g.ok, ts: now } }); } catch (e) {}
+}
+
+// Yanlış dilde altyazı: çeviri yok. Bilgi kutusu dakikada bir kez gösterilir, sonra sessiz kalır.
+function showMismatch(lang) {
+  sentenceId++;
+  if (lang) lastBadLang = lang;
+  if (Date.now() - lastNoticeAt < 60000) { overlayBox.style.display = "none"; return; }
+  lastNoticeAt = Date.now();
+  overlayBox.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
+  overlayBox.style.display = "block";
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => (overlayBox.style.display = "none"), 6000);
+}
+
 setInterval(() => {
+  if (!ENABLED) return;
   const text = readSubtitle().replace(/\s+/g, " ").trim();
 
   if (!text) {
@@ -319,6 +351,32 @@ setInterval(() => {
   if (text.length < 3 || text.length > 200 || text === lastSubtitle) return;
 
   lastSubtitle = text;
+  const g = guard.check(text, SRC);
+  report(g);
+  if (!g.ok) { console.log("CineVocab: altyazı dili uyuşmuyor, atlandı:", g.lang, text); showMismatch(g.lang); return; }
   console.log("Gerçek Altyazı Yakalandı:", text);
   showSentence(text);
 }, 500);
+
+// ---------- Ayarlar (canlı): aç/kapa ve dil değişince sayfayı yenilemeye gerek yok ----------
+function applyEnabled() {
+  if (ENABLED) return;
+  sentenceId++;
+  overlayBox.style.display = "none";
+  lastSubtitle = ""; ytCandidate = ""; guard.reset();
+}
+function applyPair() {
+  wordCache.clear(); sentCache.clear(); knownCache.clear();
+  lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0;
+}
+try {
+  chrome.storage.local.get(["enabled", "src", "dst"], (r) => {
+    if (!r) return;
+    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; applyEnabled();
+  });
+  chrome.storage.onChanged.addListener((ch, area) => {
+    if (area !== "local") return;
+    if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
+    if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabled(); }
+  });
+} catch (e) {}

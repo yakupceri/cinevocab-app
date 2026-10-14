@@ -6,592 +6,407 @@
 <title>CineVocab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root { --bg:#0c0b0a; --ink:#efe6d6; --dim:#a39b8d; --line:rgba(239,230,214,.12); --soft:rgba(239,230,214,.045); --ember:#e8613c; --gold:#e9b44c; --ok:#86c79a; --bad:#c9503f;
-          --serif:"Fraunces", Georgia, "Times New Roman", serif; --sans:"Manrope", "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif; }
-  html[data-theme="light"] { --bg:#f6f1e7; --ink:#1d1a16; --dim:#6d655a; --line:rgba(29,26,22,.14); --soft:rgba(29,26,22,.05); }
-  html[data-theme="light"] #bdo { background: linear-gradient(180deg, rgba(246,241,231,.5), var(--bg) 78%); }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body { margin: 0; color: var(--ink); font: 400 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
-  #bd { position: fixed; inset: -60px; z-index: -2; filter: blur(34px) saturate(.85); opacity: .5; transition: background .6s; }
-  #bdo { position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(12,11,10,.35), var(--bg) 78%); }
-  body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .07;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); }
-  main { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 22px 22px 70px; }
-  h1, h2, h3 { font-family: var(--serif); font-weight: 800; margin: 0; letter-spacing: -.01em; }
-  .cap { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
-  .dim { color: var(--dim); font-size: 14px; }
-  button, input, a.btn { font: inherit; color: var(--ink); }
-  button { cursor: pointer; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; font-weight: 600; transition: border-color .15s, background .15s, transform .15s; }
-  button:hover:not(:disabled) { border-color: rgba(239,230,214,.45); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
-  .solid { background: var(--ember); border-color: var(--ember); color: #1a0d08; font-weight: 800; }
-  .solid:hover:not(:disabled) { background: #f0734f; border-color: #f0734f; }
-  .lnk { border: 0; padding: 4px 0; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(239,230,214,.3); }
-  .track { height: 8px; border-radius: 4px; background: rgba(239,230,214,.12); overflow: hidden; } .track i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--ember), #f0884f); transition: width .6s; }
-  .track.lg { height: 12px; border-radius: 6px; } .track.ok i { background: linear-gradient(90deg, #6fb98a, var(--ok)); }
-  /* üst */
-  .bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-  .brand { font: 800 21px var(--serif); } .brand b { color: var(--ember); }
-  .bar .who { display: flex; gap: 16px; align-items: center; color: var(--dim); font-size: 14px; font-weight: 600; } .bar button { padding: 6px 14px; font-size: 13px; }
-  /* hero */
-  .hero { position: relative; border-radius: 14px; overflow: hidden; min-height: 300px; display: flex; flex-direction: column; justify-content: flex-end; padding: 36px; border: 1px solid var(--line); }
-  .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(12,11,10,.9) 0%, rgba(12,11,10,.4) 70%, rgba(12,11,10,.12) 100%), linear-gradient(0deg, rgba(12,11,10,.85), transparent 55%); }
-  .hero > * { position: relative; z-index: 2; }
-  .hero > .hbg { position: absolute; inset: -20px; z-index: 0; filter: blur(16px) saturate(.9); }
-  .hero > .pcard { position: absolute; right: 36px; bottom: 36px; width: 150px; aspect-ratio: 2 / 3; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
-  .hero h1 { font-size: 54px; line-height: 1.02; margin: 8px 0 10px; }
-  .hero .next { font-size: 17px; font-weight: 500; margin-bottom: 14px; }
-  .hero .track { max-width: 380px; margin-bottom: 4px; } .hero .pl { font-size: 13px; color: var(--dim); margin-bottom: 20px; }
-  .hero .acts { display: flex; gap: 20px; align-items: center; } .hero .acts a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(239,230,214,.3); }
-  .hero .acts button { padding: 13px 26px; font-size: 16px; }
-  /* özet kutuları */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0 20px; }
-  .st { border: 1px solid var(--line); background: var(--soft); border-radius: 12px; padding: 16px 18px; }
-  .st .v { font: 800 24px/1.15 var(--serif); margin: 6px 0 10px; } .st .s { font-size: 13px; color: var(--dim); margin-top: 8px; }
-  /* dizi şeridi */
-  .strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 0 22px; }
-  .tile { flex: none; width: 96px; height: 134px; border-radius: 8px; border: 1px solid var(--line); position: relative; overflow: hidden; cursor: pointer; padding: 0; opacity: .55; transition: opacity .2s, transform .2s; }
-  .tile:hover { opacity: .9; transform: translateY(-2px); } .tile.on { opacity: 1; border-color: var(--ember); }
-  .tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.82), transparent 60%); }
-  .tile span { position: absolute; left: 9px; right: 9px; bottom: 9px; z-index: 1; font: 800 13px/1.15 var(--serif); text-align: left; }
-  /* gövde */
-  .cols { display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: start; }
-  .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
-  .tabs button { border: 0; border-radius: 0; padding: 12px 0; color: var(--dim); border-bottom: 3px solid transparent; white-space: nowrap; font-size: 16px; }
-  .tabs button.on { color: var(--ink); border-bottom-color: var(--ember); }
-  .sh { font: 800 22px var(--serif); } .row { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .row em { font-style: normal; color: var(--dim); } .row.m span:first-child { color: var(--ink); font-weight: 600; } .me { color: var(--ember); font-weight: 700; }
-  .search { width: 100%; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; margin: 10px 0 4px; }
-  .empty { padding: 40px 0; color: var(--dim); }
-  /* bölümler listesi */
-  .ep { display: grid; grid-template-columns: 1.1fr 1.6fr 52px 100px; gap: 18px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); }
-  .ep .en { font: 800 18px var(--serif); } .ep .en small { display: block; font: 500 13px var(--sans); color: var(--dim); margin-top: 2px; } .ep .pc { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; } .ep .ac { text-align: right; }
-  .badge { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); border: 1px solid rgba(134,199,154,.4); border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: middle; }
-  /* harita */
-  .eppick { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 20px; }
-  .eppick button { padding: 8px 16px; border-radius: 999px; font-size: 14px; } .eppick button.on { border-color: var(--ember); color: var(--ember); } .eppick button.fin::after { content: " ✓"; color: var(--ok); }
-  .mhead { border: 1px solid var(--line); background: var(--soft); border-radius: 12px; padding: 20px 22px; margin-bottom: 8px; }
-  .mhead h3 { font-size: 26px; } .mhead .l { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin: 14px 0 8px; } .mhead .rw { margin-top: 12px; font-size: 13px; color: var(--dim); }
-  .banner { border: 1px solid rgba(134,199,154,.4); background: rgba(134,199,154,.08); border-radius: 12px; padding: 16px 20px; margin: 12px 0; } .banner b { font: 800 18px var(--serif); display: block; margin-bottom: 2px; }
-  .path { position: relative; max-width: 420px; margin: 18px auto 30px; }
-  .path svg { position: absolute; inset: 0; width: 100%; height: 100%; } .path svg path { vector-effect: non-scaling-stroke; }
-  .node { position: absolute; transform: translate(-50%, -50%); width: 66px; height: 66px; border-radius: 50%; padding: 0; border: 0; display: grid; place-items: center; background: conic-gradient(var(--ember) var(--p), rgba(239,230,214,.16) 0); transition: transform .15s; }
-  .node:hover:not(.lock) { transform: translate(-50%, -50%) scale(1.07); border: 0; }
-  .node .in { width: 54px; height: 54px; border-radius: 50%; background: #15120f; display: grid; place-items: center; font: 800 21px var(--serif); }
-  .node.done { background: conic-gradient(var(--ok) 100%, var(--ok) 0); } .node.done .in { background: var(--ok); color: #0f1a13; }
-  .node.cur { animation: pulse 1.8s infinite; } .node.cur .in { color: var(--ember); }
-  .node.lock { opacity: .4; cursor: not-allowed; } .node.lock .in { color: var(--dim); }
-  .node.chest { border-radius: 16px; background: rgba(233,180,76,.35); } .node.chest .in { border-radius: 12px; color: var(--gold); background: #1c1710; }
-  .node.chest.done { background: rgba(239,230,214,.16); } .node.chest.done .in { background: #1c1710; color: var(--dim); }
-  .node.boss { width: 86px; height: 86px; background: conic-gradient(var(--gold) var(--p), rgba(239,230,214,.16) 0); } .node.boss .in { width: 72px; height: 72px; font-size: 32px; color: var(--gold); }
-  .node.boss.done .in { background: var(--gold); color: #1c1305; } .node.boss.done { background: var(--gold); }
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(232,97,60,.5); } 70% { box-shadow: 0 0 0 16px rgba(232,97,60,0); } 100% { box-shadow: 0 0 0 0 rgba(232,97,60,0); } }
-  .nl { position: absolute; transform: translateY(-50%); width: 120px; font-size: 13px; line-height: 1.35; color: var(--dim); } .nl b { display: block; color: var(--ink); font-size: 14px; }
-  /* başarım */
-  .ach { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding-top: 14px; }
-  .a { border: 1px solid var(--line); border-radius: 12px; padding: 18px; opacity: .45; } .a.on { opacity: 1; border-color: rgba(232,97,60,.55); background: var(--soft); }
-  .a i { font-style: normal; font-size: 26px; color: var(--ember); display: block; margin-bottom: 10px; } .a b { display: block; font: 800 16px var(--serif); margin-bottom: 3px; } .a span { font-size: 13px; color: var(--dim); }
-  /* yan */
-  .side section { padding: 0 0 28px; } .side .cap { margin-bottom: 12px; }
-  .quest { padding: 10px 0; } .quest .t { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 8px; } .quest.ok .t { color: var(--dim); text-decoration: line-through; }
-  .extc { border: 1px solid rgba(232,97,60,.45); border-radius: 12px; padding: 18px; background: linear-gradient(160deg, rgba(232,97,60,.14), transparent); }
-  .extc h3 { font-size: 20px; margin-bottom: 8px; } .extc p { margin: 0 0 12px; font-size: 14px; color: rgba(239,230,214,.8); } .extc .big { font: 800 30px var(--serif); color: var(--ember); } .extc button { width: 100%; }
-  .key { word-break: break-all; font-size: 12px; color: var(--ok); margin: 10px 0 0; }
-  /* giriş */
-  .auth { max-width: 360px; margin: 90px auto; } .auth h1 { font-size: 42px; margin-bottom: 6px; }
-  .auth input { display: block; width: 100%; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px 14px; margin-top: 10px; }
-  .auth button.solid { width: 100%; margin-top: 14px; padding: 13px; } .auth .tabs { margin: 20px 0 6px; } .err { color: var(--bad); min-height: 22px; margin: 10px 0 0; font-size: 14px; }
-  /* quiz */
-  .ov { position: fixed; inset: 0; background: rgba(8,7,6,.88); display: grid; place-items: center; padding: 16px; z-index: 9; backdrop-filter: blur(6px); }
-  .q { width: min(520px, 100%); background: #14110f; border: 1px solid var(--line); border-radius: 16px; padding: 26px; }
-  .qh { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; font-size: 14px; font-weight: 600; color: var(--dim); } .qh button { padding: 4px 12px; }
-  .q .w { font: 800 40px var(--serif); text-align: center; margin: 30px 0 6px; word-break: break-word; } .q .hint { text-align: center; color: var(--dim); margin-bottom: 20px; }
-  .opts { display: grid; gap: 9px; } .opts button { text-align: left; padding: 15px 16px; font-size: 17px; font-weight: 500; }
-  .opts .okk { border-color: var(--ok); background: rgba(134,199,154,.12); } .opts .no { border-color: var(--bad); background: rgba(201,80,63,.14); }
-  .combo { color: var(--ember); min-height: 22px; text-align: center; margin-top: 16px; font-weight: 700; }
-  .res { text-align: center; } .res .big { font: 800 68px var(--serif); margin: 6px 0; } .res button { width: 100%; margin-top: 10px; padding: 13px; }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1b1714; border: 1px solid rgba(232,97,60,.5); padding: 12px 22px; border-radius: 999px; z-index: 20; max-width: 90vw; font-weight: 600; }
-  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; gap: 10px; } .stats { grid-template-columns: 1fr 1fr; } .hero { padding: 24px; min-height: 270px; } .hero h1 { font-size: 38px; } .hero > .pcard { display: none; }
-    .ep { grid-template-columns: 1fr 52px 90px; } .ep .tr { display: none; } }
-  @media (prefers-reduced-motion: reduce) { .node.cur { animation: none; } }
-
-  /* ===== v2 tasarım ===== */
-  :root { --ember:#ff7a45; --gold:#ffc766; --ok:#7be0a6; --card:rgba(255,255,255,.045); --r:20px; }
-  body { background: radial-gradient(1100px 560px at 88% -8%, rgba(255,122,69,.2), transparent 60%), radial-gradient(800px 480px at -8% 28%, rgba(96,140,255,.1), transparent 60%), var(--bg); }
-  main { max-width: 1180px; padding: 0 24px 96px; }
-  .bar { position: sticky; top: 0; z-index: 20; margin: 0 -24px 26px; padding: 14px 24px; background: rgba(12,11,10,.74); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
-  html[data-theme="light"] .bar { background: rgba(246,241,231,.82); }
-  .brand { font-size: 26px; letter-spacing: -.03em; }
-  .bar .who button { border-radius: 999px; background: var(--card); }
-  button { border-radius: 999px; transition: transform .15s, border-color .15s, background .15s, box-shadow .15s; }
-  button:hover:not(:disabled) { transform: translateY(-1px); }
-  .solid { background: linear-gradient(135deg, var(--gold), var(--ember)); border: 0; color: #1a0d08; box-shadow: 0 10px 28px rgba(255,122,69,.32); }
-  .solid:hover:not(:disabled) { background: linear-gradient(135deg, #ffd488, #ff8a5a); box-shadow: 0 14px 34px rgba(255,122,69,.42); }
-  .hero { border-radius: 30px; min-height: 360px; border: 1px solid var(--line); box-shadow: 0 34px 90px rgba(0,0,0,.5); }
-  .hero h1 { font-size: clamp(38px, 6.4vw, 68px); letter-spacing: -.03em; }
-  .hero .acts button { padding: 15px 32px; font-size: 16px; }
-  .stats { gap: 16px; margin: 20px 0 26px; }
-  .st { background: var(--card); border-radius: var(--r); padding: 20px 22px; transition: transform .2s, border-color .2s; }
-  .st:hover { transform: translateY(-3px); border-color: rgba(255,122,69,.5); }
-  .st .v { font-size: 34px; color: var(--ember); }
-  .tile { border-radius: 16px; width: 104px; height: 146px; transition: transform .2s, opacity .2s, border-color .2s; }
-  .tabs { width: fit-content; max-width: 100%; gap: 6px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; margin-bottom: 18px; }
-  .tabs button { border: 0; border-radius: 999px; padding: 10px 20px; border-bottom: 0; color: var(--dim); }
-  .tabs button.on { background: var(--ember); color: #1a0d08; border-bottom: 0; }
-  .row { padding: 14px 16px; border: 0; border-radius: 14px; margin-bottom: 4px; transition: background .15s; }
-  .row:hover { background: var(--card); } .row.me { background: rgba(255,122,69,.14); }
-  .search { border-radius: 999px; padding: 13px 20px; }
-  .ep { padding: 22px; border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 12px; background: var(--card); }
-  .track i { background: linear-gradient(90deg, var(--ember), var(--gold)); }
-  .track.ok i { background: linear-gradient(90deg, #5fc98c, var(--ok)); }
-  .lnk.del { color: var(--bad); text-decoration-color: rgba(201,80,63,.4); }
-  .extc { border-radius: 24px; padding: 22px; }
-  .a, .mhead, .banner { border-radius: 18px; }
-  .cols { gap: 44px; }
-  main > * { animation: up .55s cubic-bezier(.2,.7,.2,1) both; }
-  main > *:nth-child(2) { animation-delay: .06s; } main > *:nth-child(3) { animation-delay: .12s; } main > *:nth-child(4) { animation-delay: .18s; } main > *:nth-child(5) { animation-delay: .24s; }
-  @keyframes up { from { opacity: 0; transform: translateY(16px); } }
-  @media (prefers-reduced-motion: reduce) { main > * { animation: none; } }
-  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .ep { grid-template-columns: 1fr; } }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/i18n.js"></script>
 </head>
 <body>
-<div id="bd"></div><div id="bdo"></div>
-<main id="app"></main>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div id="pairbox" class="row" style="gap:6px;margin-left:10px"></div>
+  <div class="grow"></div>
+  <div id="tools" class="row" style="gap:6px"></div>
+</div></header>
+<main class="wrap" id="app"></main>
+<script src="/static/common.js"></script>
 <script>
 const app = document.getElementById("app");
-const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
-async function api(path, body) {
-  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.detail || "Bir hata oluştu.");
-  return d;
-}
-try { document.documentElement.dataset.theme = localStorage.getItem("cv-theme") || "dark"; } catch (e) {}
-const COUNTRIES = "TR:Türkiye;DE:Almanya;GB:Birleşik Krallık;US:ABD;NL:Hollanda;FR:Fransa;AZ:Azerbaycan;RU:Rusya;UA:Ukrayna;KZ:Kazakistan;SA:Suudi Arabistan;AE:BAE;EG:Mısır;IQ:Irak;IR:İran;ES:İspanya;IT:İtalya;SE:İsveç;BE:Belçika;AT:Avusturya;CH:İsviçre;CA:Kanada;AU:Avustralya;BR:Brezilya;IN:Hindistan;PK:Pakistan;JP:Japonya;KR:Güney Kore;CN:Çin;ID:Endonezya;MX:Meksika;AR:Arjantin;PL:Polonya;GR:Yunanistan;BG:Bulgaristan;RO:Romanya".split(";").map((s) => s.split(":"));
-const flag = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) + " " : "");
-const cname = (cc) => (COUNTRIES.find((c) => c[0] === cc) || [cc, cc])[1];
-function toggleTheme() { const t = document.documentElement.dataset.theme === "light" ? "dark" : "light"; document.documentElement.dataset.theme = t; try { localStorage.setItem("cv-theme", t); } catch (e) {} }
-async function delEps(list, label) {
-  const eps = [...new Set(list)];
-  if (!confirm(label + " için " + eps.length + " kayıt grubundaki kelimeler listenden silinecek. Emin misin?")) return;
-  try { const r = await api("/api/delete-episodes", { episodes: eps }); toast(r.deleted + " kelime silindi."); panelView(); } catch (e) { toast(e.message); }
-}
-function openSettings(me) {
-  const ov = el("div"); ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:50;padding:16px";
-  const bx = el("div"); bx.style.cssText = "background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:22px;width:min(380px,100%);display:grid;gap:10px";
-  const name = el("input", "search"); name.value = me.username; name.maxLength = 16;
-  const sel = el("select", "search"); sel.append(new Option("Ülke seç (isteğe bağlı)", ""));
-  COUNTRIES.forEach(([c, n]) => sel.append(new Option(flag(c) + n, c))); sel.value = me.country || "";
-  const file = el("input"); file.type = "file"; file.accept = "image/*"; let avatar = "";
-  file.onchange = () => { const f = file.files[0]; if (!f) return; const img = new Image();
-    img.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 96; const s = Math.min(img.width, img.height);
-      c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 96, 96); avatar = c.toDataURL("image/jpeg", 0.8); };
-    img.src = URL.createObjectURL(f); };
-  const save = el("button", "solid", "Kaydet"), cancel = el("button", "", "Kapat"), err = el("div", "dim", "");
-  save.onclick = async () => { try { await api("/api/settings", { username: name.value.trim(), country: sel.value, avatar }); ov.remove(); panelView(); } catch (e) { err.textContent = e.message; } };
-  cancel.onclick = () => ov.remove();
-  bx.append(el("h3", "", "Ayarlar"), el("div", "dim", "Kullanıcı adı"), name, el("div", "dim", "Ülke"), sel, el("div", "dim", "Profil fotoğrafı"), file, err, save, cancel);
-  ov.append(bx); document.body.append(ov);
-}
-function toast(msg) { const t = el("div", "toast", msg); document.body.append(t); setTimeout(() => t.remove(), 2800); }
-const track = (p, cls) => { const t = el("div", "track " + (cls || "")), i = el("i"); i.style.width = Math.max(0, Math.min(100, p)) + "%"; t.append(i); return t; };
-const shuf = (a) => [...a].sort(() => Math.random() - .5);
+let me = null, pairs = [], PAIR = loadPair(), V = { words: [], known: [] }, VIDS = [];
+let tab = "words", Q = "", EP = "", SHOW = 240, LBP = "all", LBS = "people";
+const SELW = new Set(), SELV = new Set(), SELK = new Set();
 
-/* ---- dizi görselleri: static/posters/<dizi-adi>.jpg varsa o, yoksa TVmaze'den otomatik, yoksa renk geçişi ---- */
-const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const hue = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-function posterBg(show, custom) {
-  const h = hue(show), clean = (u) => u.replace(/["')\\]/g, "");
-  let layers = `url("/static/posters/${slug(show)}.jpg") center/cover`;
-  if (custom) layers += `, url("${clean(custom)}") center/cover`;
-  return layers + `, radial-gradient(120% 90% at 20% 0%, hsl(${h} 40% 30%), transparent 60%), linear-gradient(160deg, hsl(${(h + 30) % 360} 36% 17%), hsl(${h} 28% 7%))`;
+function loadPair() {
+  try { const [s, d] = (localStorage.getItem("cv-pair") || "").split(":"); if (s && d && s !== d) return { src: s, dst: d }; } catch (e) {}
+  return { src: "tr", dst: "en" };
 }
-let PO = {}; try { PO = JSON.parse(localStorage.cv_posters || "{}"); } catch (e) {}
-const POPEN = {};
-function loadPosters(names, redraw) {
-  const todo = names.filter((n) => n !== "Kelimelerim" && !POPEN[n] && (!PO[n] || (!PO[n].u && Date.now() - PO[n].t > 6048e5)));
-  if (!todo.length) return;
-  todo.forEach((n) => (POPEN[n] = 1));
-  Promise.all(todo.map((n) => fetch("https://api.tvmaze.com/singlesearch/shows?q=" + encodeURIComponent(n))
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => { PO[n] = { u: (d && d.image && (d.image.original || d.image.medium)) || "", t: Date.now() }; })
-    .catch(() => { delete POPEN[n]; })))
-    .then(() => { try { localStorage.cv_posters = JSON.stringify(PO); } catch (e) {} if (todo.some((n) => PO[n] && PO[n].u)) redraw(); });
+function setPair(src, dst) {
+  if (src === dst) dst = PAIR_LANGS.find((l) => l !== src);
+  PAIR = { src, dst };
+  try { localStorage.setItem("cv-pair", src + ":" + dst); } catch (e) {}
+  EP = ""; Q = ""; SHOW = 240; clearSel();
+  reload();
 }
+function clearSel() { SELW.clear(); SELV.clear(); SELK.clear(); }
+const pairKey = () => PAIR.src + ">" + PAIR.dst;
 
+/* ---------- giriş ---------- */
 function authView() {
-  document.getElementById("bd").style.background = posterBg("CineVocab");
+  document.getElementById("pairbox").replaceChildren();
+  document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
   let mode = "login";
-  const card = el("div", "auth"), tabs = el("div", "tabs");
-  const tl = el("button", "on", "Giriş yap"), tr = el("button", "", "Kayıt ol");
-  const user = el("input"); user.placeholder = "Kullanıcı adı"; user.autocomplete = "username"; user.maxLength = 16;
-  const pass = el("input"); pass.type = "password"; pass.placeholder = "Parola (en az 6 karakter)";
-  const err = el("p", "err"), go = el("button", "solid", "Giriş yap");
-  const set = (m) => { mode = m; tl.className = m === "login" ? "on" : ""; tr.className = m === "login" ? "" : "on";
-    go.textContent = m === "login" ? "Giriş yap" : "Hesap oluştur"; pass.autocomplete = m === "login" ? "current-password" : "new-password"; err.textContent = ""; };
-  tl.onclick = () => set("login"); tr.onclick = () => set("register");
+  const card = el("div", "card"), seg = el("div", "seg");
+  const bl = el("button", "on", t("login")), br = el("button", "", t("register"));
+  const user = el("input"), pass = el("input"), err = el("p", "err"), go = el("button", "primary", t("login"));
+  user.placeholder = t("username"); user.autocomplete = "username"; user.maxLength = 16;
+  pass.type = "password"; pass.placeholder = t("pwHint"); pass.autocomplete = "current-password";
+  const set = (m) => { mode = m; bl.className = m === "login" ? "on" : ""; br.className = m === "login" ? "" : "on";
+    go.textContent = m === "login" ? t("login") : t("createAccount"); pass.autocomplete = m === "login" ? "current-password" : "new-password"; err.textContent = ""; };
+  bl.onclick = () => set("login"); br.onclick = () => set("register");
   go.onclick = async () => {
-    try { await api(mode === "login" ? "/api/login" : "/api/register", { username: user.value, password: pass.value }); panelView(); }
-    catch (e) { err.textContent = e.message; }
+    go.disabled = true;
+    try { await api(mode === "login" ? "/api/login" : "/api/register", { username: user.value.trim(), password: pass.value }); await boot(); }
+    catch (e) { err.textContent = e.message; } finally { go.disabled = false; }
   };
   pass.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
-  tabs.append(tl, tr);
-  card.append(el("h1", "", "CineVocab"), el("p", "dim", "Dizi izlerken kelime topla, bölüm bölüm öğren."), tabs, user, pass, err, go);
-  app.replaceChildren(card);
-}
-
-/* ---------- ilerleme (tarayıcı + sunucu) ---------- */
-const RANKS = ["Çaylak", "Meraklı", "Replik Avcısı", "Altyazı Ustası", "Sinefil", "Efsane"];
-const lvlOf = (xp) => Math.floor(xp / 200) + 1;
-const wkey = (w) => (w.episode || "") + "|" + w.tr;
-const today = () => new Date().toLocaleDateString("sv");
-let SRV = {}, saveT = null;
-const loadP = (u) => { let l = {}; try { l = JSON.parse(localStorage["cv_" + u]) || {}; } catch (e) {} return (SRV && (SRV.upd || 0) > (l.upd || 0)) ? SRV : l; };
-
-/* Eklenti bölümü "Lost - Season 1 S1 E16" gibi gönderir: dizi = "Lost", bölüm = "S1 E16". */
-const PACK = 25;
-const cleanShow = (s) => (s || "").replace(/[\s,.:\-–—]*S(?:eason|ezon)?\s*\d+\s*$/i, "").replace(/[\s,.:\-–—]+$/, "").trim();
-const EP_RE = /^(.*?)[\s,.:\-]*S(\d+)\s*E(\d+)\s*$/i;
-function splitEp(e) {
-  const m = EP_RE.exec((e || "").trim());
-  return m ? { show: cleanShow(m[1]) || "Kelimelerim", name: "S" + m[2] + " E" + m[3], order: (+m[2]) * 1000 + (+m[3]) } : null;
-}
-function buildBuckets(words) {
-  const shows = new Map();
-  words.forEach((w) => {
-    const p = splitEp(w.episode);
-    const show = p ? p.show : (cleanShow((w.episode || "").trim()) || "Kelimelerim");
-    const name = p ? p.name : "Kelimeler", order = p ? p.order : 1e9;
-    if (!shows.has(show)) shows.set(show, new Map());
-    const m = shows.get(show);
-    if (!m.has(name)) m.set(name, { order, words: [], poster: "" });
-    const e = m.get(name); e.words.push(w); if (!e.poster) e.poster = w.poster || w.image || "";
+  seg.append(bl, br);
+  const form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:16px";
+  form.append(user, pass, go, err);
+  card.append(el("h1", "", t("authTitle")), el("p", "dim", t("authSub")), seg, form);
+  seg.style.marginTop = "18px";
+  const demo = el("div", "subs"), ws = el("div", "ws");
+  [["Je", "I"], ["ne", "—"], ["sais", "know"], ["pas", "not"], ["pourquoi", "why"]].forEach(([a, b], i) => {
+    const s = el("span", i === 1 ? "k" : ""); s.append(el("b", "", a), el("small", "", b)); ws.append(s);
   });
-  const out = [];
-  shows.forEach((eps, show) => {
-    const list = [...eps.entries()].sort((a, b) => a[1].order - b[1].order || a[0].localeCompare(b[0], "tr", { numeric: true }));
-    const poster = (list.find(([, e]) => e.poster) || [, {}])[1].poster || "";
-    list.forEach(([name, e]) => {
-      if (e.order === 1e9 && e.words.length > PACK) for (let i = 0; i < e.words.length; i += PACK) out.push({ show, poster, name: "Paket " + (i / PACK + 1), words: e.words.slice(i, i + PACK) });
-      else out.push({ show, poster, name, words: e.words });
+  demo.append(ws); demo.style.marginTop = "22px";
+  const wrap = el("div"); wrap.style.cssText = "max-width:440px;margin:6vh auto 0";
+  const cap = el("p", "dim small", t("authDemo")); cap.style.cssText = "text-align:center;margin-top:10px";
+  wrap.append(card, demo, cap);
+  app.replaceChildren(wrap);
+}
+
+/* ---------- ana akış ---------- */
+async function boot() {
+  try { me = await api("/api/me"); } catch (e) { me = null; return authView(); }
+  try { pairs = await api("/api/pairs"); } catch (e) { pairs = []; }
+  let saved = false; try { saved = !!localStorage.getItem("cv-pair"); } catch (e) {}
+  if (!saved && pairs.length) PAIR = { src: pairs[0].src, dst: pairs[0].dst };
+  await reload();
+}
+async function reload() {
+  const qs = "?src=" + PAIR.src + "&dst=" + PAIR.dst;
+  try { [V, VIDS] = await Promise.all([api("/api/vocab" + qs), api("/api/videos" + qs)]); }
+  catch (e) { if (e.status === 401) return authView(); toast(e.message); V = { words: [], known: [] }; VIDS = []; }
+  try { pairs = await api("/api/pairs"); } catch (e) {}
+  render();
+}
+
+function renderPair() {
+  const box = document.getElementById("pairbox");
+  const mk = (cur, onch) => { const s = el("select"); PAIR_LANGS.forEach((l) => s.append(new Option(langName(l), l))); s.value = cur; s.onchange = () => onch(s.value); return s; };
+  const a = mk(PAIR.src, (v) => setPair(v, PAIR.dst)), b = mk(PAIR.dst, (v) => setPair(PAIR.src, v));
+  a.title = t("learning"); b.title = t("translateTo"); a.setAttribute("aria-label", t("learning")); b.setAttribute("aria-label", t("translateTo"));
+  box.replaceChildren(a, el("span", "dim", "→"), b);
+}
+
+const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["settings", "settings"]];
+const uniqWords = () => { const m = new Map(); V.words.forEach((w) => { if (!m.has(w.tr)) m.set(w.tr, w); }); return [...m.values()]; };
+const counts = () => ({ words: uniqWords().length, videos: VIDS.length, known: V.known.length });
+
+function render() {
+  document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
+  mountTools(document.getElementById("tools"));
+  renderPair();
+  const c = counts(), nav = el("nav", "nav"), bar = el("nav", "tabbar");
+  TABS.forEach(([k, ic]) => {
+    const mkb = (cls) => { const b = el("button", tab === k ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k))); if (cls && c[k] !== undefined) b.append(el("span", "n", c[k])); b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); }; return b; };
+    nav.append(mkb(true)); bar.append(mkb(false));
+  });
+  const main = el("div");
+  main.append({ words: tWords, videos: tVideos, known: tKnown, practice: tPractice, duel: tDuel, settings: tSettings }[tab]());
+  const lay = el("div", "layout"); lay.append(nav, main);
+  app.replaceChildren(lay);
+  document.body.append(bar);
+}
+
+function head(title, sub, extra) {
+  const h = el("div", "head"), l = el("div"); l.append(el("h1", "", title)); if (sub) l.append(el("p", "", sub));
+  h.append(l); if (extra) h.append(extra); return h;
+}
+function bulkBar(set, buttons) {
+  document.querySelectorAll(".bulk").forEach((n) => n.remove());
+  if (!set.size) return;
+  const b = el("div", "bulk"); b.append(el("b", "", t("selected", set.size)));
+  buttons.forEach(([label, cls, fn]) => { const x = el("button", cls, label); x.onclick = fn; b.append(x); });
+  const cl = el("button", "ghost", t("clear")); cl.onclick = () => { set.clear(); render(); }; b.append(cl);
+  document.body.append(b);
+}
+function empty(title, text, extra) { const e = el("div", "empty"); e.append(el("b", "", title), el("span", "", text)); if (extra) e.append(extra); return e; }
+function otherPairs() {
+  const list = pairs.filter((p) => p.src + ">" + p.dst !== pairKey());
+  if (!list.length) return null;
+  const r = el("div", "row"); r.style.cssText = "justify-content:center;margin-top:16px";
+  list.forEach((p) => { const b = el("button", "", langName(p.src) + " → " + langName(p.dst) + " · " + p.count); b.onclick = () => setPair(p.src, p.dst); r.append(b); });
+  return r;
+}
+
+/* ---------- Kelimeler ---------- */
+function tWords() {
+  const box = el("div"), c = counts();
+  box.append(head(t("nav_words"), t("wordsSub", c.words, langName(PAIR.src))));
+  const st = el("div", "stats");
+  [[c.words, t("statWords")], [c.videos, t("statVideos")], [c.known, t("statKnown")], [me.wins || 0, t("statWins")]].forEach(([n, l]) => {
+    const s = el("div", "stat"); s.append(el("b", "", n), el("span", "", l)); st.append(s); });
+  box.append(st);
+  if (!V.words.length) { box.append(empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
+
+  const q = el("input"), ep = el("select"), all = el("button", "", t("selectShown"));
+  q.type = "search"; q.placeholder = t("search"); q.value = Q;
+  ep.append(new Option(t("allVideos"), ""));
+  VIDS.forEach((v) => ep.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
+  ep.value = EP;
+  const grid = el("div", "words"), more = el("button", "");
+  const rows = () => {
+    const ql = Q.trim().toLowerCase(), seen = new Set(), out = [];
+    V.words.forEach((w) => {
+      if (EP !== "" && (w.episode || "\u0000") !== EP) return;
+      if (ql && !w.tr.toLowerCase().includes(ql) && !w.eng.toLowerCase().includes(ql)) return;
+      if (seen.has(w.tr)) return; seen.add(w.tr); out.push(w);
     });
-  });
-  return out;
-}
-
-/* ---------- harita: bölüm = basamaklar + sandıklar + bölüm sınavı ---------- */
-const STAGE = 10, STAGE_XP = 20, CHEST_XP = 40, BOSS_XP = 100, BOSS_N = 20, BOSS_PASS = 80, CHEST_EVERY = 5;
-const bkey = (b) => b.show + "|" + b.name;
-function stagesOf(b, P) {
-  const ws = b.words.slice().reverse(), out = []; // en eski kelime önce: yeni kelimeler sona basamak ekler
-  for (let i = 0; i < ws.length; i += STAGE) {
-    const w = ws.slice(i, i + STAGE), m = w.filter((x) => P.mastered[wkey(x)]).length;
-    out.push({ i: out.length, words: w, m, pct: Math.round(m / w.length * 100), done: m === w.length });
-  }
-  return out;
-}
-function nextStep(mine, P) {
-  for (const b of mine) {
-    if (P.boss[bkey(b)]) continue;
-    const st = stagesOf(b, P), idx = st.findIndex((s) => !s.done);
-    return idx >= 0 ? { b, st, idx, kind: "stage" } : { b, st, kind: "boss" };
-  }
-  return null;
-}
-
-let curShow = null, curEp = null, tab = "map", lbp = "week", lbs = "people";
-
-async function panelView() {
-  let me, words;
-  try { [me, words] = await Promise.all([api("/api/me"), api("/api/my-words")]); } catch (e) { return authView(); }
-  try { SRV = await api("/api/progress"); } catch (e) { SRV = {}; }
-  draw(me, words);
-}
-
-function draw(me, words) {
-  const P = Object.assign({ xp: 0, mastered: {}, best: {}, ach: {}, qdone: {}, stage: {}, chest: {}, boss: {}, maxCombo: 0, capTotal: 0 }, loadP(me.username));
-  const save = () => { P.upd = Date.now(); localStorage["cv_" + me.username] = JSON.stringify(P); clearTimeout(saveT);
-    saveT = setTimeout(() => { api("/api/progress", { data: P }).then(() => { SRV = P; }).catch(() => {}); }, 700); };
-  const before = JSON.stringify(P);
-  const buckets = buildBuckets(words);
-  const msgs = [], lvBefore = lvlOf(P.xp);
-
-  const t = today();
-  if (P.day !== t) {
-    const y = new Date(Date.now() - 864e5).toLocaleDateString("sv");
-    P.streak = P.day === y ? (P.streak || 0) + 1 : 1;
-    P.day = t; P.today = 0; P.capToday = 0; P.stageToday = 0; P.qdone = {};
-  }
-  if (P.counted === undefined) P.counted = words.length;
-  const nw = words.length - P.counted;
-  if (nw > 0) { P.capToday += nw; P.capTotal += nw; P.xp += 5 * nw; msgs.push("Eklentiyle " + nw + " yeni kelime: +" + 5 * nw + " XP, haritana yeni basamaklar eklendi"); }
-  P.counted = words.length;
-
-  /* tamamlanan basamaklar bir kez ödül verir */
-  let newStages = 0;
-  buckets.forEach((b) => stagesOf(b, P).forEach((s) => { const k = bkey(b) + "#" + s.i; if (s.done && !P.stage[k]) { P.stage[k] = 1; newStages++; } }));
-  if (newStages) { P.xp += STAGE_XP * newStages; P.stageToday = (P.stageToday || 0) + newStages; msgs.push(newStages + " basamak tamamlandı: +" + STAGE_XP * newStages + " XP"); }
-
-  const masteredN = words.filter((w) => P.mastered[wkey(w)]).length;
-  const QUESTS = [
-    ["10 soru çöz", P.today || 0, 10, 20],
-    ["Eklentiyle 3 kelime yakala", P.capToday || 0, 3, 30],
-    ["Bir basamağı tamamla", P.stageToday || 0, 1, 40],
-  ];
-  QUESTS.forEach((q, i) => { if (q[1] >= q[2] && !P.qdone[i]) { P.qdone[i] = 1; P.xp += q[3]; msgs.push("Görev tamam: +" + q[3] + " XP"); } });
-  const showsAll = [...new Set(buckets.map((b) => b.show))];
-  const ACH = [
-    ["◆", "İlk Sahne", "İlk soruyu çöz", () => Object.keys(P.mastered).length > 0 || (P.today || 0) > 0, 20],
-    ["◐", "Kelime Avcısı", "10 kelime öğren", () => masteredN >= 10, 50],
-    ["❖", "Sözlük Kurdu", "50 kelime öğren", () => masteredN >= 50, 100],
-    ["▤", "Basamak Ustası", "10 basamak tamamla", () => Object.keys(P.stage).length >= 10, 60],
-    ["★", "Bölüm Tamam", "Bir bölümün sınavını geç", () => Object.keys(P.boss).length >= 1, 100],
-    ["◎", "Dizi Fatihi", "3+ bölümü olan bir dizinin tüm sınavlarını geç", () => showsAll.some((s) => { const bs = buckets.filter((b) => b.show === s); return bs.length >= 3 && bs.every((b) => P.boss[bkey(b)]); }), 200],
-    ["↯", "Kombo Ustası", "5'li kombo yap", () => P.maxCombo >= 5, 40],
-    ["✦", "Eklenti Dostu", "Eklentiyle 10 kelime yakala", () => P.capTotal >= 10, 100],
-    ["▲", "Seviye 3", "3. seviyeye ulaş", () => lvlOf(P.xp) >= 3, 60],
-    ["●", "Haftalık Seri", "7 gün üst üste gir", () => (P.streak || 0) >= 7, 150],
-  ];
-  let achN = 0;
-  ACH.forEach((a, i) => { if (a[3]()) { achN++; if (!P.ach[i]) { P.ach[i] = 1; P.xp += a[4]; msgs.push("Başarım: " + a[1] + " (+" + a[4] + " XP)"); } } });
-  if (lvlOf(P.xp) > lvBefore) msgs.push("Seviye atladın: " + lvlOf(P.xp));
-  if (JSON.stringify(P) !== before) save();
-  msgs.forEach((m, i) => setTimeout(() => toast(m), i * 2900));
-
-  const showNames = showsAll;
-  if (!showNames.includes(curShow)) { curShow = showNames[0]; curEp = null; }
-  loadPosters(showNames, () => draw(me, words));
-  const mine = buckets.filter((b) => b.show === curShow);
-  const posterOf = (s) => (buckets.find((b) => b.show === s) || {}).poster || (PO[s] && PO[s].u) || "";
-  const tw = mine.reduce((s, b) => s + b.words.length, 0), tm = mine.reduce((s, b) => s + b.words.filter((w) => P.mastered[wkey(w)]).length, 0);
-  const nxt = nextStep(mine, P);
-  if (!mine.some((b) => b.name === curEp)) curEp = nxt ? nxt.b.name : (mine[0] || {}).name;
-  const curB = mine.find((b) => b.name === curEp);
-  document.getElementById("bd").style.background = posterBg(curShow || "CineVocab", posterOf(curShow));
-
-  /* ---- üst bar ---- */
-  const bar = el("div", "bar"), brand = el("div", "brand"), who = el("div", "who"), out = el("button", "", "Çıkış");
-  brand.append("Cine", el("b", "", "Vocab"));
-  out.onclick = async () => { await api("/api/logout", {}); authView(); };
-  const del = el("button", "", "Hesabımı sil");
-  del.onclick = async () => {
-    const pw = prompt("Hesabın ve tüm verilerin KALICI olarak silinecek. Onaylamak için parolanı yaz:");
-    if (!pw) return;
-    try { await api("/api/delete-account", { password: pw }); toast("Hesabın silindi."); authView(); }
-    catch (e) { toast(e.message); }
+    return out;
   };
-  const tg = el("button", "", "☀/☾"), st = el("button", "", "Ayarlar");
-  tg.onclick = toggleTheme; st.onclick = () => openSettings(me);
-  const av = me.avatar ? Object.assign(new Image(), { src: me.avatar }) : null;
-  if (av) av.style.cssText = "width:28px;height:28px;border-radius:50%;object-fit:cover";
-  who.append(...(av ? [av] : []), el("span", "", flag(me.country) + me.username), tg, st, out, del); bar.append(brand, who);
-
-  /* ---- hero ---- */
-  const hero = el("div", "hero"), hbg = el("div", "hbg"); hbg.style.background = posterBg(curShow || "CineVocab", posterOf(curShow)); hero.append(hbg);
-  if (curShow && curShow !== "Kelimelerim") { const pc = el("div", "pcard"); pc.style.background = posterBg(curShow, posterOf(curShow)); hero.append(pc); }
-  hero.append(el("div", "cap", curShow ? "Kaldığın yer" : "Hoş geldin"), el("h1", "", curShow || "İlk kelimeni yakala"));
-  const acts = el("div", "acts"), cta = el("button", "solid", nxt ? "Devam et" : "Eklenti anahtarı al");
-  if (curShow) {
-    const nt = !nxt ? "Bu dizideki tüm bölümler tamam" : nxt.kind === "boss" ? nxt.b.name + " · Bölüm sınavı seni bekliyor" : nxt.b.name + " · Basamak " + (nxt.idx + 1) + "/" + nxt.st.length;
-    hero.append(el("div", "next", nt), track(tw ? tm / tw * 100 : 0), el("div", "pl", tm + " / " + tw + " kelime öğrenildi"));
-  } else hero.append(el("div", "next", "Eklentiyi kur, Prime Video, YouTube ya da Udemy'de bir şey izle; kelimelerin burada oyun haritasına dönüşür."), el("div", "pl", ""));
-  cta.onclick = () => { if (!nxt) return curShow ? toast("Hepsi tamam! Yeni kelime için eklentiyle izle.") : document.getElementById("keybtn").click(); curEp = nxt.b.name; tab = "map"; startNode(nxt.b, nxt.kind === "boss" ? "boss" : nxt.idx); };
-  const duel = el("a", "", "Düelloya gir"); duel.href = "/game";
-  acts.append(cta, duel); hero.append(acts);
-
-  /* ---- özet kutuları ---- */
-  const lv = lvlOf(P.xp), into = P.xp % 200, stats = el("div", "stats");
-  const box = (cap, val, bar, sub) => { const b = el("div", "st"); b.append(el("div", "cap", cap), el("div", "v", val)); if (bar !== null) b.append(track(bar)); b.append(el("div", "s", sub)); return b; };
-  stats.append(
-    box("Seviye " + lv, RANKS[Math.min(lv - 1, RANKS.length - 1)], into / 2, into + " / 200 XP"),
-    box("Bugün", Math.min(P.today || 0, 10) + " / 10 soru", Math.min(P.today || 0, 10) * 10, "Seri: " + (P.streak || 1) + " gün"),
-    box("Öğrenilen kelime", masteredN + " / " + words.length, words.length ? masteredN / words.length * 100 : 0, "Tamamlanan basamak: " + Object.keys(P.stage).length),
-    box("Düello", me.wins + " galibiyet", null, me.games + " oyun · " + me.score + " puan"));
-
-  /* ---- dizi şeridi ---- */
-  const strip = el("div", "strip");
-  if (showNames.length > 1) showNames.forEach((n) => {
-    const b = el("button", "tile" + (n === curShow ? " on" : "")); b.style.background = posterBg(n, posterOf(n)); b.append(el("span", "", n));
-    b.onclick = () => { curShow = n; curEp = null; tab = "map"; draw(me, words); }; strip.append(b); });
-
-  /* ---- sekmeler ---- */
-  const tabs = el("div", "tabs"), body = el("div");
-  [["map", "Harita"], ["eps", "Bölümler"], ["ach", "Başarımlar " + achN + "/" + ACH.length], ["words", "Kelimelerim"], ["lb", "Liderlik"]].forEach(([k, l]) => {
-    const b = el("button", tab === k ? "on" : "", l); b.onclick = () => { tab = k; draw(me, words); }; tabs.append(b); });
-
-  /* basamak / sandık / sınav başlat */
-  function startNode(b, which) {
-    const st = stagesOf(b, P);
-    if (which === "boss") {
-      const make = () => shuf(b.words).slice(0, BOSS_N);
-      return play(me, words, make(), P, save, { title: b.show + " · " + b.name + " · Bölüm sınavı", boss: true, make,
-        onDone: (p) => { if (p >= BOSS_PASS && !P.boss[bkey(b)]) { P.boss[bkey(b)] = 1; P.xp += BOSS_XP; toast("Bölüm tamamlandı! +" + BOSS_XP + " XP ve rozet"); } } });
-    }
-    play(me, words, st[which].words, P, save, { title: b.name + " · Basamak " + (which + 1) });
-  }
-
-  if (tab === "map") {
-    if (!mine.length) {
-      body.append(el("div", "empty", "Henüz kelimen yok. Eklentiyi kur, Prime'da bir bölüm izle: yakaladığın kelimeler burada adım adım oynanan bir haritaya dönüşür."));
-    } else {
-      const pick = el("div", "eppick");
-      mine.forEach((b) => { const x = el("button", (b.name === curEp ? "on " : "") + (P.boss[bkey(b)] ? "fin" : ""), b.name); x.onclick = () => { curEp = b.name; draw(me, words); }; pick.append(x); });
-      body.append(pick);
-      const b = curB, st = stagesOf(b, P), bm = st.reduce((s, x) => s + x.m, 0), bp = Math.round(bm / b.words.length * 100), passed = !!P.boss[bkey(b)];
-      const hd = el("div", "mhead");
-      hd.append(el("h3", "", b.show + " · " + b.name), el("div", "dim", b.words.length + " kelime · " + st.length + " basamak"));
-      const l = el("div", "l"); l.append(el("span", "", "Bölüm ilerlemesi"), el("span", "", "%" + bp)); hd.append(l, track(bp, "lg ok"));
-      hd.append(el("div", "rw", "Ödüller: basamak +" + STAGE_XP + " XP · her " + CHEST_EVERY + " basamakta sandık +" + CHEST_XP + " XP · bölüm sınavı +" + BOSS_XP + " XP ve rozet"));
-      body.append(hd);
-      if (passed) { const bn = el("div", "banner"); bn.append(el("b", "", "Bölüm tamamlandı"), el("span", "dim", "Aynı bölümde yeni kelime yakalarsan haritaya yeni basamaklar eklenir. Eklentiyle izlemeye devam et.")); body.append(bn); }
-
-      /* düğümler */
-      const seq = [];
-      st.forEach((s, i) => { seq.push({ t: "stage", s }); if ((i + 1) % CHEST_EVERY === 0 && i + 1 < st.length) seq.push({ t: "chest", after: i, key: bkey(b) + "#c" + (i + 1) }); });
-      seq.push({ t: "boss" });
-      const STEP = 96, H = 56 + (seq.length - 1) * STEP + 56, X = (k) => 200 + Math.sin(k * 0.95) * 72, Y = (k) => 56 + k * STEP;
-      const allDone = st.every((s) => s.done);
-      let curSet = false;
-      seq.forEach((n, k) => {
-        if (n.t === "stage") { const un = n.s.i === 0 || st[n.s.i - 1].done; n.state = n.s.done ? "done" : un ? "open" : "lock"; }
-        else if (n.t === "chest") { n.state = P.chest[n.key] ? "done" : st[n.after].done ? "open" : "lock"; }
-        else n.state = passed ? "done" : allDone ? "open" : "lock";
-        n.cur = n.t !== "chest" && n.state === "open" && !curSet; if (n.cur) curSet = true;
-      });
-      const path = el("div", "path"); path.style.height = H + "px";
-      const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", "0 0 400 " + H); svg.setAttribute("preserveAspectRatio", "none");
-      for (let k = 0; k < seq.length - 1; k++) {
-        const p = document.createElementNS(NS, "path"), x1 = X(k), y1 = Y(k), x2 = X(k + 1), y2 = Y(k + 1), on = seq[k].state === "done";
-        p.setAttribute("d", `M${x1} ${y1} C${x1} ${y1 + 48} ${x2} ${y2 - 48} ${x2} ${y2}`); p.setAttribute("fill", "none"); p.setAttribute("stroke-linecap", "round");
-        p.setAttribute("stroke", on ? "#86c79a" : "rgba(239,230,214,.22)"); p.setAttribute("stroke-width", on ? "5" : "4"); if (!on) p.setAttribute("stroke-dasharray", "1 11");
-        svg.append(p);
-      }
-      path.append(svg);
-      seq.forEach((n, k) => {
-        const x = X(k), y = Y(k), nd = el("button", "node " + n.t + " " + n.state + (n.cur ? " cur" : "")), inn = el("span", "in");
-        nd.style.left = x / 4 + "%"; nd.style.top = y + "px";
-        const lab = el("div", "nl"); lab.style.top = y + "px";
-        if (x >= 200) { lab.style.right = "calc(" + (100 - x / 4) + "% + 52px)"; lab.style.textAlign = "right"; } else { lab.style.left = "calc(" + x / 4 + "% + 52px)"; }
-        if (n.t === "stage") {
-          nd.style.setProperty("--p", n.s.pct + "%"); inn.textContent = n.s.done ? "✓" : String(n.s.i + 1);
-          lab.append(el("b", "", "Basamak " + (n.s.i + 1)), document.createTextNode(n.s.done ? "Tamamlandı" : n.s.words.length + " kelime · %" + n.s.pct));
-          nd.onclick = () => n.state === "lock" ? toast("Önce önceki basamağı tamamla.") : startNode(b, n.s.i);
-        } else if (n.t === "chest") {
-          inn.textContent = n.state === "done" ? "◇" : "◆";
-          lab.append(el("b", "", "Sandık"), document.createTextNode(n.state === "done" ? "Açıldı" : "+" + CHEST_XP + " XP"));
-          nd.onclick = () => { if (n.state === "lock") return toast("Sandık için önceki basamağı tamamla."); if (n.state === "done") return; P.chest[n.key] = 1; P.xp += CHEST_XP; save(); toast("Sandık açıldı: +" + CHEST_XP + " XP"); draw(me, words); };
-        } else {
-          nd.style.setProperty("--p", passed ? "100%" : "0%"); inn.textContent = "★";
-          lab.append(el("b", "", "Bölüm sınavı"), document.createTextNode(passed ? "Geçildi · tekrar çöz" : "+" + BOSS_XP + " XP · rozet"));
-          nd.onclick = () => n.state === "lock" ? toast("Önce tüm basamakları tamamla.") : startNode(b, "boss");
-        }
-        nd.append(inn); path.append(nd, lab);
-      });
-      body.append(path);
-    }
-  } else if (tab === "eps") {
-    if (!mine.length) body.append(el("div", "empty", "Henüz kelime yok."));
-    else { const ds = el("button", "lnk del", "🗑 Bu diziyi / videoyu tümüyle sil"); ds.onclick = () => delEps(mine.flatMap((b) => b.words.map((w) => w.episode)), curShow || "Bu içerik"); body.append(ds); }
-    mine.forEach((b) => {
-      const st = stagesOf(b, P), m = st.reduce((s, x) => s + x.m, 0), p = Math.round(m / b.words.length * 100), fin = !!P.boss[bkey(b)];
-      const r = el("div", "ep"), en = el("div", "en", b.name);
-      if (fin) en.append(el("span", "badge", "Tamam"));
-      en.append(el("small", "", b.words.length + " kelime · " + st.filter((s) => s.done).length + "/" + st.length + " basamak"));
-      const btn = el("button", "lnk", "Haritayı aç"); btn.onclick = () => { curEp = b.name; tab = "map"; draw(me, words); };
-      const delb = el("button", "lnk del", "🗑 Sil"); delb.onclick = () => delEps(b.words.map((w) => w.episode), b.name);
-      const ac = el("div", "ac"); ac.append(btn, delb); const trk = track(p, "ok"); trk.classList.add("tr");
-      r.append(en, trk, el("div", "pc", "%" + p), ac); body.append(r);
+  const paint = () => {
+    const list = rows(); grid.replaceChildren();
+    list.slice(0, SHOW).forEach((w) => {
+      const b = el("button", "w" + (SELW.has(w.tr) ? " sel" : ""));
+      b.setAttribute("aria-pressed", SELW.has(w.tr));
+      b.append(el("span", "src", w.tr), el("span", "dst", w.eng), el("span", "ep", w.episode || t("noVideo")), el("span", "ck"));
+      b.onclick = () => { SELW.has(w.tr) ? SELW.delete(w.tr) : SELW.add(w.tr); b.classList.toggle("sel"); b.setAttribute("aria-pressed", SELW.has(w.tr)); wbar(); };
+      grid.append(b);
     });
-  } else if (tab === "ach") {
-    const g = el("div", "ach");
-    ACH.forEach((a, i) => { const on = !!P.ach[i], d = el("div", "a" + (on ? " on" : "")); d.append(el("i", "", a[0]), el("b", "", a[1]), el("span", "", a[2] + " · +" + a[4] + " XP")); g.append(d); });
-    body.append(g);
-  } else if (tab === "words") {
-    const s = el("input", "search"); s.placeholder = "Kelime ara"; const l = el("div");
-    const fill = () => { l.replaceChildren(); const q = s.value.toLowerCase();
-      words.filter((w) => !q || w.tr.toLowerCase().includes(q) || w.eng.toLowerCase().includes(q)).forEach((w) => { const r = el("div", "row" + (P.mastered[wkey(w)] ? " m" : "")); r.append(el("span", "", w.tr), el("em", "", w.eng)); l.append(r); });
-      if (!l.children.length) l.append(el("div", "empty", "Sonuç yok.")); };
-    s.oninput = fill; fill(); body.append(s, l);
-  } else {
-    const sw = el("div", "tabs"), lb = el("div"); sw.style.marginTop = "10px";
-    [["Hafta", "week"], ["Ay", "month"], ["Yıl", "year"], ["Tümü", "all"]].forEach(([l, p]) => { const b = el("button", lbp === p ? "on" : "", l); b.onclick = () => { lbp = p; draw(me, words); }; sw.append(b); });
-    [["Kişiler", "people"], ["Ülkeler", "country"]].forEach(([l, s]) => { const b = el("button", lbs === s ? "on" : "", l); b.onclick = () => { lbs = s; draw(me, words); }; sw.append(b); });
-    api("/api/leaderboard?period=" + lbp + "&by=" + lbs).then((rows) => {
-      if (!rows.length) lb.append(el("div", "empty", "Henüz oynanmış oyun yok."));
-      rows.forEach((r, i) => { const row = el("div", "row" + (r.username === me.username ? " me" : ""));
-        const medal = ["🥇", "🥈", "🥉"][i] || (i + 1) + ".";
-        const nm = lbs === "country" ? flag(r.country) + cname(r.country) + " · " + r.players + " oyuncu" : flag(r.country) + r.username;
-        row.append(el("span", "", medal + " " + nm), el("span", "", r.score + " puan · " + r.wins + " galibiyet")); lb.append(row); }); });
-    body.append(sw, lb);
-  }
-
-  /* ---- yan: görevler + eklenti ---- */
-  const side = el("div", "side"), s1 = el("section"), s2 = el("section");
-  s1.append(el("div", "cap", "Günlük görevler"));
-  QUESTS.forEach((q) => { const v = Math.min(q[1], q[2]), ok = v >= q[2], d = el("div", "quest" + (ok ? " ok" : "")), r = el("div", "t");
-    r.append(el("span", "", q[0]), el("span", "dim", v + "/" + q[2] + " · +" + q[3])); d.append(r, track(v / q[2] * 100, ok ? "ok" : "")); s1.append(d); });
-  const ec = el("div", "extc"), ext = el("button", "solid", "Eklenti anahtarı oluştur"), key = el("p", "key"); ext.id = "keybtn";
-  ext.onclick = async () => { key.textContent = (await api("/api/ext-key", {})).key; };
-  ec.append(el("div", "cap", "Eklenti"), el("h3", "", "Haritanı eklentiyle uzat"), el("div", "big", "+5 XP"),
-    el("p", "", "İzlerken yakaladığın her yeni kelime haritaya basamak ekler. Daha çok izle, daha uzun harita, daha çok ödül."),
-    el("p", "dim", "Bu cihazda eklentiyle yakalanan: " + P.capTotal + " kelime"), ext, key, el("p", "dim", "Anahtarı eklentinin penceresine yapıştır."));
-  s2.append(ec); side.append(s1, s2);
-
-  const cols = el("div", "cols"), main = el("div"); main.append(tabs, body); cols.append(main, side);
-  const credit = el("div", "dim", "Dizi görselleri: TVmaze · v2.0"); credit.style.cssText = "margin-top:40px;font-size:12px";
-  app.replaceChildren(bar, hero, stats, strip, cols, credit);
+    if (!list.length) grid.replaceChildren(empty(t("noMatch"), ""));
+    more.className = list.length > SHOW ? "" : "hide"; more.textContent = t("showMore", list.length - SHOW);
+    all.onclick = () => { list.slice(0, SHOW).forEach((w) => SELW.add(w.tr)); paint(); wbar(); };
+  };
+  const wbar = () => bulkBar(SELW, [
+    [t("iKnow"), "primary", async () => { const ws = [...SELW]; await api("/api/known", { src: PAIR.src, words: ws, known: true }); toast(t("markedKnown", ws.length)); SELW.clear(); reload(); }],
+    [t("del"), "danger", async () => { const ws = [...SELW]; if (!(await ask(t("confirmDelWords", ws.length), t("confirmDelWordsText")))) return;
+      const r = await api("/api/delete-words", { src: PAIR.src, dst: PAIR.dst, words: ws }); toast(t("deleted", r.deleted)); SELW.clear(); reload(); }],
+  ]);
+  q.oninput = () => { Q = q.value; SHOW = 240; paint(); };
+  ep.onchange = () => { EP = ep.value; SHOW = 240; paint(); };
+  more.onclick = () => { SHOW += 240; paint(); };
+  const bar = el("div", "row"); q.style.cssText = "flex:1 1 200px"; ep.style.cssText = "flex:0 1 260px;width:auto"; bar.append(q, ep, all);
+  bar.style.marginBottom = "14px";
+  box.append(bar, grid, more); more.style.cssText = "display:block;margin:16px auto 0";
+  paint(); wbar();
+  return box;
 }
 
-/* ---------- tek kişilik oyun ---------- */
-function play(me, words, list, P, save, opts = {}) {
-  if (words.length < 2) return toast("Oynamak için en az 2 kelime lazım.");
-  const ov = el("div", "ov"), q = el("div", "q"); ov.append(q); document.body.append(ov);
-  const items = shuf(list), wrongs = [];
-  let i = 0, ok = 0, combo = 0, xp = 0, locked = false;
-  const close = () => { save(); ov.remove(); draw(me, words); };
-  function ask() {
-    locked = false;
-    const it = items[i];
-    const pool = shuf([...new Set(words.filter((w) => w.eng !== it.eng).map((w) => w.eng))]).slice(0, 3);
-    const optsL = shuf([it.eng, ...pool]);
-    const h = el("div", "qh"), x = el("button", "", "✕"); x.onclick = close;
-    h.append(x, el("span", "", (i + 1) + " / " + items.length), el("span", "", xp + " XP"));
-    const o = el("div", "opts");
-    optsL.forEach((txt) => {
-      const b = el("button", "", txt);
+/* ---------- Videolar ---------- */
+function tVideos() {
+  const box = el("div");
+  box.append(head(t("nav_videos"), t("videosSub")));
+  if (!VIDS.length) { box.append(empty(t("emptyVideos"), t("emptyVideosText"), otherPairs())); return box; }
+  const list = el("div", "list");
+  VIDS.forEach((v) => {
+    const key = v.episode || "", li = el("div", "li"), cb = el("input", "chk");
+    cb.type = "checkbox"; cb.checked = SELV.has(key); cb.setAttribute("aria-label", v.episode || t("noVideo"));
+    cb.onchange = () => { cb.checked ? SELV.add(key) : SELV.delete(key); vbar(); };
+    const mid = el("div", "grow"); mid.style.minWidth = "0";
+    mid.append(el("div", "t", v.episode || t("noVideo")), el("div", "m", t("wordsN", v.count) + (v.last ? " · " + fmtDate(v.last) : "")));
+    const view = el("button", "ghost", t("viewWords")); view.onclick = () => { EP = v.episode || "\u0000"; tab = "words"; render(); };
+    const duel = el("button", "ghost", t("nav_duel")); duel.onclick = () => { DUEL_EP = v.episode || ""; tab = "duel"; render(); };
+    li.append(cb, mid, view, duel); list.append(li);
+  });
+  const vbar = () => bulkBar(SELV, [[t("del"), "danger", async () => {
+    const eps = [...SELV]; if (!(await ask(t("confirmDelVideos", eps.length), t("confirmDelVideosText")))) return;
+    const r = await api("/api/delete-videos", { src: PAIR.src, dst: PAIR.dst, episodes: eps }); toast(t("deleted", r.deleted)); SELV.clear(); reload(); }]]);
+  const all = el("button", "", t("selectAll")); all.onclick = () => { VIDS.forEach((v) => SELV.add(v.episode || "")); render(); };
+  const note = el("p", "dim small grow", t("autoNote"));
+  const top = el("div", "row"); top.append(note, all); top.style.marginBottom = "12px";
+  box.append(top, list); vbar();
+  return box;
+}
+
+/* ---------- Bildiklerim ---------- */
+function tKnown() {
+  const box = el("div");
+  box.append(head(t("nav_known"), t("knownSub")));
+  const card = el("div", "card"), ta = el("textarea"), add = el("button", "primary", t("add"));
+  ta.rows = 2; ta.placeholder = t("addKnownPh"); ta.setAttribute("aria-label", t("addKnown"));
+  add.onclick = async () => {
+    const ws = ta.value.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean); if (!ws.length) return;
+    await api("/api/known", { src: PAIR.src, words: ws, known: true }); toast(t("markedKnown", ws.length)); ta.value = ""; reload();
+  };
+  ta.style.margin = "10px 0"; card.append(el("h3", "", t("addKnown")), ta, add); box.append(card);
+  card.style.marginBottom = "18px";
+  if (!V.known.length) { box.append(empty(t("emptyKnown"), t("emptyKnownText"))); return box; }
+  const grid = el("div", "words");
+  V.known.forEach((w) => {
+    const b = el("button", "w" + (SELK.has(w.tr) ? " sel" : ""));
+    b.append(el("span", "src", w.tr), el("span", "dst", w.eng || "—"), el("span", "ck"));
+    b.onclick = () => { SELK.has(w.tr) ? SELK.delete(w.tr) : SELK.add(w.tr); b.classList.toggle("sel"); kbar(); };
+    grid.append(b);
+  });
+  const kbar = () => bulkBar(SELK, [[t("moveBack"), "primary", async () => { const ws = [...SELK];
+    await api("/api/known", { src: PAIR.src, words: ws, known: false }); toast(t("movedBack", ws.length)); SELK.clear(); reload(); }]]);
+  box.append(grid); kbar();
+  return box;
+}
+
+/* ---------- Pratik ---------- */
+let PR = { scope: "", n: 10 };
+const mkQ = (w, engs) => ({ w, opts: shuf([w.eng, ...shuf(engs.filter((e) => e !== w.eng)).slice(0, 3)]) });
+function tPractice() {
+  const box = el("div");
+  box.append(head(t("nav_practice"), t("practiceSub")));
+  const words = uniqWords(), engs = [...new Set(V.words.map((w) => w.eng))];
+  if (words.length < 4 || engs.length < 4) { box.append(empty(t("needWords"), t("needWordsText"), otherPairs())); return box; }
+  const card = el("div", "card"), area = el("div");
+  const sc = el("select"), nn = el("select"), go = el("button", "primary", t("start"));
+  sc.append(new Option(t("allWords"), ""));
+  VIDS.filter((v) => v.count >= 4).forEach((v) => sc.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
+  [5, 10, 20, 30].forEach((n) => nn.append(new Option(t("nQuestions", n), n)));
+  sc.value = PR.scope; nn.value = PR.n;
+  const f1 = el("label", "f"), f2 = el("label", "f");
+  f1.append(el("span", "", t("source")), sc); f2.append(el("span", "", t("questions")), nn);
+  const row = el("div", "row"); f1.style.flex = "1 1 220px"; f2.style.flex = "0 0 150px"; f1.style.margin = f2.style.margin = "0";
+  go.style.alignSelf = "flex-end"; row.append(f1, f2, go); card.append(row);
+  go.onclick = () => {
+    PR = { scope: sc.value, n: +nn.value };
+    const pool = shuf(words.filter((w) => !PR.scope || (w.episode || "\u0000") === PR.scope));
+    runQuiz(area, card, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs)));
+  };
+  box.append(card, area); area.style.marginTop = "16px";
+  return box;
+}
+function runQuiz(area, setup, qs) {
+  setup.classList.add("hide");
+  let i = 0, score = 0; const wrongs = [];
+  const step = () => {
+    if (i >= qs.length) return end();
+    const { w, opts } = qs[i], card = el("div", "card"), bar = el("div", "bar"), fill = el("i");
+    fill.style.width = (i / qs.length * 100) + "%"; bar.append(fill);
+    const top = el("div", "row"); top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)), el("span", "pill", score));
+    const og = el("div", "opts"); let locked = false;
+    opts.forEach((o) => {
+      const b = el("button", "", o);
       b.onclick = () => {
         if (locked) return; locked = true;
-        const right = txt === it.eng;
-        [...o.children].forEach((c) => { if (c.textContent === it.eng) c.classList.add("okk"); });
-        P.today = (P.today || 0) + 1;
-        if (right) { ok++; combo++; P.maxCombo = Math.max(P.maxCombo || 0, combo); xp += 10 + Math.min(combo, 5) * 2; P.mastered[wkey(it)] = 1; }
-        else { b.classList.add("no"); combo = 0; wrongs.push(it); }
-        setTimeout(() => { i++; i < items.length ? ask() : finish(); }, right ? 650 : 1100);
+        const ok = o === w.eng; if (ok) score++; else wrongs.push(w);
+        [...og.children].forEach((x) => { if (x.textContent === w.eng) x.classList.add("ok"); else if (x === b) x.classList.add("no"); });
+        setTimeout(() => { i++; step(); }, ok ? 700 : 1500);
       };
-      o.append(b);
+      og.append(b);
     });
-    q.replaceChildren(el("div", "cap", opts.title || ""), h, track(i / items.length * 100), el("div", "w", it.tr), el("div", "hint", "İngilizcesi nedir?"), o, el("div", "combo", combo > 1 ? combo + "'li kombo" : ""));
-  }
-  function finish() {
-    const p = Math.round(ok / items.length * 100), lv0 = lvlOf(P.xp);
-    P.xp += xp; if (opts.onDone) opts.onDone(p);
-    save(); if (lvlOf(P.xp) > lv0) toast("Seviye atladın: " + lvlOf(P.xp));
-    const r = el("div", "res");
-    const msg = opts.boss ? (p >= BOSS_PASS ? "Bölüm sınavını geçtin." : "Geçmek için %" + BOSS_PASS + " gerekli, tekrar dene.") : (p === 100 ? "Basamak tamam!" : wrongs.length ? "Yanlışları tekrar çalış, basamak tamamlansın." : "Güzel gidiyorsun.");
-    r.append(el("div", "cap", "Sonuç"), el("div", "big", "%" + p), el("div", "dim", ok + "/" + items.length + " doğru · +" + xp + " XP"), el("p", "", msg));
-    if (opts.boss && p < BOSS_PASS) { const rb = el("button", "", "Tekrar dene"); rb.onclick = () => { ov.remove(); play(me, words, opts.make(), P, save, opts); }; r.append(rb); }
-    else if (!opts.boss && wrongs.length) { const rb = el("button", "", "Yanlışları tekrar çalış (" + wrongs.length + ")"); rb.onclick = () => { ov.remove(); play(me, words, wrongs, P, save, { title: opts.title }); }; r.append(rb); }
-    const back = el("button", "solid", "Haritaya dön"); back.onclick = close; r.append(back);
-    q.replaceChildren(r);
-  }
-  ask();
+    top.style.marginBottom = "8px";
+    card.append(top, bar, el("div", "qword", w.tr), og);
+    area.replaceChildren(card);
+  };
+  const end = () => {
+    const card = el("div", "card"), pct = Math.round(score / qs.length * 100), r = el("div", "row");
+    card.append(el("h2", "", t("result", score, qs.length)), el("p", "dim", pct + "%")); r.style.marginTop = "16px";
+    const engs = [...new Set(V.words.map((x) => x.eng))];
+    if (wrongs.length) {
+      const b = el("button", "primary", t("retryWrong", wrongs.length));
+      b.onclick = () => runQuiz(area, setup, shuf(wrongs).map((w) => mkQ(w, engs))); r.append(b);
+    }
+    const again = el("button", "", t("again")); again.onclick = () => { area.replaceChildren(); setup.classList.remove("hide"); }; r.append(again);
+    card.append(r);
+    if (wrongs.length) {
+      const l = el("div", "list"); l.style.marginTop = "16px";
+      wrongs.forEach((w) => { const li = el("div", "li"); li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng)); l.append(li); });
+      card.append(l);
+    }
+    area.replaceChildren(card);
+  };
+  step();
 }
-panelView();
+
+/* ---------- Düello ---------- */
+let DUEL_EP = "";
+function tDuel() {
+  const box = el("div");
+  box.append(head(t("nav_duel"), t("duelSub")));
+  const g = el("div", "grid2"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
+  // odaya gir
+  const j = el("div", "card"), code = el("input"), pw = el("input"), jb = el("button", "primary", t("join"));
+  code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.style.cssText = "font:800 28px var(--display);letter-spacing:.3em;text-align:center";
+  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30;
+  jb.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) return toast(t("codeHint")); goDuel({ t: "join", code: code.value.trim(), password: pw.value }); };
+  code.onkeydown = (e) => { if (e.key === "Enter") jb.click(); };
+  const jf = el("div"); jf.style.cssText = "display:grid;gap:10px;margin-top:14px"; jf.append(code, pw, jb);
+  j.append(el("h2", "", t("joinRoom")), el("p", "dim", t("joinSub")), jf);
+  // oda kur
+  const c = el("div", "card"), src = el("select"), n = el("input"), s = el("input"), cpw = el("input"), cb = el("button", "primary", t("createRoom"));
+  src.append(new Option(t("allWords") + " · " + uniqWords().length, ""));
+  VIDS.filter((v) => v.count >= 4).forEach((v) => src.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
+  src.value = VIDS.some((v) => (v.episode || "") === DUEL_EP && v.count >= 4) ? (DUEL_EP || "\u0000") : "";
+  n.type = s.type = "number"; n.min = 4; n.max = 30; n.value = 10; s.min = 5; s.max = 60; s.value = 12; cpw.placeholder = t("roomPwCreate"); cpw.maxLength = 30;
+  const r2 = el("div", "row"), fn = f(t("questions"), n), fs = f(t("seconds"), s); fn.style.flex = fs.style.flex = "1"; r2.append(fn, fs); r2.style.alignItems = "flex-start";
+  cb.disabled = uniqWords().length < 4;
+  cb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: src.value === "\u0000" ? "" : src.value, n: +n.value, seconds: +s.value, password: cpw.value });
+  const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), r2, f(t("roomPwCreateLabel"), cpw), cb);
+  c.append(el("h2", "", t("createRoom")), el("p", "dim", cb.disabled ? t("needWordsText") : t("createSub", langName(PAIR.src), langName(PAIR.dst))), cf);
+  g.append(j, c); box.append(g, leaderboard());
+  return box;
+}
+function goDuel(msg) { try { sessionStorage.setItem("cv-duel", JSON.stringify(msg)); } catch (e) {} location.href = "/game"; }
+
+function leaderboard() {
+  const card = el("div", "card"), ctrl = el("div", "row"), list = el("div");
+  card.style.marginTop = "16px";
+  const seg = (items, cur, set) => { const s = el("div", "seg"); items.forEach(([l, v]) => { const b = el("button", cur === v ? "on" : "", l); b.onclick = () => { set(v); render(); }; s.append(b); }); return s; };
+  ctrl.append(el("h2", "grow", t("leaderboard")),
+    seg([[t("week"), "week"], [t("month"), "month"], [t("year"), "year"], [t("all"), "all"]], LBP, (v) => (LBP = v)),
+    seg([[t("people"), "people"], [t("countries"), "country"]], LBS, (v) => (LBS = v)));
+  card.append(ctrl, list); list.style.marginTop = "10px";
+  api("/api/leaderboard?period=" + LBP + "&by=" + LBS).then((rows) => {
+    if (!rows.length) return list.replaceChildren(el("p", "dim", t("noScores")));
+    const ul = el("ul", "players");
+    rows.forEach((r, i) => {
+      const li = el("li"), nm = el("span", "nm", LBS === "country" ? flag(r.country) + countryName(r.country) : flag(r.country) + r.username);
+      if (LBS !== "country" && r.username === me.username) nm.append(el("span", "tag", t("you")));
+      li.append(el("span", "rk", i + 1), nm, el("span", "dim small", LBS === "country" ? t("playersN", r.players) : t("winsN", r.wins)), el("b", "", r.score));
+      ul.append(li);
+    });
+    list.replaceChildren(ul);
+  }).catch(() => {});
+  return card;
+}
+
+/* ---------- Ayarlar ---------- */
+function tSettings() {
+  const box = el("div");
+  box.append(head(t("nav_settings"), me.username));
+  const g = el("div", "grid2"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
+  // profil
+  const p = el("div", "card"), name = el("input"), cc = el("select"), save = el("button", "primary", t("save")), err = el("p", "err");
+  name.value = me.username; name.maxLength = 16;
+  cc.append(new Option("—", ""));
+  COUNTRY_CODES.map((c) => [c, countryName(c)]).sort((a, b) => a[1].localeCompare(b[1], I18N.lang)).forEach(([c, n]) => cc.append(new Option(flag(c) + n, c)));
+  cc.value = me.country || "";
+  save.onclick = async () => { try { await api("/api/settings", { username: name.value.trim(), country: cc.value, avatar: "" }); me = await api("/api/me"); toast(t("saved")); render(); } catch (e) { err.textContent = e.message; } };
+  const h = el("h2", "", t("profile")); h.style.marginBottom = "14px";
+  p.append(h, f(t("username"), name), f(t("country"), cc), save, err);
+  // eklenti
+  const x = el("div", "card"), key = el("code"), gen = el("button", "primary", t("genKey")), cp = el("button", "hide", t("copy"));
+  key.style.cssText = "display:block;word-break:break-all;padding:10px;background:var(--bg2);border-radius:8px;margin:12px 0;font-size:13px";
+  key.textContent = t("keyHint");
+  gen.onclick = async () => { const k = (await api("/api/ext-key", {})).key; key.textContent = k; cp.classList.remove("hide"); cp.onclick = () => { navigator.clipboard.writeText(k).then(() => toast(t("copied"))); }; };
+  const steps = el("ol", "dim small"); steps.style.cssText = "margin:14px 0 0;padding-left:18px;line-height:1.7";
+  ["ext1", "ext2", "ext3"].forEach((k) => steps.append(el("li", "", t(k))));
+  const r = el("div", "row"); r.append(gen, cp);
+  x.append(el("h2", "", t("extension")), el("p", "dim", t("extSub")), key, r, steps);
+  // hesap
+  const a = el("div", "card"), out = el("button", "", t("logout")), del = el("button", "danger", t("deleteAccount"));
+  out.onclick = async () => { await api("/api/logout", {}); me = null; authView(); };
+  del.onclick = () => {
+    const m = el("div", "modal"), c = el("div", "card"), pw = el("input"), e = el("p", "err"), ok = el("button", "danger", t("deleteAccount")), no = el("button", "", t("cancel"));
+    pw.type = "password"; pw.placeholder = t("password");
+    ok.onclick = async () => { try { await api("/api/delete-account", { password: pw.value }); m.remove(); me = null; toast(t("accountDeleted")); authView(); } catch (er) { e.textContent = er.message; } };
+    no.onclick = () => m.remove(); const rr = el("div", "row"); rr.append(ok, no);
+    pw.style.marginTop = "14px"; c.append(el("h2", "", t("deleteAccount")), el("p", "dim", t("deleteAccountSub")), pw, e, rr); m.append(c); document.body.append(m); pw.focus();
+  };
+  const rr = el("div", "row"); rr.style.marginTop = "14px"; rr.append(out, del);
+  a.append(el("h2", "", t("account")), el("p", "dim", t("accountSub")), rr); a.style.marginTop = "16px";
+  g.append(p, x); box.append(g, a);
+  return box;
+}
+
+I18N.onChange(() => { mountTools(document.getElementById("tools")); me ? render() : authView(); });
+mountTools(document.getElementById("tools"));
+boot();
 </script>
 </body>
 </html>

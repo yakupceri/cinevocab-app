@@ -5,7 +5,8 @@ const API = "https://cinevocab.up.railway.app";
 const TIMEOUT_MS = 45000; // sunucudaki servis zinciri (5+10+20 sn + kuyruk) sığsın
 
 function post(path, body, sendResponse) {
-  chrome.storage.local.get(["key", "src", "dst"], ({ key, src, dst }) => {
+  chrome.storage.local.get(["key", "src", "dst", "enabled"], ({ key, src, dst, enabled }) => {
+    if (!enabled) { sendResponse({ status: "disabled" }); return; } // kapalıyken sunucuya hiç istek gitmez
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     fetch(API + path, {
@@ -50,3 +51,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+// Simge üzerinde açık/kapalı rozeti
+function badge(on) {
+  try {
+    chrome.action.setBadgeText({ text: on ? "ON" : "" });
+    chrome.action.setBadgeBackgroundColor({ color: "#2f9e6d" });
+  } catch (e) {}
+}
+chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled)));
+chrome.runtime.onInstalled.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
+chrome.runtime.onStartup && chrome.runtime.onStartup.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
+chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.enabled) badge(!!ch.enabled.newValue); });

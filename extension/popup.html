@@ -1,26 +1,43 @@
 <!DOCTYPE html>
-<html lang="tr"><head><meta charset="utf-8">
+<html><head><meta charset="utf-8">
 <style>
-  body { width: 330px; margin: 0; padding: 20px; color: #f1ead9; font: 14px "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(130% 70% at 90% -10%, rgba(255,122,69,.35), transparent 60%), #0c0b0a; }
-  h1 { margin: 0 0 14px; font: 800 24px Georgia, serif; letter-spacing: -.02em; } h1 b { color: #ff7a45; }
-  label { display: block; margin: 12px 0 5px; color: #a39b8d; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  input, select, button { width: 100%; box-sizing: border-box; padding: 11px 14px; font: inherit; color: inherit; background: rgba(255,255,255,.06); border: 1px solid rgba(239,230,214,.14); border-radius: 12px; }
-  select option { color: #111; }
-  button { margin-top: 10px; cursor: pointer; border-radius: 999px; transition: transform .15s; } button:hover { transform: translateY(-1px); }
-  #save { background: linear-gradient(135deg, #ffc766, #ff7a45); color: #1a0d08; border: 0; font-weight: 800; margin-top: 14px; }
-  :focus-visible { outline: 2px solid #ff7a45; outline-offset: 2px; }
-  #st { color: #7be0a6; min-height: 18px; margin: 10px 0 0; }
+  :root { color-scheme: dark light; --bg:#0c0f14; --panel:#151a23; --line:#2a3242; --ink:#eef1f7; --dim:#8f9aae; --acc:#ffd447; --on:#17130a; --ok:#47d6a1; --bad:#ff8d94; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f2f3f7; --panel:#fff; --line:#d9dce6; --ink:#141824; --dim:#566074; --acc:#2336d4; --on:#fff; --ok:#0b8f63; --bad:#cf2f3b; } }
+  * { box-sizing:border-box; }
+  body { width:330px; margin:0; padding:16px; background:var(--bg); color:var(--ink); font:14px/1.45 "Segoe UI",system-ui,sans-serif; }
+  .top { display:flex; align-items:center; gap:10px; }
+  .brand { font:800 18px system-ui; letter-spacing:-.02em; display:flex; align-items:center; gap:7px; flex:1; }
+  .brand i { width:20px; height:13px; border-radius:3px; background:var(--acc); display:block; }
+  .sw { position:relative; width:58px; height:32px; border-radius:99px; background:var(--line); border:0; cursor:pointer; padding:0; transition:background .15s; }
+  .sw::after { content:""; position:absolute; top:4px; left:4px; width:24px; height:24px; border-radius:50%; background:#fff; transition:transform .15s; }
+  .sw[aria-checked="true"] { background:var(--ok); } .sw[aria-checked="true"]::after { transform:translateX(26px); }
+  #state { margin:12px 0 0; font-weight:700; } #state.off { color:var(--dim); font-weight:600; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:12px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  label { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; }
+  select, input { width:100%; padding:8px 10px; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; min-height:36px; }
+  button.b { width:100%; margin-top:8px; padding:9px; font:inherit; font-weight:700; border-radius:8px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
+  button.b.p { background:var(--acc); border-color:var(--acc); color:var(--on); }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  .note { font-size:12.5px; color:var(--dim); margin:10px 0 0; min-height:18px; } .note.bad { color:var(--bad); } .note.ok { color:var(--ok); }
 </style></head>
 <body>
-  <h1>Cine<b>Vocab</b></h1>
-  <div class="two"><div><label for="src">Altyazı dili</label><select id="src"><option value="tr">Türkçe</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option><option value="de">Deutsch</option><option value="es">Español</option><option value="pt">Português</option><option value="ru">Русский</option><option value="ar">العربية</option></select></div>
-  <div><label for="dst">Çeviri dili</label><select id="dst"><option value="tr">Türkçe</option><option value="en">English</option><option value="fr">Français</option><option value="it">Italiano</option><option value="de">Deutsch</option><option value="es">Español</option><option value="pt">Português</option><option value="ru">Русский</option><option value="ar">العربية</option></select></div></div>
-  <label for="key">Eklenti anahtarı</label>
-  <input id="key" placeholder="Panelinden al, buraya yapıştır">
-  <button id="save">Kaydet</button>
-  <button id="open">Panelimi aç</button>
-  <p id="st"></p>
+  <div class="top"><div class="brand"><i></i>CineVocab</div><button class="sw" id="sw" role="switch" aria-checked="false" aria-label="On/Off"></button></div>
+  <p id="state" class="off"></p>
+  <p class="note" id="hint"></p>
+  <div class="card">
+    <div class="two">
+      <div><label for="src" id="lSrc"></label><select id="src"></select></div>
+      <div><label for="dst" id="lDst"></label><select id="dst"></select></div>
+    </div>
+    <p class="note" id="det"></p>
+  </div>
+  <div class="card">
+    <label for="key" id="lKey"></label>
+    <input id="key" autocomplete="off" spellcheck="false">
+    <button class="b p" id="save"></button>
+    <button class="b" id="open"></button>
+  </div>
+  <script src="lang.js"></script>
   <script src="popup.js"></script>
 </body></html>

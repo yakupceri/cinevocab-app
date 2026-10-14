@@ -313,7 +313,8 @@ def reset_score(uid: int, request: Request):
 def clear_words(uid: int, request: Request):
     need_admin(request)
     name = _user_exists(uid)
-    q("DELETE FROM user_words WHERE user_id = %s;", (uid,))
+    for t in ("user_words", "user_words_ml", "known_words"):
+        q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
     log(request, "clear_words", name)
     return {"ok": True}
 

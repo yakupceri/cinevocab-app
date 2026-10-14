@@ -33,7 +33,7 @@ Railway otomatik yeniden dağıtır. Sonra `/admin` > Sistem sekmesinde "Resmi G
 2. "Yeni öğe" > `cinevocab-extension-1.6.0.zip` dosyasını yükle (manifest.json zip'in kökünde olmalı; öyle hazırlandı).
 3. **Mağaza kaydı:** kategori Eğitim, dil Türkçe (+ İngilizce açıklama), en az 1 ekran görüntüsü (1280x800), küçük tanıtım görseli 440x280, ikon 128x128 (var).
 4. **Gizlilik sekmesi:**
-   * Tek amaç: *"Videolardaki Türkçe altyazı kelimelerinin İngilizce karşılığını göstermek ve kullanıcının kelime listesine kaydetmek."*
+   * Tek amaç: *"Videolardaki altyazı kelimelerinin (seçilen dil çiftinde) çevirisini göstermek ve kullanıcının kelime listesine kaydetmek. Eklenti yalnızca kullanıcı açtığında çalışır."*
    * `storage` gerekçesi: *"Kullanıcının eklenti anahtarını tarayıcıda saklamak için."*
    * Host izni (`cinevocab.up.railway.app`) gerekçesi: *"Çeviri ve kelime listesi sunucusuyla iletişim."*
    * İçerik betiği siteleri (Prime Video, YouTube, Udemy) gerekçesi: *"Sadece ekrandaki altyazı metnini okuyup kelime kartlarını göstermek için."*
@@ -41,7 +41,7 @@ Railway otomatik yeniden dağıtır. Sonra `/admin` > Sistem sekmesinde "Resmi G
    * Toplanan veri: *Kimlik doğrulama bilgisi* (eklenti anahtarı) ve *Web sitesi içeriği* (altyazı metni, çeviri için). Verinin satılmadığı, amaç dışı kullanılmadığı onay kutularını işaretle.
    * Gizlilik politikası URL'si: `https://cinevocab.up.railway.app/privacy`
 5. **İnceleme için test talimatı** (hakem Prime hesabı kullanamaz, YouTube ile test ettir):
-   *"youtube.com'da Türkçe altyazısı olan herhangi bir video aç, CC'yi aç ve Türkçe altyazıyı seç. Sol üstte kelimelerin İngilizce karşılıkları görünür. Hesap girişi zorunlu değildir."*
+   *"Eklenti penceresinde anahtarı aç ve dil çiftini seç (ör. Fransızca → İngilizce). youtube.com'da Fransızca altyazılı bir video aç, CC'yi aç. Sol üstte kelimelerin çevirileri görünür. Hesap girişi zorunlu değildir."*
 6. Gönder. İlk inceleme genelde birkaç gün sürer.
 
 ### Mağazada reddedilmemek için
