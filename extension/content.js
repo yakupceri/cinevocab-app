@@ -89,7 +89,8 @@ function readYouTubeTitle() {
     firstText("h1.ytd-watch-metadata yt-formatted-string, h1.ytd-watch-metadata") ||
     document.title.replace(/^\(\d+\)\s*/, "").replace(/\s*-\s*YouTube\s*$/i, "");
   const title = raw.trim().slice(0, 60);
-  return title ? "YouTube · " + title : "";
+  // Sayfa henüz yüklenmediyse başlık sadece "YouTube" olur: boş say, sonra tekrar okunur
+  return title && !/^(\(\d+\)\s*)?YouTube$/i.test(title) ? "YouTube · " + title : "";
 }
 
 // Udemy: kurs adı (sınıf adları sık değiştiği için birkaç yedek seçici + sayfa başlığı)
@@ -100,6 +101,20 @@ function readUdemyTitle() {
   const title = raw.trim().slice(0, 60);
   return title ? "Udemy · " + title : "";
 }
+
+// Panelde gösterilecek küçük resim: YouTube kapağı, Udemy/Prime sayfa görseli
+function readThumb() {
+  try {
+    if (IS_YT) {
+      const m = /[?&]v=([\w-]{6,15})/.exec(location.search) || /\/shorts\/([\w-]{6,15})/.exec(location.pathname);
+      return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : "";
+    }
+    const og = document.querySelector("meta[property='og:image']");
+    const u = og && og.content ? og.content : "";
+    return /^https:\/\//.test(u) && u.length <= 300 ? u : "";
+  } catch (e) { return ""; }
+}
+const thumbSent = new Set(); // episode -> küçük resim bir kez gönderilir
 
 function readUdemySubtitle() {
   const nodes = [
@@ -161,6 +176,8 @@ function showSentence(sentence) {
   const myId = ++sentenceId;
   const gen = Date.now();
   const episode = readEpisode();
+  let thumb = "";
+  if (episode && !thumbSent.has(episode)) { thumb = readThumb(); if (thumb) thumbSent.add(episode); }
   const words = splitWords(sentence);
   if (words.length === 0) return;
 
@@ -227,7 +244,7 @@ function showSentence(sentence) {
     }, 10000);
 
     chrome.runtime.sendMessage(
-      { action: "translateWords", words: list, gen, lookupOnly, sentence, episode },
+      { action: "translateWords", words: list, gen, lookupOnly, sentence, episode, thumb },
       (res) => {
         answered = true;
         clearTimeout(watchdog);

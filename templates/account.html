@@ -6,14 +6,14 @@
 <title>CineVocab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/i18n.js"></script>
 </head>
 <body>
 <header class="top"><div class="in">
   <a class="brand" href="/"><i></i>CineVocab</a>
-  <div id="pairbox" class="row" style="gap:6px;margin-left:10px"></div>
+  <div id="pairbox" class="pairsel"></div>
   <div class="grow"></div>
   <div id="tools" class="row" style="gap:6px"></div>
 </div></header>
@@ -40,37 +40,98 @@ function clearSel() { SELW.clear(); SELV.clear(); SELK.clear(); }
 const pairKey = () => PAIR.src + ">" + PAIR.dst;
 
 /* ---------- giriş ---------- */
+let authMode = "login", PENDING_REC = null;
+function pwField(ph, ac) {
+  const wrap = el("div", "pw"), inp = el("input"), tg = el("button", "", t("show"));
+  inp.type = "password"; inp.placeholder = ph; inp.autocomplete = ac; tg.type = "button";
+  tg.onclick = () => { const h = inp.type === "password"; inp.type = h ? "text" : "password"; tg.textContent = h ? t("hide") : t("show"); };
+  wrap.append(inp, tg);
+  return { wrap, inp };
+}
+function strengthOf(p) {
+  if (!p) return 0;
+  let s = p.length >= 6 ? 1 : 0;
+  if (p.length >= 10 && /[A-Za-z]/.test(p) && /\d/.test(p)) s = 2;
+  if (p.length >= 12 && ((/[a-z]/.test(p) && /[A-Z]/.test(p)) || /[^A-Za-z0-9]/.test(p)) && /\d/.test(p)) s = 3;
+  return Math.max(1, s);
+}
+function meterFor(inp) {
+  const box = el("div"), m = el("div", "meter"), lab = el("div", "hint");
+  m.append(el("i"), el("i"), el("i")); box.append(m, lab);
+  const upd = () => { const l = strengthOf(inp.value); m.dataset.l = l; lab.textContent = l ? [t("pwWeak"), t("pwOk"), t("pwStrong")][l - 1] : ""; };
+  inp.addEventListener("input", upd); upd();
+  return box;
+}
+function recoveryBox(code) {
+  const b = el("div", "rec", code), cp = el("button", "", t("copy"));
+  cp.onclick = () => { navigator.clipboard.writeText(code).then(() => toast(t("copied"))); };
+  return { box: b, copy: cp };
+}
+function recoveryView(code) {
+  PENDING_REC = code;
+  const card = el("div", "card"), { box, copy } = recoveryBox(code), go = el("button", "primary", t("recSaved")), row = el("div", "row");
+  go.onclick = () => { PENDING_REC = null; boot(); };
+  row.append(copy, go);
+  card.append(el("h1", "", t("recTitle")), el("p", "dim", t("recSub")), box, row);
+  card.firstChild.style.marginBottom = "10px";
+  const w = el("div", "auth"); w.append(card); app.replaceChildren(w);
+}
 function authView() {
   document.getElementById("pairbox").replaceChildren();
   document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
-  let mode = "login";
-  const card = el("div", "card"), seg = el("div", "seg");
-  const bl = el("button", "on", t("login")), br = el("button", "", t("register"));
-  const user = el("input"), pass = el("input"), err = el("p", "err"), go = el("button", "primary", t("login"));
-  user.placeholder = t("username"); user.autocomplete = "username"; user.maxLength = 16;
-  pass.type = "password"; pass.placeholder = t("pwHint"); pass.autocomplete = "current-password";
-  const set = (m) => { mode = m; bl.className = m === "login" ? "on" : ""; br.className = m === "login" ? "" : "on";
-    go.textContent = m === "login" ? t("login") : t("createAccount"); pass.autocomplete = m === "login" ? "current-password" : "new-password"; err.textContent = ""; };
-  bl.onclick = () => set("login"); br.onclick = () => set("register");
-  go.onclick = async () => {
-    go.disabled = true;
-    try { await api(mode === "login" ? "/api/login" : "/api/register", { username: user.value.trim(), password: pass.value }); await boot(); }
-    catch (e) { err.textContent = e.message; } finally { go.disabled = false; }
-  };
-  pass.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
-  seg.append(bl, br);
-  const form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:16px";
-  form.append(user, pass, go, err);
-  card.append(el("h1", "", t("authTitle")), el("p", "dim", t("authSub")), seg, form);
-  seg.style.marginTop = "18px";
+  if (PENDING_REC) return recoveryView(PENDING_REC);
+  const card = el("div", "card"), err = el("p", "err"), form = el("div");
+  form.style.cssText = "display:grid;gap:12px;margin-top:16px";
+  const user = el("input"); user.placeholder = t("username"); user.autocomplete = "username"; user.maxLength = 16; user.setAttribute("aria-label", t("username"));
+  const go = el("button", "primary");
+  const guard = async (fn) => { go.disabled = true; err.textContent = ""; try { await fn(); } catch (e) { err.textContent = e.message; } finally { go.disabled = false; } };
+
+  if (authMode === "forgot") {
+    const code = el("input"), np = pwField(t("newPassword"), "new-password"), np2 = pwField(t("password2"), "new-password");
+    code.placeholder = "XXXX-XXXX-XXXX"; code.autocomplete = "off"; code.spellcheck = false; code.style.cssText = "letter-spacing:.1em;font-family:ui-monospace,Menlo,monospace";
+    go.textContent = t("resetPassword");
+    go.onclick = () => guard(async () => {
+      if (np.inp.value !== np2.inp.value) throw new Error(t("pwMismatch"));
+      const r = await api("/api/forgot", { username: user.value.trim(), recovery: code.value.trim(), password: np.inp.value });
+      recoveryView(r.recovery);
+    });
+    const back = el("button", "link", t("backToLogin")); back.onclick = () => { authMode = "login"; authView(); };
+    form.append(user, code, np.wrap, meterFor(np.inp), np2.wrap, go, err, back);
+    card.append(el("h1", "", t("forgotTitle")), el("p", "dim", t("forgotSub")), form);
+    [user, code, np.inp, np2.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
+  } else {
+    const seg = el("div", "seg"), bl = el("button", authMode === "login" ? "on" : "", t("login")), br = el("button", authMode === "register" ? "on" : "", t("register"));
+    bl.onclick = () => { authMode = "login"; authView(); }; br.onclick = () => { authMode = "register"; authView(); };
+    seg.append(bl, br); seg.style.marginTop = "18px";
+    const pw = pwField(authMode === "login" ? t("password") : t("pwHint"), authMode === "login" ? "current-password" : "new-password");
+    if (authMode === "login") {
+      go.textContent = t("login");
+      go.onclick = () => guard(async () => { await api("/api/login", { username: user.value.trim(), password: pw.inp.value }); await boot(); });
+      const fg = el("button", "link", t("forgot")); fg.onclick = () => { authMode = "forgot"; authView(); }; fg.style.justifySelf = "start";
+      form.append(user, pw.wrap, go, err, fg);
+      card.append(el("h1", "", t("authTitle")), el("p", "dim", t("authSub")), seg, form);
+      [user, pw.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
+    } else {
+      const pw2 = pwField(t("password2"), "new-password"), uh = el("p", "hint", t("userHint"));
+      go.textContent = t("createAccount");
+      go.onclick = () => guard(async () => {
+        if (pw.inp.value !== pw2.inp.value) throw new Error(t("pwMismatch"));
+        const r = await api("/api/register", { username: user.value.trim(), password: pw.inp.value });
+        recoveryView(r.recovery);
+      });
+      const ub = el("div"); ub.append(user, uh);
+      form.append(ub, pw.wrap, meterFor(pw.inp), pw2.wrap, go, err);
+      card.append(el("h1", "", t("regTitle")), el("p", "dim", t("regSub")), seg, form);
+      [user, pw.inp, pw2.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
+    }
+  }
   const demo = el("div", "subs"), ws = el("div", "ws");
-  [["Je", "I"], ["ne", "—"], ["sais", "know"], ["pas", "not"], ["pourquoi", "why"]].forEach(([a, b], i) => {
-    const s = el("span", i === 1 ? "k" : ""); s.append(el("b", "", a), el("small", "", b)); ws.append(s);
+  [["Je", "I"], ["ne", ""], ["sais", "know"], ["pas", "not"], ["pourquoi", "why"]].forEach(([a, b], i) => {
+    const sp = el("span", i === 1 ? "k" : ""); sp.append(el("b", "", a), el("small", "", b)); ws.append(sp);
   });
   demo.append(ws); demo.style.marginTop = "22px";
-  const wrap = el("div"); wrap.style.cssText = "max-width:440px;margin:6vh auto 0";
   const cap = el("p", "dim small", t("authDemo")); cap.style.cssText = "text-align:center;margin-top:10px";
-  wrap.append(card, demo, cap);
+  const wrap = el("div", "auth"); wrap.append(card, demo, cap);
   app.replaceChildren(wrap);
 }
 
@@ -91,11 +152,31 @@ async function reload() {
 }
 
 function renderPair() {
-  const box = document.getElementById("pairbox");
-  const mk = (cur, onch) => { const s = el("select"); PAIR_LANGS.forEach((l) => s.append(new Option(langName(l), l))); s.value = cur; s.onchange = () => onch(s.value); return s; };
-  const a = mk(PAIR.src, (v) => setPair(v, PAIR.dst)), b = mk(PAIR.dst, (v) => setPair(PAIR.src, v));
-  a.title = t("learning"); b.title = t("translateTo"); a.setAttribute("aria-label", t("learning")); b.setAttribute("aria-label", t("translateTo"));
-  box.replaceChildren(a, el("span", "dim", "→"), b);
+  const box = document.getElementById("pairbox"); box.className = "pairsel";
+  const sel = el("select"), list = pairs.slice();
+  if (!list.some((p) => p.src === PAIR.src && p.dst === PAIR.dst)) list.unshift({ src: PAIR.src, dst: PAIR.dst, count: 0 });
+  list.forEach((p) => sel.append(new Option(langName(p.src) + " → " + langName(p.dst) + " · " + p.count, p.src + ">" + p.dst)));
+  sel.append(new Option("＋ " + t("newPair"), "+"));
+  sel.value = pairKey(); sel.setAttribute("aria-label", t("listLabel"));
+  sel.onchange = () => { if (sel.value === "+") { sel.value = pairKey(); newPairModal(); } else { const [a, b] = sel.value.split(">"); setPair(a, b); } };
+  const help = el("div", "help"), hb = el("button", "icon", "?");
+  hb.setAttribute("aria-label", t("listHelp"));
+  hb.onclick = (e) => { e.stopPropagation(); const old = help.querySelector(".pop"); if (old) return old.remove(); help.append(el("div", "pop", t("listHelp"))); };
+  help.append(hb);
+  box.replaceChildren(el("span", "", t("listLabel")), sel, help);
+}
+document.addEventListener("click", () => document.querySelectorAll(".pop").forEach((p) => p.remove()));
+function newPairModal() {
+  const m = el("div", "modal"), c = el("div", "card"), a = el("select"), b = el("select"), go = el("button", "primary", t("open")), no = el("button", "", t("cancel"));
+  PAIR_LANGS.forEach((l) => { a.append(new Option(langName(l), l)); b.append(new Option(langName(l), l)); });
+  a.value = PAIR.src; b.value = PAIR.dst === PAIR.src ? "en" : PAIR.dst;
+  const f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
+  go.onclick = () => { if (a.value === b.value) return toast(t("ePair")); m.remove(); setPair(a.value, b.value); };
+  no.onclick = () => m.remove(); m.onclick = (e) => { if (e.target === m) m.remove(); };
+  const r = el("div", "row"); r.append(go, no);
+  const h = el("h2", "", t("newPairTitle")); h.style.marginBottom = "6px";
+  c.append(h, el("p", "dim", t("newPairSub")), f(t("learning"), a), f(t("translateTo"), b), r);
+  c.children[1].style.marginBottom = "14px"; m.append(c); document.body.append(m);
 }
 
 const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["settings", "settings"]];
@@ -153,12 +234,13 @@ function tWords() {
   q.type = "search"; q.placeholder = t("search"); q.value = Q;
   ep.append(new Option(t("allVideos"), ""));
   VIDS.forEach((v) => ep.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
+  if (EP.startsWith("series:")) ep.append(new Option(EP.slice(7), EP));
   ep.value = EP;
   const grid = el("div", "words"), more = el("button", "");
   const rows = () => {
     const ql = Q.trim().toLowerCase(), seen = new Set(), out = [];
     V.words.forEach((w) => {
-      if (EP !== "" && (w.episode || "\u0000") !== EP) return;
+      if (EP.startsWith("series:") ? (platOf(w.episode || "") !== "pv" || seriesOf(w.episode) !== EP.slice(7)) : (EP !== "" && (w.episode || "\u0000") !== EP)) return;
       if (ql && !w.tr.toLowerCase().includes(ql) && !w.eng.toLowerCase().includes(ql)) return;
       if (seen.has(w.tr)) return; seen.add(w.tr); out.push(w);
     });
@@ -193,28 +275,98 @@ function tWords() {
 }
 
 /* ---------- Videolar ---------- */
+let PLAT = "all";
+const PNAME = { pv: "Prime Video", yt: "YouTube", ud: "Udemy", ot: "" };
+const platOf = (ep) => (!ep ? "ot" : /^YouTube\s*·/.test(ep) ? "yt" : /^Udemy\s*·/.test(ep) ? "ud" : "pv");
+const cleanTitle = (ep) => ep.replace(/^(YouTube|Udemy)\s*·\s*/, "");
+const seriesOf = (ep) => (ep.replace(/\s*S\d+\s*E\d+\s*$/i, "").replace(/\s*\((?:\d+\.\s*)?(?:Sezon|Season)[^)]*\)\s*$/i, "").trim() || ep);
+const hueOf = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+function videoItems() {
+  const items = [], series = new Map();
+  VIDS.forEach((v) => {
+    const ep = v.episode || "", p = platOf(ep);
+    if (p === "pv") {
+      const name = seriesOf(ep);
+      let it = series.get(name);
+      if (!it) { it = { key: "s:" + name, plat: "pv", title: name, series: name, eps: [], count: 0, last: "", thumb: "" }; series.set(name, it); items.push(it); }
+      it.eps.push(v); it.count += v.count; if (v.last > it.last) it.last = v.last; if (!it.thumb && v.thumb) it.thumb = v.thumb;
+    } else items.push({ key: "v:" + ep, plat: p, title: ep ? cleanTitle(ep) : t("noVideo"), eps: [v], count: v.count, last: v.last, thumb: v.thumb || "" });
+  });
+  return items.sort((a, b) => (a.last < b.last ? 1 : -1));
+}
+function loadPoster(name, img) {
+  let key = "cv-poster:" + name, c = null;
+  try { c = localStorage.getItem(key); } catch (e) {}
+  const set = (u) => { if (u && u !== "-") { img.src = u; } };
+  if (c !== null) return set(c);
+  fetch("https://api.tvmaze.com/singlesearch/shows?q=" + encodeURIComponent(name.replace(/\s*\(.*?\)\s*/g, " ").trim()))
+    .then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const u = d && d.image ? (d.image.medium || "").replace("http://", "https://") : "";
+      try { localStorage.setItem(key, u || "-"); } catch (e) {} set(u);
+    }).catch(() => {});
+}
 function tVideos() {
   const box = el("div");
   box.append(head(t("nav_videos"), t("videosSub")));
   if (!VIDS.length) { box.append(empty(t("emptyVideos"), t("emptyVideosText"), otherPairs())); return box; }
-  const list = el("div", "list");
-  VIDS.forEach((v) => {
-    const key = v.episode || "", li = el("div", "li"), cb = el("input", "chk");
-    cb.type = "checkbox"; cb.checked = SELV.has(key); cb.setAttribute("aria-label", v.episode || t("noVideo"));
-    cb.onchange = () => { cb.checked ? SELV.add(key) : SELV.delete(key); vbar(); };
-    const mid = el("div", "grow"); mid.style.minWidth = "0";
-    mid.append(el("div", "t", v.episode || t("noVideo")), el("div", "m", t("wordsN", v.count) + (v.last ? " · " + fmtDate(v.last) : "")));
-    const view = el("button", "ghost", t("viewWords")); view.onclick = () => { EP = v.episode || "\u0000"; tab = "words"; render(); };
-    const duel = el("button", "ghost", t("nav_duel")); duel.onclick = () => { DUEL_EP = v.episode || ""; tab = "duel"; render(); };
-    li.append(cb, mid, view, duel); list.append(li);
+  const items = videoItems(), cnt = { all: items.length };
+  items.forEach((i) => (cnt[i.plat] = (cnt[i.plat] || 0) + 1));
+  if (PLAT !== "all" && !cnt[PLAT]) PLAT = "all";
+  const bar = el("div", "plats");
+  [["all", t("allPlatforms")], ["pv", "Prime Video"], ["yt", "YouTube"], ["ud", "Udemy"], ["ot", t("noVideo")]].forEach(([k, l]) => {
+    if (k !== "all" && !cnt[k]) return;
+    const b = el("button", PLAT === k ? "on" : "", l); b.append(el("span", "n", cnt[k])); b.onclick = () => { PLAT = k; render(); }; bar.append(b);
   });
+  const shown = items.filter((i) => PLAT === "all" || i.plat === PLAT);
+  const all = el("button", "", t("selectAll")); all.onclick = () => { shown.forEach((i) => i.eps.forEach((v) => SELV.add(v.episode || ""))); render(); };
+  const top = el("div", "row"); all.style.marginLeft = "auto"; top.append(bar, all); top.style.cssText = "margin-bottom:6px;align-items:flex-start";
+  bar.style.marginBottom = "0";
+  const note = el("p", "dim small", t("autoNote")); note.style.marginBottom = "14px";
+  const grid = el("div", "vgrid");
   const vbar = () => bulkBar(SELV, [[t("del"), "danger", async () => {
     const eps = [...SELV]; if (!(await ask(t("confirmDelVideos", eps.length), t("confirmDelVideosText")))) return;
     const r = await api("/api/delete-videos", { src: PAIR.src, dst: PAIR.dst, episodes: eps }); toast(t("deleted", r.deleted)); SELV.clear(); reload(); }]]);
-  const all = el("button", "", t("selectAll")); all.onclick = () => { VIDS.forEach((v) => SELV.add(v.episode || "")); render(); };
-  const note = el("p", "dim small grow", t("autoNote"));
-  const top = el("div", "row"); top.append(note, all); top.style.marginBottom = "12px";
-  box.append(top, list); vbar();
+  shown.forEach((it) => {
+    const keys = it.eps.map((v) => v.episode || ""), picked = () => keys.every((k) => SELV.has(k));
+    const card = el("div", "vc" + (picked() ? " sel" : "")), th = el("div", "th"), bd = el("div", "bd");
+    th.style.setProperty("--h", hueOf(it.title));
+    th.append(el("span", "ph", (it.title || "?").trim().charAt(0).toUpperCase()));
+    let img = null;
+    if (it.thumb || it.plat === "pv") {
+      img = el("img"); img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer"; img.style.opacity = "0"; img.onload = () => (img.style.opacity = "1"); img.onerror = () => img.remove();
+      if (it.thumb) img.src = it.thumb; else loadPoster(it.series, img);
+      th.append(img);
+    }
+    if (PNAME[it.plat]) th.append(el("span", "plat", PNAME[it.plat]));
+    const cb = el("input", "chk pick"); cb.type = "checkbox"; cb.checked = picked(); cb.setAttribute("aria-label", it.title);
+    cb.onchange = () => { keys.forEach((k) => (cb.checked ? SELV.add(k) : SELV.delete(k))); card.classList.toggle("sel", cb.checked); vbar(); };
+    th.append(cb);
+    const multi = it.eps.length > 1 || it.plat === "pv";
+    bd.append(el("div", "tt", it.title), el("div", "mt", (multi ? t("episodesN", it.eps.length) + " · " : "") + t("wordsN", it.count) + (it.last ? " · " + fmtDate(it.last) : "")));
+    const acts = el("div", "acts"), view = el("button", "", t("viewWords"));
+    view.onclick = () => { EP = multi && it.series ? "series:" + it.series : (it.eps[0].episode || "\u0000"); tab = "words"; render(); };
+    acts.append(view);
+    if (it.eps.length === 1) { const d = el("button", "", t("nav_duel")); d.onclick = () => { DUEL_EP = it.eps[0].episode || ""; tab = "duel"; render(); }; acts.append(d); }
+    let list = null;
+    if (it.eps.length > 1) {
+      const tg = el("button", "ghost", t("showEps"));
+      tg.onclick = () => {
+        if (list) { list.remove(); list = null; tg.textContent = t("showEps"); return; }
+        list = el("div", "eps");
+        it.eps.slice().sort((a, b) => { const k = (v) => { const m = /S(\d+)\s*E(\d+)/i.exec(v.episode || ""); return m ? m[1] * 1000 + +m[2] : 0; }; return k(a) - k(b); }).forEach((v) => {
+          const li = el("div", "li"), c2 = el("input", "chk"); c2.type = "checkbox"; c2.checked = SELV.has(v.episode || "");
+          c2.onchange = () => { c2.checked ? SELV.add(v.episode || "") : SELV.delete(v.episode || ""); cb.checked = picked(); card.classList.toggle("sel", cb.checked); vbar(); };
+          const nm = el("div", "grow", ((/S\d+\s*E\d+/i.exec(v.episode || "") || [""])[0] || v.episode)); nm.style.minWidth = "0";
+          const dv = el("button", "ghost", t("nav_duel")); dv.onclick = () => { DUEL_EP = v.episode || ""; tab = "duel"; render(); };
+          li.append(c2, nm, el("span", "dim small", t("wordsN", v.count)), dv); list.append(li);
+        });
+        bd.append(list); tg.textContent = t("hideEps");
+      };
+      acts.append(tg);
+    }
+    bd.append(acts); card.append(th, bd); grid.append(card);
+  });
+  box.append(top, note, grid); vbar();
   return box;
 }
 
@@ -366,6 +518,22 @@ function leaderboard() {
 }
 
 /* ---------- Ayarlar ---------- */
+function askPassword(title) {
+  return new Promise((res) => {
+    const m = el("div", "modal"), c = el("div", "card"), pw = pwField(t("password"), "current-password"), ok = el("button", "primary", title), no = el("button", "", t("cancel")), r = el("div", "row"), err = el("p", "err");
+    const done = (v) => { m.remove(); res(v); };
+    ok.onclick = () => done(pw.inp.value); no.onclick = () => done(null); m.onclick = (e) => { if (e.target === m) done(null); };
+    pw.inp.onkeydown = (e) => { if (e.key === "Enter") ok.click(); };
+    r.append(ok, no); r.style.marginTop = "14px"; pw.wrap.style.marginTop = "14px";
+    c.append(el("h2", "", title), pw.wrap, err, r); m.append(c); document.body.append(m); pw.inp.focus();
+  });
+}
+function recoveryModal(code) {
+  const m = el("div", "modal"), c = el("div", "card"), { box, copy } = recoveryBox(code), ok = el("button", "primary", t("recSaved")), r = el("div", "row");
+  ok.onclick = () => m.remove(); r.append(copy, ok);
+  const h = el("h2", "", t("recTitle")); h.style.marginBottom = "8px";
+  c.append(h, el("p", "dim", t("recSub")), box, r); m.append(c); document.body.append(m);
+}
 function tSettings() {
   const box = el("div");
   box.append(head(t("nav_settings"), me.username));
@@ -400,7 +568,25 @@ function tSettings() {
   };
   const rr = el("div", "row"); rr.style.marginTop = "14px"; rr.append(out, del);
   a.append(el("h2", "", t("account")), el("p", "dim", t("accountSub")), rr); a.style.marginTop = "16px";
-  g.append(p, x); box.append(g, a);
+  // güvenlik: parola değiştir + kurtarma kodu
+  const sec = el("div", "card"), cur = pwField(t("currentPw"), "current-password"), n1 = pwField(t("newPassword"), "new-password"), n2 = pwField(t("password2"), "new-password");
+  const sb = el("button", "primary", t("changePassword")), serr = el("p", "err"), sf = el("div"); sf.style.cssText = "display:grid;gap:10px;margin-top:14px";
+  sb.onclick = async () => {
+    serr.textContent = "";
+    if (n1.inp.value !== n2.inp.value) { serr.textContent = t("pwMismatch"); return; }
+    try { await api("/api/change-password", { current: cur.inp.value, password: n1.inp.value }); [cur, n1, n2].forEach((f) => (f.inp.value = "")); toast(t("pwChanged")); }
+    catch (e) { serr.textContent = e.message; }
+  };
+  sf.append(cur.wrap, n1.wrap, meterFor(n1.inp), n2.wrap, sb, serr); sec.append(el("h2", "", t("security")), sf);
+  const rc = el("div", "card"), rb = el("button", me.has_recovery ? "" : "primary", t("newRecovery")), rr2 = el("div"); rr2.style.marginTop = "14px";
+  rb.onclick = async () => {
+    const pw = await askPassword(t("newRecovery"));
+    if (pw === null) return;
+    try { const r = await api("/api/new-recovery", { password: pw }); me.has_recovery = true; recoveryModal(r.recovery); } catch (e) { toast(e.message); }
+  };
+  rr2.append(rb); rc.append(el("h2", "", t("recoveryCode")), el("p", "dim", me.has_recovery ? t("recoveryHas") : t("recoveryNone")), rr2); rc.firstChild.style.marginBottom = "8px";
+  const g2 = el("div", "grid2"); g2.style.marginTop = "16px"; g2.append(sec, rc);
+  g.append(p, x); box.append(g, g2, a);
   return box;
 }
 

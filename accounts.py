@@ -51,6 +51,8 @@ def init_accounts(db_config: dict):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash TEXT;",
+        "CREATE TABLE IF NOT EXISTS episode_meta (episode TEXT PRIMARY KEY, thumb TEXT NOT NULL DEFAULT '');",
         "CREATE TABLE IF NOT EXISTS admin_log (id SERIAL PRIMARY KEY, at TIMESTAMP DEFAULT now(), "
         "action TEXT NOT NULL, target TEXT, detail TEXT, ip TEXT);",
     ):
@@ -178,6 +180,21 @@ def _login_response(uid: int, request: Request, response: Response, username: st
     return {"username": username}
 
 
+# ---------- Kurtarma kodu (e-posta olmadan "şifremi unuttum") ----------
+_RC_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _rc_norm(code: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", (code or "").upper())
+
+
+def _new_recovery(uid: int) -> str:
+    """12 karakterlik kod üretir, yalnızca özeti saklanır; kullanıcıya bir kez gösterilir."""
+    raw = "".join(secrets.choice(_RC_ALPHABET) for _ in range(12))
+    q("UPDATE users SET recovery_hash = %s WHERE id = %s;", (_hash(raw), uid))
+    return f"{raw[:4]}-{raw[4:8]}-{raw[8:]}"
+
+
 @router.get("/account")
 def account_page():
     return FileResponse("templates/account.html")
@@ -195,7 +212,72 @@ def register(c: Cred, request: Request, response: Response):
         raise HTTPException(409, "Bu kullanıcı adı alınmış.")
     uid = q("INSERT INTO users (username, pw_hash) VALUES (%s, %s) RETURNING id;",
             (name, _hash(c.password)), True)[0][0]
-    return _login_response(uid, request, response, name)
+    out = _login_response(uid, request, response, name)
+    out["recovery"] = _new_recovery(uid)
+    return out
+
+
+class ForgotReq(BaseModel):
+    username: str
+    recovery: str
+    password: str
+
+
+@router.post("/api/forgot")
+def forgot(c: ForgotReq, request: Request, response: Response):
+    """Kurtarma koduyla yeni parola belirler. Başarılıysa eski oturumlar kapanır, yeni kod üretilir."""
+    _throttle_ip(request, 5, 60, "forgot")
+    if len(c.password) < 6:
+        raise HTTPException(400, "Parola en az 6 karakter olmalı.")
+    r = q("SELECT id, username, recovery_hash FROM users WHERE lower(username) = lower(%s);",
+          (c.username.strip(),), True)
+    ok = bool(r and r[0][2] and _check(_rc_norm(c.recovery), r[0][2]))
+    if not r or not r[0][2]:
+        _hash("x")  # kullanıcı var mı yok mu süreden anlaşılmasın
+    if not ok:
+        raise HTTPException(401, "Kurtarma kodu ya da kullanıcı adı hatalı.")
+    uid = r[0][0]
+    q("UPDATE users SET pw_hash = %s WHERE id = %s;", (_hash(c.password), uid))
+    q("DELETE FROM sessions WHERE user_id = %s;", (uid,))
+    out = _login_response(uid, request, response, r[0][1])
+    out["recovery"] = _new_recovery(uid)
+    return out
+
+
+class ChangePw(BaseModel):
+    current: str
+    password: str
+
+
+@router.post("/api/change-password")
+def change_password(c: ChangePw, request: Request):
+    _throttle_ip(request, 8, 60, "chpw")
+    u = need_user(request)
+    r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
+    if not r or not _check(c.current, r[0][0]):
+        raise HTTPException(401, "Parola hatalı.")
+    if len(c.password) < 6:
+        raise HTTPException(400, "Parola en az 6 karakter olmalı.")
+    q("UPDATE users SET pw_hash = %s WHERE id = %s;", (_hash(c.password), u["id"]))
+    tok = request.cookies.get(COOKIE)  # bu tarayıcı dışındaki oturumlar kapanır
+    if tok:
+        q("DELETE FROM sessions WHERE user_id = %s AND token_hash <> %s;", (u["id"], _sha(tok)))
+    return {"ok": True}
+
+
+class PwOnly(BaseModel):
+    password: str
+
+
+@router.post("/api/new-recovery")
+def new_recovery(c: PwOnly, request: Request):
+    """Yeni kurtarma kodu (eskisi geçersiz olur). Hesabı eskiden açanlar da buradan alır."""
+    _throttle_ip(request, 8, 60, "chpw")
+    u = need_user(request)
+    r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
+    if not r or not _check(c.password, r[0][0]):
+        raise HTTPException(401, "Parola hatalı.")
+    return {"recovery": _new_recovery(u["id"])}
 
 
 @router.post("/api/login")
@@ -232,9 +314,9 @@ def me(request: Request):
         n += q("SELECT count(DISTINCT (src, dst, word)) FROM user_words_ml WHERE user_id = %s;", (u["id"],), True)[0][0]
     except Exception:
         pass
-    ex = q("SELECT country, avatar FROM users WHERE id = %s;", (u["id"],), True)[0]
+    ex = q("SELECT country, avatar, recovery_hash IS NOT NULL FROM users WHERE id = %s;", (u["id"],), True)[0]
     return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n,
-            "country": ex[0] or "", "avatar": ex[1] or ""}
+            "country": ex[0] or "", "avatar": ex[1] or "", "has_recovery": bool(ex[2])}
 
 
 class DeleteReq(BaseModel):

@@ -78,6 +78,7 @@ class WordsBatch(BaseModel):
     episode: str = ""  # ör. "Lost S1 E13" (kelimeleri bölüme etiketlemek için)
     src: str = "tr"  # altyazı dili
     dst: str = "en"  # çeviri dili
+    thumb: str = ""  # videonun küçük resmi (https adresi; sadece panelde gösterilir)
 
 
 # ======================= Yerel sözlük =======================
@@ -1276,6 +1277,8 @@ def translate_words(batch: WordsBatch, request: Request):
     _throttle_ip(request, limit=240, window=60, bucket="tr")
     batch.sentence = batch.sentence[:300]
     batch.episode = batch.episode[:80]
+    if batch.thumb and batch.episode:
+        vocab.save_thumb(batch.episode, batch.thumb)
     if (batch.src, batch.dst) != ("tr", "en"):
         return multilang.handle(batch, user_from_request(request))
     LAST_REQUEST_TIME = time.time()

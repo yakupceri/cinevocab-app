@@ -30,6 +30,36 @@ def low(w: str, src: str) -> str:
     return w.lower()
 
 
+THUMB_HOSTS = ("ytimg.com", "udemycdn.com", "media-amazon.com", "ssl-images-amazon.com",
+               "primevideo.com", "aiv-cdn.net", "pv-cdn.net", "cloudfront.net")
+
+
+def thumb_ok(url: str) -> bool:
+    """Yalnızca bilinen görsel sunucularından, düz https adresleri."""
+    from urllib.parse import urlparse
+    if not url or len(url) > 300 or not url.startswith("https://") or re.search(r"[\s\"'<>\\]", url):
+        return False
+    host = (urlparse(url).hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in THUMB_HOSTS)
+
+
+_thumb_seen: dict = {}
+
+
+def save_thumb(episode: str, url: str):
+    episode = " ".join((episode or "").split())[:80]
+    if not episode or _thumb_seen.get(episode) == url or not thumb_ok(url):
+        return
+    try:
+        q("INSERT INTO episode_meta (episode, thumb) VALUES (%s, %s) "
+          "ON CONFLICT (episode) DO UPDATE SET thumb = EXCLUDED.thumb;", (episode, url))
+        if len(_thumb_seen) > 5000:
+            _thumb_seen.clear()
+        _thumb_seen[episode] = url
+    except Exception as e:
+        print(f"Küçük resim kaydı hatası: {e}")
+
+
 def check_pair(src: str, dst: str):
     if src not in LANGS or dst not in LANGS or src == dst:
         raise HTTPException(400, "Dil çifti geçersiz.")
@@ -125,8 +155,16 @@ def videos(request: Request, src: str = "tr", dst: str = "en"):
         if at and (a["last"] is None or at > a["last"]):
             a["last"] = at
     out = sorted(agg.values(), key=lambda a: a["last"] or 0, reverse=True)
+    thumbs = {}
+    try:
+        eps = [a["episode"] for a in out if a["episode"]]
+        if eps:
+            thumbs = dict(q("SELECT episode, thumb FROM episode_meta WHERE episode = ANY(%s);", (eps,), True))
+    except Exception as e:
+        print(f"Küçük resim okuma hatası: {e}")
     for a in out:
         a["last"] = str(a["last"]) if a["last"] else ""
+        a["thumb"] = thumbs.get(a["episode"], "")
     return out
 
 

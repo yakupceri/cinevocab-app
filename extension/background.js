@@ -41,6 +41,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         lookup_only: !!request.lookupOnly,
         sentence: request.sentence || "",
         episode: request.episode || "",
+        thumb: request.thumb || "",
       },
       sendResponse
     );

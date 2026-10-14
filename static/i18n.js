@@ -266,10 +266,89 @@
     landAccount: "Mi cuenta", landPrivacy: "Política de privacidad", landDisclaimer: "CineVocab no está afiliado a Amazon, Prime Video, Google, YouTube ni Udemy."
   };
 
+  Object.assign(D.en, {
+    password2: "Repeat password", pwMismatch: "The two passwords don't match.", show: "Show", hide: "Hide", pwWeak: "Weak", pwOk: "Okay", pwStrong: "Strong",
+    forgot: "Forgot password?", forgotTitle: "Reset your password", forgotSub: "Enter your username and the recovery code you saved when you signed up.",
+    recoveryCode: "Recovery code", newPassword: "New password", resetPassword: "Reset password", backToLogin: "Back to log in",
+    recTitle: "Save your recovery code", recSub: "If you forget your password, this code is the only way back in. It is shown just once, so write it down or store it somewhere safe.", recSaved: "I saved it, continue",
+    regTitle: "Create your account", regSub: "Free. Your words stay with your account on every device.", userHint: "3–16 characters: letters, digits or _", eRecovery: "Wrong username or recovery code.",
+    security: "Security", changePassword: "Change password", currentPw: "Current password", pwChanged: "Password changed.",
+    recoveryHas: "A recovery code is set up. If you lost it, create a new one (the old one stops working).", recoveryNone: "No recovery code yet. Create one so you can reset your password if you forget it.", newRecovery: "Create new recovery code",
+    listLabel: "Word list", listHelp: "Every language pair has its own word list (for example French → English). This only switches which list you see on this site. The extension has its own language setting.",
+    newPair: "New language pair…", newPairTitle: "Add a language pair", newPairSub: "Pick the language of the subtitles you watch and the language you want translations in.", open: "Open",
+    allPlatforms: "All", episodesN: "{0} episodes", showEps: "Episodes", hideEps: "Hide episodes",
+    landHowT: "How it works", landHowSub: "Three steps, about two minutes."
+  });
+  Object.assign(D.tr, {
+    password2: "Parolayı tekrar gir", pwMismatch: "İki parola aynı değil.", show: "Göster", hide: "Gizle", pwWeak: "Zayıf", pwOk: "Orta", pwStrong: "Güçlü",
+    forgot: "Şifremi unuttum", forgotTitle: "Parolanı sıfırla", forgotSub: "Kullanıcı adını ve kayıt olurken kaydettiğin kurtarma kodunu gir.",
+    recoveryCode: "Kurtarma kodu", newPassword: "Yeni parola", resetPassword: "Parolayı sıfırla", backToLogin: "Girişe dön",
+    recTitle: "Kurtarma kodunu kaydet", recSub: "Parolanı unutursan hesabına dönmenin tek yolu bu kod. Sadece bir kez gösterilir; bir yere yaz ya da güvenli bir yerde sakla.", recSaved: "Kaydettim, devam et",
+    regTitle: "Hesabını oluştur", regSub: "Ücretsiz. Kelimelerin her cihazda hesabınla birlikte durur.", userHint: "3-16 karakter: harf, rakam ya da _", eRecovery: "Kullanıcı adı ya da kurtarma kodu hatalı.",
+    security: "Güvenlik", changePassword: "Parolayı değiştir", currentPw: "Mevcut parola", pwChanged: "Parola değişti.",
+    recoveryHas: "Kurtarma kodun tanımlı. Kaybettiysen yenisini oluştur (eskisi geçersiz olur).", recoveryNone: "Henüz kurtarma kodun yok. Parolanı unutursan sıfırlayabilmek için bir tane oluştur.", newRecovery: "Yeni kurtarma kodu oluştur",
+    listLabel: "Kelime listesi", listHelp: "Her dil çiftinin ayrı bir kelime listesi var (örneğin Fransızca → İngilizce). Burası sadece bu sitede hangi listeyi gördüğünü değiştirir. Eklentinin kendi dil ayarı ayrıdır.",
+    newPair: "Yeni dil çifti…", newPairTitle: "Dil çifti ekle", newPairSub: "İzlediğin altyazının dilini ve çeviri istediğin dili seç.", open: "Aç",
+    allPlatforms: "Hepsi", episodesN: "{0} bölüm", showEps: "Bölümler", hideEps: "Bölümleri gizle",
+    landHowT: "Nasıl çalışır", landHowSub: "Üç adım, yaklaşık iki dakika."
+  });
+  Object.assign(D.fr, {
+    password2: "Répète le mot de passe", pwMismatch: "Les deux mots de passe ne correspondent pas.", show: "Afficher", hide: "Masquer", pwWeak: "Faible", pwOk: "Moyen", pwStrong: "Fort",
+    forgot: "Mot de passe oublié ?", forgotTitle: "Réinitialise ton mot de passe", forgotSub: "Saisis ton nom d'utilisateur et le code de récupération enregistré à l'inscription.",
+    recoveryCode: "Code de récupération", newPassword: "Nouveau mot de passe", resetPassword: "Réinitialiser", backToLogin: "Retour à la connexion",
+    recTitle: "Enregistre ton code de récupération", recSub: "Si tu oublies ton mot de passe, ce code est le seul moyen de revenir. Il n'est affiché qu'une fois : note-le ou garde-le en lieu sûr.", recSaved: "Je l'ai enregistré, continuer",
+    regTitle: "Crée ton compte", regSub: "Gratuit. Tes mots restent avec ton compte sur tous tes appareils.", userHint: "3 à 16 caractères : lettres, chiffres ou _", eRecovery: "Nom d'utilisateur ou code de récupération incorrect.",
+    security: "Sécurité", changePassword: "Changer le mot de passe", currentPw: "Mot de passe actuel", pwChanged: "Mot de passe modifié.",
+    recoveryHas: "Un code de récupération est défini. Si tu l'as perdu, crées-en un nouveau (l'ancien ne marchera plus).", recoveryNone: "Pas encore de code de récupération. Crées-en un pour pouvoir réinitialiser ton mot de passe.", newRecovery: "Créer un nouveau code",
+    listLabel: "Liste de mots", listHelp: "Chaque paire de langues a sa propre liste (par exemple français → anglais). Ce menu change seulement la liste affichée sur ce site. L'extension a son propre réglage de langues.",
+    newPair: "Nouvelle paire de langues…", newPairTitle: "Ajouter une paire de langues", newPairSub: "Choisis la langue des sous-titres que tu regardes et celle des traductions.", open: "Ouvrir",
+    allPlatforms: "Tout", episodesN: "{0} épisodes", showEps: "Épisodes", hideEps: "Masquer les épisodes",
+    landHowT: "Comment ça marche", landHowSub: "Trois étapes, environ deux minutes."
+  });
+  Object.assign(D.it, {
+    password2: "Ripeti la password", pwMismatch: "Le due password non coincidono.", show: "Mostra", hide: "Nascondi", pwWeak: "Debole", pwOk: "Media", pwStrong: "Forte",
+    forgot: "Password dimenticata?", forgotTitle: "Reimposta la password", forgotSub: "Inserisci il nome utente e il codice di recupero salvato in fase di registrazione.",
+    recoveryCode: "Codice di recupero", newPassword: "Nuova password", resetPassword: "Reimposta password", backToLogin: "Torna all'accesso",
+    recTitle: "Salva il codice di recupero", recSub: "Se dimentichi la password, questo codice è l'unico modo per rientrare. Viene mostrato una sola volta: scrivilo o conservalo al sicuro.", recSaved: "L'ho salvato, continua",
+    regTitle: "Crea il tuo account", regSub: "Gratis. Le tue parole restano con il tuo account su ogni dispositivo.", userHint: "3–16 caratteri: lettere, cifre o _", eRecovery: "Nome utente o codice di recupero errati.",
+    security: "Sicurezza", changePassword: "Cambia password", currentPw: "Password attuale", pwChanged: "Password cambiata.",
+    recoveryHas: "Hai un codice di recupero. Se l'hai perso, creane uno nuovo (il vecchio smette di funzionare).", recoveryNone: "Nessun codice di recupero. Creane uno per poter reimpostare la password.", newRecovery: "Crea nuovo codice",
+    listLabel: "Lista di parole", listHelp: "Ogni coppia di lingue ha la sua lista (ad esempio francese → inglese). Questo menu cambia solo la lista che vedi su questo sito. L'estensione ha le sue impostazioni di lingua.",
+    newPair: "Nuova coppia di lingue…", newPairTitle: "Aggiungi una coppia di lingue", newPairSub: "Scegli la lingua dei sottotitoli che guardi e quella delle traduzioni.", open: "Apri",
+    allPlatforms: "Tutti", episodesN: "{0} episodi", showEps: "Episodi", hideEps: "Nascondi episodi",
+    landHowT: "Come funziona", landHowSub: "Tre passaggi, circa due minuti."
+  });
+  Object.assign(D.de, {
+    password2: "Passwort wiederholen", pwMismatch: "Die beiden Passwörter stimmen nicht überein.", show: "Zeigen", hide: "Verbergen", pwWeak: "Schwach", pwOk: "Mittel", pwStrong: "Stark",
+    forgot: "Passwort vergessen?", forgotTitle: "Passwort zurücksetzen", forgotSub: "Gib deinen Benutzernamen und den bei der Registrierung gespeicherten Wiederherstellungscode ein.",
+    recoveryCode: "Wiederherstellungscode", newPassword: "Neues Passwort", resetPassword: "Passwort zurücksetzen", backToLogin: "Zurück zur Anmeldung",
+    recTitle: "Wiederherstellungscode speichern", recSub: "Wenn du dein Passwort vergisst, ist dieser Code der einzige Weg zurück. Er wird nur einmal angezeigt: schreib ihn auf oder bewahre ihn sicher auf.", recSaved: "Gespeichert, weiter",
+    regTitle: "Konto erstellen", regSub: "Kostenlos. Deine Wörter bleiben mit deinem Konto auf jedem Gerät.", userHint: "3–16 Zeichen: Buchstaben, Ziffern oder _", eRecovery: "Benutzername oder Wiederherstellungscode falsch.",
+    security: "Sicherheit", changePassword: "Passwort ändern", currentPw: "Aktuelles Passwort", pwChanged: "Passwort geändert.",
+    recoveryHas: "Ein Wiederherstellungscode ist eingerichtet. Falls verloren, erstelle einen neuen (der alte wird ungültig).", recoveryNone: "Noch kein Wiederherstellungscode. Erstelle einen, um dein Passwort zurücksetzen zu können.", newRecovery: "Neuen Code erstellen",
+    listLabel: "Wortliste", listHelp: "Jedes Sprachpaar hat eine eigene Wortliste (z. B. Französisch → Englisch). Hier wählst du nur, welche Liste du auf dieser Seite siehst. Die Erweiterung hat eigene Spracheinstellungen.",
+    newPair: "Neues Sprachpaar…", newPairTitle: "Sprachpaar hinzufügen", newPairSub: "Wähle die Sprache der Untertitel und die Sprache der Übersetzungen.", open: "Öffnen",
+    allPlatforms: "Alle", episodesN: "{0} Folgen", showEps: "Folgen", hideEps: "Folgen ausblenden",
+    landHowT: "So funktioniert's", landHowSub: "Drei Schritte, etwa zwei Minuten."
+  });
+  Object.assign(D.es, {
+    password2: "Repite la contraseña", pwMismatch: "Las dos contraseñas no coinciden.", show: "Mostrar", hide: "Ocultar", pwWeak: "Débil", pwOk: "Media", pwStrong: "Fuerte",
+    forgot: "¿Olvidaste la contraseña?", forgotTitle: "Restablece tu contraseña", forgotSub: "Introduce tu usuario y el código de recuperación que guardaste al registrarte.",
+    recoveryCode: "Código de recuperación", newPassword: "Nueva contraseña", resetPassword: "Restablecer contraseña", backToLogin: "Volver a iniciar sesión",
+    recTitle: "Guarda tu código de recuperación", recSub: "Si olvidas la contraseña, este código es la única forma de volver a entrar. Solo se muestra una vez: anótalo o guárdalo en un lugar seguro.", recSaved: "Ya lo guardé, continuar",
+    regTitle: "Crea tu cuenta", regSub: "Gratis. Tus palabras se quedan con tu cuenta en todos tus dispositivos.", userHint: "3–16 caracteres: letras, números o _", eRecovery: "Usuario o código de recuperación incorrectos.",
+    security: "Seguridad", changePassword: "Cambiar contraseña", currentPw: "Contraseña actual", pwChanged: "Contraseña cambiada.",
+    recoveryHas: "Tienes un código de recuperación. Si lo perdiste, crea uno nuevo (el anterior dejará de funcionar).", recoveryNone: "Aún no tienes código de recuperación. Crea uno para poder restablecer tu contraseña.", newRecovery: "Crear nuevo código",
+    listLabel: "Lista de palabras", listHelp: "Cada par de idiomas tiene su propia lista (por ejemplo francés → inglés). Esto solo cambia qué lista ves en este sitio. La extensión tiene su propio ajuste de idiomas.",
+    newPair: "Nuevo par de idiomas…", newPairTitle: "Añadir un par de idiomas", newPairSub: "Elige el idioma de los subtítulos que ves y el de las traducciones.", open: "Abrir",
+    allPlatforms: "Todo", episodesN: "{0} episodios", showEps: "Episodios", hideEps: "Ocultar episodios",
+    landHowT: "Cómo funciona", landHowSub: "Tres pasos, unos dos minutos."
+  });
+
   var LIST = [["tr", "Türkçe"], ["en", "English"], ["fr", "Français"], ["it", "Italiano"], ["de", "Deutsch"], ["es", "Español"]];
   var ERRS = [["Önce giriş", "eLogin"], ["Giriş yapmalısın", "eLogin"], ["Oyun odalarına", "eBanned"], ["Dil çifti", "ePair"], ["En az 4 kelime", "eNeed4"],
     ["Oda bulunamadı", "eNoRoom"], ["Oda şifresi", "ePw"], ["Çok fazla", "eRate"], ["Kullanıcı adı 3-16", "eUser"], ["Parola en az", "ePass6"],
-    ["Bu kullanıcı adı", "eTaken"], ["Kullanıcı adı ya da", "eCreds"], ["Hesabın askıya", "eSusp"], ["Parola hatalı", "eWrongPw"], ["Ülke geçersiz", "eCountry"], ["Veri çok", "eBig"]];
+    ["Bu kullanıcı adı", "eTaken"], ["Kullanıcı adı ya da", "eCreds"], ["Hesabın askıya", "eSusp"], ["Parola hatalı", "eWrongPw"], ["Ülke geçersiz", "eCountry"], ["Veri çok", "eBig"], ["Kurtarma kodu", "eRecovery"]];
   var CB = [];
   function store(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
