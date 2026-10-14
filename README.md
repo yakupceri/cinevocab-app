@@ -56,4 +56,4 @@ Load the extension: `chrome://extensions` → Developer mode → Load unpacked �
 - Duels filter by single episode, not by whole series.
 
 ## License
-MIT, see `LICENSE`. This project is not affiliated with Amazon, Google or Udemy.
+All rights reserved, see `LICENSE`. The code is public for viewing only. This project is not affiliated with Amazon, Google or Udemy.
