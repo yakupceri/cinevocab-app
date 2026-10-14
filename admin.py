@@ -9,6 +9,7 @@ Bu değişkenler tanımlı değilse panel TAMAMEN kapalıdır (404 döner).
 Admin hesabı veritabanında DEĞİL, ortam değişkenlerindedir; normal kullanıcı hesabı değildir,
 bu yüzden kullanıcı tablosundan kimse admin yapılamaz.
 """
+import re
 import asyncio
 import hashlib
 import hmac
@@ -343,6 +344,24 @@ def reset_password(uid: int, c: NewPw, request: Request):
     q("UPDATE users SET pw_hash = %s WHERE id = %s;", (_hash(c.password), uid))
     q("DELETE FROM sessions WHERE user_id = %s;", (uid,))
     log(request, "reset_password", name)
+    return {"ok": True}
+
+
+class Rename(BaseModel):
+    username: str
+
+
+@router.post("/admin/api/users/{uid}/rename")
+def rename_user(uid: int, c: Rename, request: Request):
+    need_admin(request)
+    old = _user_exists(uid)
+    new = c.username.strip()
+    if not re.fullmatch(r"\w{3,16}", new):
+        raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
+    if q("SELECT 1 FROM users WHERE lower(username) = lower(%s) AND id <> %s;", (new, uid), True):
+        raise HTTPException(409, "Bu kullanıcı adı alınmış.")
+    q("UPDATE users SET username = %s WHERE id = %s;", (new, uid))
+    log(request, "rename_user", old + " -> " + new)
     return {"ok": True}
 
 

@@ -161,6 +161,7 @@ async function userDetail(id) {
     await act(() => api("/users/" + id + path, "POST", body), msg); reload();
   };
   const pw = h("input", { placeholder: "Yeni parola (en az 6)", type: "text" });
+  const nn = h("input", { placeholder: "Yeni kullanıcı adı (3-16, harf/rakam/_)", type: "text", maxlength: 16 });
 
   v.append(
     h("button", { onclick: () => open("Kullanıcılar", [...document.querySelectorAll("#nav button")][1]) }, "← Listeye dön"),
@@ -183,6 +184,8 @@ async function userDetail(id) {
         h("button", { onclick: run("/logout", null, "Oturumlar kapatıldı") }, "Tüm oturumları kapat"),
         h("button", { onclick: run("/reset-score", null, "Puanlar sıfırlandı", "Bu kullanıcının tüm oyun puanları silinsin mi?") }, "Puanları sıfırla"),
         h("button", { onclick: run("/clear-words", null, "Kelimeler silindi", "Kullanıcının kelime listesi silinsin mi?") }, "Kelime listesini temizle")),
+      h("div", { class: "row" }, nn,
+        h("button", { onclick: () => run("/rename", { username: nn.value }, "Kullanıcı adı değişti", "Kullanıcı adı değişsin mi?")() }, "Adı değiştir")),
       h("div", { class: "row" }, pw,
         h("button", { onclick: () => run("/reset-password", { password: pw.value }, "Parola değişti")() }, "Parolayı sıfırla")),
       h("div", { class: "row" },
