@@ -255,6 +255,7 @@ function tWords() {
       const b = el("button", "w" + (SELW.has(w.tr) ? " sel" : ""));
       b.setAttribute("aria-pressed", SELW.has(w.tr));
       b.append(el("span", "src", w.tr), el("span", "dst", w.eng), el("span", "ep", w.episode || t("noVideo")), el("span", "ck"));
+      if (canSpeak()) b.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst)));
       b.onclick = () => { SELW.has(w.tr) ? SELW.delete(w.tr) : SELW.add(w.tr); b.classList.toggle("sel"); b.setAttribute("aria-pressed", SELW.has(w.tr)); wbar(); };
       grid.append(b);
     });
@@ -446,11 +447,30 @@ function mountGameChip() {
 
 /* ---------- Pratik ---------- */
 let PR = { scope: "", n: 10, mode: "classic" };
-const mkQ = (w, engs) => ({ w, opts: shuf([w.eng, ...shuf(engs.filter((e) => e !== w.eng)).slice(0, 3)]) });
+// Quiz kalitesi: "the", "a", "and" gibi anlamsız kelimeler ve olumsuzluğu kaybolmuş çeviriler sorulmaz
+const QSTOP = new Set("to the a an of and for you are was not has have there that this its our his her they them she him who with from can will be is it me my we i question particle he us your in on at by or if as do so".split(" "));
+const QNEG = new Set(["not", "no", "never", "cannot", "without", "nobody", "nothing", "nowhere", "none", "neither", "nor"]);
+const quizOk = (w) => {
+  const a = String(w.tr || "").trim().toLowerCase(), toks = (String(w.eng || "").toLowerCase().match(/[a-z']+/g) || []);
+  if (a.length < 2 || QSTOP.has(a)) return false;
+  if (!toks.length || toks.every((x) => QSTOP.has(x))) return false;
+  if (/m[ıiuü]yor(um|sun|uz|sunuz|lar)?$/.test(a) && !toks.some((x) => QNEG.has(x) || /n't$/.test(x))) return false;
+  return true;
+};
+/* LF(): öğrenilen dilin kelimesi hangi alanda (tr = kaynak sütunu, eng = çeviri sütunu); OF(): diğeri */
+const LF = () => (learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "tr" : "eng");
+const OF = () => (LF() === "tr" ? "eng" : "tr");
+const mkQ = (w, engs, listen) => {
+  if (listen) {
+    const f = OF(), ans = w[f], pool = [...new Set(V.words.filter(quizOk).map((x) => x[f]))].filter((e) => e !== ans);
+    return { w, ans, say: w[LF()], listen: true, opts: shuf([ans, ...shuf(pool).slice(0, 3)]) };
+  }
+  return { w, ans: w.eng, opts: shuf([w.eng, ...shuf(engs.filter((e) => e !== w.eng)).slice(0, 3)]) };
+};
 function tPractice() {
   const box = el("div");
   box.append(head(t("nav_practice"), t("practiceSub")));
-  const words = uniqWords(), engs = [...new Set(V.words.map((w) => w.eng))];
+  const words = uniqWords().filter(quizOk), engs = [...new Set(V.words.filter(quizOk).map((w) => w.eng))];
   if (words.length < 4 || engs.length < 4) { box.append(empty(t("needWords"), t("needWordsText"), otherPairs())); return box; }
 
   const intro = el("div"), area = el("div");
@@ -466,7 +486,7 @@ function tPractice() {
 
   // mod seçimi
   const modes = el("div", "modes");
-  [["classic", t("modeClassic"), t("modeClassicD"), ICONS.known], ["speed", t("modeSpeed"), t("modeSpeedD"), ICO.clock], ["survival", t("modeSurv"), t("modeSurvD"), ICO.heart]].forEach(([k, n, d, ic]) => {
+  [["classic", t("modeClassic"), t("modeClassicD"), ICONS.known], ["speed", t("modeSpeed"), t("modeSpeedD"), ICO.clock], ["survival", t("modeSurv"), t("modeSurvD"), ICO.heart]].concat(canSpeak() ? [["listen", t("modeListen"), t("modeListenD"), ICONS.speak]] : []).forEach(([k, n, d, ic]) => {
     const b = el("button", "mode" + (PR.mode === k ? " on" : "")), h = el("b"); h.append(svg(ic), document.createTextNode(n)); b.append(h, el("span", "", d));
     b.onclick = () => { PR.mode = k; [...modes.children].forEach((x) => x.classList.remove("on")); b.classList.add("on"); }; modes.append(b);
   });
@@ -482,9 +502,13 @@ function tPractice() {
   go.onclick = () => {
     PR.scope = sc.value; PR.n = +nn.value; FX.play("go");
     const pool = shuf(words.filter((w) => !PR.scope || (w.episode || "\u0000") === PR.scope));
-    runQuiz(area, intro, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs)), PR.mode);
+    runQuiz(area, intro, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs, PR.mode === "listen")), PR.mode);
   };
-  intro.append(pc, modes, setup);
+  const dcard = el("a", "card in"), dtx = el("div");
+  dcard.href = "/daily?src=" + PAIR.src + "&dst=" + PAIR.dst; dcard.style.cssText = "display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;margin-top:16px;border-color:var(--accent)";
+  dtx.append(el("h2", "", "📅 " + t("dcTitle")), el("p", "dim small", t("dcSub")));
+  dcard.append(dtx, el("span", "grow"), el("b", "", "→"));
+  intro.append(pc, dcard, modes, setup);
   box.append(intro, area);
   return box;
 }
@@ -506,7 +530,7 @@ function runQuiz(area, intro, qs, mode) {
 
   function step() {
     if (i >= qs.length) return end("done");
-    const { w, opts } = qs[i], card = el("div", "card qcard in"), hud = el("div", "hud");
+    const Q = qs[i], { w, opts } = Q, ans = Q.ans, card = el("div", "card qcard in"), hud = el("div", "hud");
     const hearts = el("div", "hearts"), comboEl = el("span", "combo"), scEl = el("span", "sc", String(score)), snd = el("button", "ghost icon-sm");
     comboEl.append(svg(ICO.flame), el("span", "", ""));
     const paintCombo = () => { comboEl.lastChild.textContent = combo >= 2 ? t("combo", combo) : "×" + Math.max(combo, 1); comboEl.className = "combo" + (combo >= 3 ? " hot" : "") + (combo >= 6 ? " fire" : ""); };
@@ -522,7 +546,13 @@ function runQuiz(area, intro, qs, mode) {
       const b = el("button"); b.append(el("span", "k", k + 1), el("span", "", o));
       b.onclick = () => answer(b, o); og.append(b); btns.push(b);
     });
-    card.append(hud, bar, el("div", "qword", w.tr), og);
+    let prompt;
+    if (Q.listen) {
+      prompt = el("div", "listen-q"); const sb = speakBtn(Q.say, learnLang(PAIR.src, PAIR.dst), "big");
+      prompt.append(sb, el("span", "dim small", t("listenQ")));
+      tmo.push(setTimeout(() => speak(Q.say, learnLang(PAIR.src, PAIR.dst)), 350));
+    } else prompt = el("div", "qword", w.tr);
+    card.append(hud, bar, prompt, og);
     area.replaceChildren(card);
     cur = { card, btns, locked: false };
     const t0 = performance.now();
@@ -537,8 +567,10 @@ function runQuiz(area, intro, qs, mode) {
 
     function answer(btn, choice) {
       if (cur.locked) return; cur.locked = true; clearT();
-      const el_ = (performance.now() - t0) / 1000, ok = choice === w.eng; answered++;
-      btns.forEach((x) => { if (x.lastChild.textContent === w.eng) x.classList.add("ok"); else if (x === btn) x.classList.add("no"); });
+      const el_ = (performance.now() - t0) / 1000, ok = choice === ans; answered++;
+      btns.forEach((x) => { if (x.lastChild.textContent === ans) x.classList.add("ok"); else if (x === btn) x.classList.add("no"); });
+      if (Q.listen) { const q = prompt.querySelector(".dim"); if (q) q.textContent = Q.say + " = " + ans; }
+      else if (canSpeak()) { const sp = speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst)); sp.style.cssText = "display:grid;margin:-8px auto 12px"; prompt.after(sp); }
       fill.style.transition = "none";
       if (ok) {
         combo++; correct++; bestCombo = Math.max(bestCombo, combo);
@@ -549,7 +581,7 @@ function runQuiz(area, intro, qs, mode) {
       } else {
         combo = 0; wrongs.push(w); if (mode === "survival") lives--;
         card.classList.add("no"); FX.shake(card); FX.play("wrong"); FX.vibrate([50, 40, 50]);
-        if (!btn) FX.float(card.querySelector(".qword"), t("timeUp"), "bad");
+        if (!btn) FX.float(card.querySelector(".qword, .listen-q"), t("timeUp"), "bad");
       }
       paintCombo(); FX.bump(comboEl); paintHearts();
       let done = false;
@@ -581,7 +613,7 @@ function runQuiz(area, intro, qs, mode) {
     if (newBest) banners.append(el("span", "banner", t("newBest")));
     if (leveled) banners.append(el("span", "banner", t("levelUp", lvAfter)));
     const r = el("div", "row"); r.style.marginTop = "16px";
-    if (wrongs.length) { const b = el("button", "primary", t("retryWrong", wrongs.length)); b.onclick = () => runQuiz(area, intro, shuf(wrongs).map((w) => mkQ(w, engs)), mode); r.append(b); }
+    if (wrongs.length) { const b = el("button", "primary", t("retryWrong", wrongs.length)); b.onclick = () => runQuiz(area, intro, shuf(wrongs).map((w) => mkQ(w, engs, mode === "listen")), mode); r.append(b); }
     const again = el("button", wrongs.length ? "" : "primary", t("again")); again.onclick = () => { area.replaceChildren(); render(); }; r.append(again);
     card.append(el("h2", "", title), stars, big, el("p", "dim small", t("ptsN", "")), info, xpb, xpl, banners, r);
     if (wrongs.length) {
@@ -622,8 +654,12 @@ function tDuel() {
   n.type = s.type = "number"; n.min = 4; n.max = 30; n.value = 10; s.min = 5; s.max = 60; s.value = 12; cpw.placeholder = t("roomPwCreate"); cpw.maxLength = 30;
   const r2 = el("div", "row"), fn = f(t("questions"), n), fs = f(t("seconds"), s); fn.style.flex = fs.style.flex = "1"; r2.append(fn, fs); r2.style.alignItems = "flex-start";
   cb.disabled = uniqWords().length < 4;
-  cb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: src.value === "\u0000" ? "" : src.value, n: +n.value, seconds: +s.value, password: cpw.value });
-  const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), r2, f(t("roomPwCreateLabel"), cpw), cb);
+  const rm = el("select"); rm.append(new Option(t("roomChoice"), "choice"), new Option(t("roomSpeak"), "speak"));
+  const noteSay = el("p", "dim small", t("sayNote")); noteSay.style.display = "none";
+  rm.onchange = () => { noteSay.style.display = rm.value === "speak" ? "" : "none"; };
+  cb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: src.value === "\u0000" ? "" : src.value, n: +n.value, seconds: +s.value, password: cpw.value,
+    mode: rm.value, learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
+  const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), f(t("roomMode"), rm), noteSay, r2, f(t("roomPwCreateLabel"), cpw), cb);
   c.append(el("h2", "", t("createRoom")), el("p", "dim", cb.disabled ? t("needWordsText") : t("createSub", langName(PAIR.src), langName(PAIR.dst))), cf);
   g.append(j, c); box.append(g, leaderboard());
   return box;

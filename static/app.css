@@ -267,3 +267,23 @@ button.icon { padding:0; width:40px; display:grid; place-items:center; }
 .pod .p1 .blk { height:120px; color:var(--accent); animation-delay:.5s; } .pod .p2 .blk { height:84px; animation-delay:.25s; } .pod .p3 .blk { height:60px; }
 .rank-up { color:var(--ok); font-size:12px; margin-left:6px; } .rank-dn { color:var(--bad); font-size:12px; margin-left:6px; }
 .fire-n { color:var(--accent); font-weight:700; font-size:12px; margin-left:6px; }
+
+/* v9: sesli okuma, dinle-seç, mikrofon */
+.spk{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;cursor:pointer;color:var(--dim);flex:none;border:1px solid var(--line2);background:var(--bg2)}
+.spk:hover,.spk:focus-visible{color:var(--accent);border-color:var(--accent);outline:none}
+.spk svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.spk.big{width:84px;height:84px;color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.spk.big svg{width:38px;height:38px}
+.listen-q{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0 18px}
+.mic{display:inline-grid;place-items:center;width:96px;height:96px;border-radius:50%;border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer;position:relative}
+.mic svg{width:40px;height:40px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mic.on{background:var(--accent);color:var(--on-accent);animation:micPulse 1.1s ease-in-out infinite}
+.mic:disabled{opacity:.45;cursor:default}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-soft)}50%{box-shadow:0 0 0 14px transparent}}
+@media (prefers-reduced-motion:reduce){.mic.on{animation:none}}
+.heard{min-height:28px;font:700 22px var(--display);text-align:center;margin:8px 0}
+.sayrow{display:flex;gap:8px;margin-top:10px}.sayrow input{flex:1}
+.grid-emoji{font-size:26px;letter-spacing:2px;text-align:center;margin:10px 0}
+.daily-card .big{font:800 44px var(--display)}
+.board li.me{outline:1px solid var(--accent);border-radius:8px}
+.w .spk{position:absolute;right:10px;bottom:10px;width:26px;height:26px}

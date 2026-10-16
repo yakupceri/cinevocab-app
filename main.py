@@ -21,6 +21,7 @@ from accounts import (router, init_accounts, user_from_request, user_from_token,
                       record_game, tag_user_words, _throttle_ip)
 import admin
 
+import daily
 import multilang
 import vocab
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +29,7 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI()
 app.include_router(router)
 app.include_router(admin.router)
+app.include_router(daily.router)
 app.include_router(vocab.router)
 
 app.add_middleware(
@@ -149,6 +151,36 @@ DICTIONARY = {
     "gönderebiliriz": "we can send",
     "ekibinin": "of the team",
     "kurtarma": "rescue",
+    "bilmiyorum": "I don't know",
+    "bilmiyor": "doesn't know",
+    "bilmiyoruz": "we don't know",
+    "bilmiyorsun": "you don't know",
+    "bilmiyorsunuz": "you don't know",
+    "biliyorum": "I know",
+    "biliyor": "knows",
+    "biliyoruz": "we know",
+    "istemiyorum": "I don't want",
+    "istemiyor": "doesn't want",
+    "istemiyoruz": "we don't want",
+    "istemiyorsun": "you don't want",
+    "anlamıyorum": "I don't understand",
+    "anlamıyor": "doesn't understand",
+    "anlıyorum": "I understand",
+    "sevmiyorum": "I don't like",
+    "sevmiyor": "doesn't like",
+    "düşünmüyorum": "I don't think",
+    "inanmıyorum": "I don't believe",
+    "hatırlamıyorum": "I don't remember",
+    "yapamam": "I can't",
+    "yapamıyorum": "I can't do it",
+    "olamaz": "can't be",
+    "olmaz": "no way",
+    "gelmiyor": "isn't coming",
+    "gitmiyor": "isn't going",
+    "değil": "not",
+    "hayır": "no",
+    "teşekkürler": "thanks",
+    "lütfen": "please",
 }
 
 
@@ -184,6 +216,26 @@ def is_suspect(tr: str, eng: str) -> bool:
         return False
     toks = [t for t in re.findall(r"[a-z']+", eng.lower()) if t not in STOP_EN and len(t) > 1]
     return bool(toks) and all(t in SUSPECT_GLOSSES for t in toks)
+
+
+# Quiz kalitesi: "the", "a", "and" gibi anlamsız kelimeler sorulmasın,
+# olumsuz fiilin (bilmiyorum) olumsuzluğu kaybolmuş çevirisi ("know") quize girmesin.
+NEGATION_TOKENS = {"not", "no", "never", "don't", "doesn't", "didn't", "can't", "won't", "isn't", "aren't",
+                   "cannot", "without", "nobody", "nothing", "nowhere", "none", "neither", "nor", "n't"}
+TR_NEG_RE = re.compile(r"m[ıiuü]yor(um|sun|uz|sunuz|lar)?$")
+
+
+def quiz_ok(word: str, eng: str) -> bool:
+    """Bu çift quiz sorusu olacak kadar anlamlı mı?"""
+    w = (word or "").strip().lower()
+    toks = re.findall(r"[a-z']+", (eng or "").lower())
+    if len(w) < 2 or w in STOP_EN:
+        return False
+    if not toks or all(t in STOP_EN for t in toks):
+        return False
+    if TR_NEG_RE.search(w) and not any(t in NEGATION_TOKENS or t.endswith("n't") for t in toks):
+        return False
+    return True
 
 
 def norm_sentence(text: str) -> str:
@@ -284,8 +336,14 @@ def init_db():
 
 init_db()
 try:
+    # Elle düzeltilmiş sözlük, veritabanındaki eski/yanlış çevirilerin (ör. bilmiyorum -> know) üstüne yazılır.
+    store_translations(DICTIONARY, overwrite=True)
+except Exception as e:
+    print(f"Sözlük eşitlenemedi: {e}")
+try:
     init_accounts(DB_CONFIG)
     multilang.init(DB_CONFIG)
+    daily.init(lambda src, dst: global_pairs(src, dst))
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")
@@ -934,12 +992,16 @@ def db_rows(sql: str, params=()):
         conn.close()
 
 
-def valid_pairs(rows) -> list:
-    return [
-        {"tr": tr, "eng": eng} for tr, eng in rows
-        if has_letters(eng) and eng.strip().lower() != tr
-        and not is_garbage(eng) and not is_suspect(tr, eng)
-    ]
+def valid_pairs(rows, legacy: bool = False) -> list:
+    """legacy=True (tr->en): elle düzeltilmiş sözlük veritabanındaki eski/yanlış çeviriye üstün gelir."""
+    out = []
+    for tr, eng in rows:
+        if legacy and tr in DICTIONARY:
+            eng = DICTIONARY[tr]
+        if (has_letters(eng) and eng.strip().lower() != tr
+                and not is_garbage(eng) and not is_suspect(tr, eng) and quiz_ok(tr, eng)):
+            out.append({"tr": tr, "eng": eng})
+    return out
 
 
 def episode_pool(episode: str, uids: list, src: str = "tr", dst: str = "en") -> list:
@@ -951,7 +1013,7 @@ def episode_pool(episode: str, uids: list, src: str = "tr", dst: str = "en") -> 
             if not episode or ep == episode:
                 rows.append((w, t))
     seen, out = set(), []
-    for w in valid_pairs(rows):
+    for w in valid_pairs(rows, (src, dst) == ("tr", "en")):
         if w["eng"].lower() not in seen:
             seen.add(w["eng"].lower())
             out.append(w)
@@ -963,7 +1025,22 @@ def all_translations(src: str, dst: str) -> list:
         rows = db_rows("SELECT tr, eng FROM words;")
     else:
         rows = db_rows("SELECT word, trans FROM words_ml WHERE src = %s AND dst = %s;", (src, dst))
-    return list({w["eng"] for w in valid_pairs(rows)})
+    return list({w["eng"] for w in valid_pairs(rows, (src, dst) == ("tr", "en"))})
+
+
+def global_pairs(src: str, dst: str) -> list:
+    """Bu dil çiftindeki tüm kaliteli (kelime, çeviri) çiftleri; aynı çeviri bir kez. Günlük meydan okuma için."""
+    legacy = (src, dst) == ("tr", "en")
+    if legacy:
+        rows = db_rows("SELECT tr, eng FROM words;")
+    else:
+        rows = db_rows("SELECT word, trans FROM words_ml WHERE src = %s AND dst = %s;", (src, dst))
+    seen, out = set(), []
+    for w in valid_pairs(rows, legacy):
+        if w["eng"].lower() not in seen:
+            seen.add(w["eng"].lower())
+            out.append(w)
+    return out
 
 
 def build_questions(episode: str, uids: list, n: int = N_QUESTIONS, src: str = "tr", dst: str = "en") -> list:
@@ -994,9 +1071,65 @@ def build_questions(episode: str, uids: list, n: int = N_QUESTIONS, src: str = "
     return qs
 
 
+_SAY_DROP = re.compile(r"[^\w\s]", re.UNICODE)
+
+
+def say_norm(text: str) -> str:
+    """Konuşma tanıma çıktısını karşılaştırma için sadeleştirir: küçük harf, noktalama yok, tek boşluk,
+    aksan farkı yok (café = cafe)."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(text or "").replace("İ", "i").replace("I", "ı").replace("ı", "i").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return " ".join(_SAY_DROP.sub(" ", t.replace("'", "").replace("’", "")).split())
+
+
+def _edit1(a: str, b: str, limit: int) -> bool:
+    """a ile b arasındaki Levenshtein uzaklığı limit'i aşmıyor mu?"""
+    if abs(len(a) - len(b)) > limit:
+        return False
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1] <= limit
+
+
+def say_match(heard: str, answer: str) -> bool:
+    """Söylenen/yazılan metin beklenen kelimeyle eşleşiyor mu? 6 harfe kadar birebir, uzun kelimede
+    tanıma hatası payı olarak 1 (11+ harfte 2) harf farkı kabul edilir."""
+    h, a = say_norm(heard), say_norm(answer)
+    if not h or not a:
+        return False
+    if h == a:
+        return True
+    n = len(a)
+    limit = 0 if n < 7 else 1 if n < 11 else 2
+    return limit > 0 and _edit1(h, a, limit)
+
+
+def build_speak_questions(episode: str, uids: list, n: int, src: str, dst: str, learn: str) -> list:
+    """Konuşma modu: ekranda anlam (öğrenilmeyen dil), oyuncu öğrenilen dildeki kelimeyi söyler.
+    learn = "src" | "dst": hangi taraf söylenecek."""
+    ep = [w for w in episode_pool(episode, uids, src, dst)
+          if len(w["tr"].split()) <= 3 and len(w["eng"].split()) <= 3 and len(w["tr"]) <= 24 and len(w["eng"]) <= 24]
+    if len(ep) < 4:
+        raise ValueError(f"En az 4 kelime gerekiyor (şu an {len(ep)}).")
+    random.shuffle(ep)
+    lang = src if learn == "src" else dst
+    qs = []
+    for w in ep[:n]:
+        say, show = (w["tr"], w["eng"]) if learn == "src" else (w["eng"], w["tr"])
+        qs.append({"prompt": show, "answer": say, "lang": lang})
+    return qs
+
+
 class Room:
-    def __init__(self, code: str, episode: str, src="tr", dst="en", n=N_QUESTIONS, seconds=Q_SECONDS, password=""):
+    def __init__(self, code: str, episode: str, src="tr", dst="en", n=N_QUESTIONS, seconds=Q_SECONDS, password="",
+                 mode="choice", learn="dst"):
         self.code, self.episode = code, episode
+        self.mode, self.learn = mode, learn
         self.src, self.dst, self.n, self.seconds, self.password = src, dst, n, seconds, password
         self.players = {}      # pid -> {"name", "ws", "score"}
         self.host = None
@@ -1005,6 +1138,8 @@ class Room:
         self.event = asyncio.Event()
         self.q_start = 0.0
         self.task = None
+        self.tries = {}        # konuşma modu: pid -> bu soruda kaç deneme yaptı
+        self.cur_answer = None # konuşma modu: şu anki sorunun beklenen kelimesi
 
 
 async def broadcast(room: Room, msg: dict):
@@ -1019,7 +1154,7 @@ def room_info(room: Room) -> dict:
     return {
         "t": "room", "code": room.code, "episode": room.episode, "host": room.host,
         "src": room.src, "dst": room.dst, "n": room.n, "seconds": room.seconds,
-        "locked": bool(room.password),
+        "locked": bool(room.password), "mode": room.mode, "learn": room.learn,
         "players": [{"id": pid, "name": p["name"], "score": p["score"]}
                     for pid, p in room.players.items()],
     }
@@ -1027,8 +1162,12 @@ def room_info(room: Room) -> dict:
 
 async def run_game(room: Room):
     try:
-        questions = await asyncio.to_thread(
-            build_questions, room.episode, [p["uid"] for p in room.players.values()], room.n, room.src, room.dst)
+        uids = [p["uid"] for p in room.players.values()]
+        if room.mode == "speak":
+            questions = await asyncio.to_thread(build_speak_questions, room.episode, uids, room.n,
+                                                room.src, room.dst, room.learn)
+        else:
+            questions = await asyncio.to_thread(build_questions, room.episode, uids, room.n, room.src, room.dst)
     except Exception as e:
         room.state = "lobby"
         await broadcast(room, {"t": "error", "msg": str(e)})
@@ -1043,16 +1182,25 @@ async def run_game(room: Room):
         if not room.players:
             return
         room.answers, room.event, room.q_start = {}, asyncio.Event(), time.time()
-        await broadcast(room, {"t": "question", "idx": i, "total": len(questions),
-                               "tr": q["tr"], "options": q["options"], "seconds": room.seconds})
+        room.tries = {}
+        room.cur_answer = q["answer"] if room.mode == "speak" else None
+        if room.mode == "speak":
+            await broadcast(room, {"t": "question", "idx": i, "total": len(questions), "mode": "speak",
+                                   "tr": q["prompt"], "lang": q["lang"], "seconds": room.seconds})
+        else:
+            await broadcast(room, {"t": "question", "idx": i, "total": len(questions),
+                                   "tr": q["tr"], "options": q["options"], "seconds": room.seconds})
         try:
             await asyncio.wait_for(room.event.wait(), room.seconds)
         except asyncio.TimeoutError:
             pass
         results = []
+        correct_text = q["answer"] if room.mode == "speak" else q["eng"]
+        room.cur_answer = None
         for pid, p in list(room.players.items()):
             a = room.answers.get(pid)
-            ok = a is not None and a[0] == q["eng"]
+            # konuşma modunda yalnızca doğru eşleşen denemeler kaydedilir
+            ok = a is not None and (say_match(a[0], correct_text) if room.mode == "speak" else a[0] == correct_text)
             p["streak"] = p.get("streak", 0) + 1 if ok else 0
             # 100 taban + hız bonusu (0-50) + seri bonusu (arka arkaya doğru başına +10, en fazla +50)
             delta = (100 + int(50 * max(0.0, 1 - (a[1] - room.q_start) / room.seconds))
@@ -1060,7 +1208,7 @@ async def run_game(room: Room):
             p["score"] += delta
             results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"],
                             "streak": p["streak"]})
-        await broadcast(room, {"t": "reveal", "correct": q["eng"], "results": results})
+        await broadcast(room, {"t": "reveal", "correct": correct_text, "results": results})
         await asyncio.sleep(REVEAL_SECONDS)
     room.state = "done"
     final = sorted(room.players.items(), key=lambda kv: -kv[1]["score"])
@@ -1121,13 +1269,15 @@ async def ws_endpoint(ws: WebSocket):
                     except (TypeError, ValueError):
                         qn, qsec = N_QUESTIONS, Q_SECONDS
                     pw = str(msg.get("password") or "")[:30]
+                    rmode = "speak" if msg.get("mode") == "speak" else "choice"
+                    learn = "src" if msg.get("learn") == "src" else "dst"
                     n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]], src, dst))
                     if n < 4:
                         await ws.send_json({"t": "error", "msg": f"En az 4 kelime gerekiyor (şu an {n})."})
                         continue
                     code = next(c for c in (f"{random.randint(0, 9999):04d}" for _ in range(1000))
                                 if c not in ROOMS)
-                    room = ROOMS[code] = Room(code, episode, src, dst, qn, qsec, pw)
+                    room = ROOMS[code] = Room(code, episode, src, dst, qn, qsec, pw, rmode, learn)
                     room.host = pid
                 else:
                     room = ROOMS.get(str(msg.get("code") or "").strip())
@@ -1148,7 +1298,16 @@ async def ws_endpoint(ws: WebSocket):
                 room.task = asyncio.create_task(run_game(room))
 
             elif t == "answer" and room and room.state == "playing" and pid not in room.answers:
-                room.answers[pid] = (str(msg.get("choice")), time.time())
+                text = str(msg.get("choice"))[:80]
+                if room.mode == "speak":
+                    # Konuşma tanıma hatası olabilir: yanlış denemeler serbest (en çok 6), doğru olan kaydedilir.
+                    if room.cur_answer is None:
+                        continue
+                    room.tries[pid] = room.tries.get(pid, 0) + 1
+                    if room.tries[pid] > 6 or not say_match(text, room.cur_answer):
+                        await ws.send_json({"t": "say_miss", "left": max(0, 6 - room.tries[pid])})
+                        continue
+                room.answers[pid] = (text, time.time())
                 await broadcast(room, {"t": "answered", "id": pid})  # kim cevapladı (seçimi gizli)
                 if len(room.answers) >= len(room.players):
                     room.event.set()
@@ -1177,6 +1336,11 @@ def play_page():
 @app.get("/game", response_class=HTMLResponse)
 def game_page(request: Request):
     return templates.TemplateResponse(request, "game.html")
+
+
+@app.get("/daily", response_class=HTMLResponse)
+def daily_page(request: Request):
+    return templates.TemplateResponse(request, "daily.html")
 
 
 @app.get("/health")

@@ -33,8 +33,9 @@
 <script>
 const app = document.getElementById("app");
 let ws, myId = "", room = null, chosen = null, me = { username: "" }, lastQ = null, mode = "home";
+let rec = null, sayQueue = [], sayLast = "", sayUi = null; // konuşma modu
+let wrongs = [], lastEnd = null; // bu oyunda yanlış bildiklerim
 const errBox = el("div", "err");
-const setBack = () => { document.getElementById("back").textContent = "← " + t("backToPanel"); };
 
 function connect(first) {
   ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
@@ -110,11 +111,14 @@ function lobby(info) {
   leave.onclick = () => { room = null; ws.close(); home(); };
   const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
   if (info.locked) meta.push(t("locked"));
+  if (info.mode === "speak") meta.push(t("roomSpeak"));
   const m = el("p", "dim small", meta.join(" · "));
   const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:18px"; pl.append(playerList(info.players, { host: info.host }));
   const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:18px";
   act.append(copy, leave);
-  card.append(el("p", "dim small", t("room")), el("div", "code", info.code), m, el("p", "dim", t("shareCode")), pl);
+  card.append(el("p", "dim small", t("room")), el("div", "code", info.code), m, el("p", "dim", t("shareCode")));
+  if (info.mode === "speak") card.append(el("p", "dim small", t("sayLobbyNote")));
+  card.append(pl);
   if (info.host === myId) { start.disabled = info.players.length < 1; start.style.cssText = "width:100%;margin-top:16px"; card.append(start); }
   else { const w = el("p", "dim", t("waitHost")); w.style.marginTop = "16px"; card.append(w); }
   errBox.textContent = ""; card.append(act, errBox);
@@ -126,7 +130,8 @@ function handle(m) {
   else if (m.t === "room") { room = m; if (mode !== "play") lobby(m); else room = m; }
   else if (m.t === "error") { const msg = I18N.err(m.msg); if (room) { errBox.textContent = msg; toast(msg); } else { ws.close(); home(msg); } }
   else if (m.t === "countdown") countdown(m.seconds || 3);
-  else if (m.t === "answered") { const c = document.querySelector('#pstrip .pc[data-id="' + m.id + '"]'); if (c) { c.classList.add("done"); FX.bump(c); } if (m.id !== myId) FX.play("tick"); }
+  else if (m.t === "say_miss") sayMiss(m);
+  else if (m.t === "answered") { const c = document.querySelector('#pstrip .pc[data-id="' + m.id + '"]'); if (c) { c.classList.add("done"); FX.bump(c); } if (m.id !== myId) FX.play("tick"); else if (sayUi) sayLock(); }
   else if (m.t === "question") question(m);
   else if (m.t === "reveal") reveal(m);
   else if (m.t === "end") finish(m);
@@ -134,8 +139,8 @@ function handle(m) {
 
 function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 function countdown(n) {
-  mode = "play"; clearTimers(); prevRank = {}; streaks = {};
-  const box = el("div", "card center"), num = el("div", "cd");
+  mode = "play"; clearTimers(); prevRank = {}; streaks = {}; wrongs = [];
+  const box = el("div", "card center"); let num = el("div", "cd");
   box.append(el("p", "dim", t("getReady")), num);
   app.replaceChildren(box);
   const step = (k) => {
@@ -146,7 +151,8 @@ function countdown(n) {
 }
 
 function question(m) {
-  mode = "play"; chosen = null; lastQ = m; clearTimers();
+  mode = "play"; chosen = null; lastQ = m; clearTimers(); stopRec(); sayUi = null;
+  if (m.mode === "speak") return speakQuestion(m);
   const card = el("div", "card qcard"), top = el("div", "row");
   top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
   const bar = el("div", "timer"), fill = el("i"); bar.append(fill);
@@ -173,13 +179,20 @@ function pick(btn, opt, grid) {
   const c = document.querySelector('#pstrip .pc[data-id="' + myId + '"]'); if (c) c.classList.add("done");
 }
 function reveal(m) {
-  clearTimers();
+  clearTimers(); stopRec();
   const card = app.querySelector(".qcard");
+  if (lastQ && lastQ.mode === "speak") {
+    const mine0 = m.results.find((r) => r.id === myId);
+    if (mine0 && !mine0.ok && !wrongs.some((w) => w.tr === lastQ.tr)) wrongs.push({ tr: lastQ.tr, eng: m.correct, mine: sayLast || null, speak: true, lang: lastQ.lang });
+    if (sayUi) { sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true)); sayUi.heard.textContent = (mine0 && mine0.ok ? "✓ " : "✗ ") + m.correct; sayUi.heard.style.color = mine0 && mine0.ok ? "var(--ok)" : "var(--bad)"; }
+    if (canSpeak()) setTimeout(() => speak(m.correct, lastQ.lang), 250);
+  }
   app.querySelectorAll(".opts button").forEach((b) => {
     b.disabled = true; b.classList.remove("pick");
     if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("no");
   });
   const mine = m.results.find((r) => r.id === myId);
+  if (mine && !mine.ok && lastQ && lastQ.mode !== "speak" && !wrongs.some((w) => w.tr === lastQ.tr)) wrongs.push({ tr: lastQ.tr, eng: m.correct, mine: chosen, options: lastQ.options.slice() });
   if (mine && card) {
     if (mine.ok) {
       card.classList.add("ok"); FX.play("correct", mine.streak || 1); FX.vibrate(25);
@@ -194,6 +207,152 @@ function reveal(m) {
   prevRank = {}; rows.forEach((p, i) => (prevRank[p.id] = i));
   prevScores = {}; rows.forEach((p) => (prevScores[p.id] = p.score));
 }
+// Düello sonu: yanlış bildiğim kelimeler ve onlarla tekrar quizi
+function wrongBox() {
+  const box = el("div"); box.style.cssText = "text-align:left;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)";
+  if (!wrongs.length) { const p = el("p", "dim center", t("dperfect")); p.style.textAlign = "center"; box.append(p); return box; }
+  box.append(el("h2", "", t("dwrongTitle", wrongs.length)));
+  const l = el("div", "list"); l.style.marginTop = "10px";
+  wrongs.forEach((w) => {
+    const li = el("div", "li");
+    li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng + " · " + (w.mine ? t("dyours") + ": " + w.mine : t("dnoans"))));
+    l.append(li);
+  });
+  const b = el("button", "primary", t("retryWrong", wrongs.length)); b.style.cssText = "width:100%;margin-top:14px";
+  b.onclick = () => practice(wrongs.slice());
+  box.append(l, b);
+  return box;
+}
+
+function practice(items) {
+  if (items.length && items[0].speak) return practiceType(items);
+  mode = "play"; clearTimers(); // "play": oda mesajları bu ekranı bozmasın
+  const qs = shuf(items), miss = [];
+  let i = 0, right = 0;
+  const done = () => {
+    const card = el("div", "card center"), r = el("div", "row"); r.style.cssText = "justify-content:center;margin-top:16px";
+    card.append(el("h2", "", t("dpracDone", right, qs.length)));
+    if (miss.length) { const b = el("button", "primary", t("retryWrong", miss.length)); b.onclick = () => practice(miss.slice()); r.append(b); }
+    const back = el("button", miss.length ? "" : "primary", t("dback")); back.onclick = () => finish(lastEnd, true);
+    r.append(back); card.append(r); app.replaceChildren(card);
+    if (!miss.length) { FX.play("win"); FX.confetti(0.6); }
+  };
+  const step = () => {
+    if (i >= qs.length) return done();
+    const w = qs[i], card = el("div", "card qcard"), top = el("div", "row"), grid = el("div", "opts");
+    top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)));
+    shuf(w.options).forEach((o, k) => {
+      const b = el("button"); b.dataset.opt = o; b.append(el("span", "k", k + 1), el("span", "", o));
+      b.onclick = () => {
+        const ok = o === w.eng;
+        grid.querySelectorAll("button").forEach((x) => { x.disabled = true; if (x.dataset.opt === w.eng) x.classList.add("ok"); });
+        if (ok) { right++; FX.play("correct", 1); } else { b.classList.add("no"); miss.push(w); FX.play("wrong"); FX.shake(card); }
+        timers.push(setTimeout(() => { i++; step(); }, ok ? 700 : 1500));
+      };
+      grid.append(b);
+    });
+    card.append(top, el("div", "qword", w.tr), grid);
+    app.replaceChildren(card);
+  };
+  step();
+}
+
+
+/* ---------- Konuşma modu ---------- */
+function stopRec() { if (rec) { try { rec.abort(); } catch (e) {} rec = null; } }
+function sendSay(text) {
+  text = String(text || "").trim(); if (!text || chosen !== null) return;
+  sayLast = text;
+  if (sayUi) { sayUi.heard.textContent = t("sayHeard", text); sayUi.heard.style.color = ""; }
+  send({ t: "answer", choice: text });
+}
+function sayMiss(m) {
+  if (!sayUi || chosen !== null) return;
+  if (sayQueue.length && m.left > 0) return sendSay(sayQueue.shift()); // tanıyıcının diğer tahminini dene
+  sayUi.heard.textContent = "✗ " + t("sayHeard", sayLast); sayUi.heard.style.color = "var(--bad)";
+  FX.play("wrong"); FX.shake(sayUi.root);
+  if (m.left <= 0) { sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true)); }
+}
+function sayLock() {
+  chosen = "said"; stopRec();
+  if (!sayUi) return;
+  sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true));
+  sayUi.heard.textContent = "✓ " + sayLast; sayUi.heard.style.color = "var(--ok)"; sayUi.status.textContent = t("sayWaiting");
+  FX.play("tick");
+}
+function speakQuestion(m) {
+  sayQueue = []; sayLast = "";
+  const card = el("div", "card qcard"), top = el("div", "row"), bar = el("div", "timer"), fill = el("i"); bar.append(fill);
+  top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
+  const info = el("p", "dim small center", t("sayWord", langName(m.lang))), heard = el("div", "heard"), status = el("p", "dim small center");
+  const typed = el("input"), go = el("button", "", t("sayGo")), row = el("div", "sayrow");
+  typed.placeholder = t("sayType"); typed.maxLength = 60; typed.autocomplete = "off"; typed.setAttribute("autocapitalize", "off"); typed.spellcheck = false;
+  go.onclick = () => { sendSay(typed.value); typed.value = ""; };
+  typed.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  row.append(typed, go);
+  const micb = el("button", "mic");
+  micb.append(svg(ICONS.mic)); micb.setAttribute("aria-label", t("sayStart")); micb.title = t("sayStart");
+  const wrap = el("div", "center"); wrap.append(micb);
+  card.append(top, bar, el("div", "qword", m.tr), info);
+  if (SpeechRec) card.append(wrap); else status.textContent = t("sayNoMic");
+  card.append(heard, row, status);
+  const ps = room && room.players ? strip(room.players.map((p) => ({ ...p, score: (prevScores[p.id] || 0) }))) : el("div");
+  app.replaceChildren(ps, card);
+  sayUi = { root: card, heard, status, micb, typed, go };
+  if (!SpeechRec) typed.focus();
+  micb.onclick = () => {
+    if (rec) { stopRec(); micb.classList.remove("on"); return; }
+    const r = new SpeechRec(); rec = r;
+    r.lang = SPEECH_LANG[m.lang] || m.lang; r.interimResults = false; r.maxAlternatives = 3; r.continuous = false;
+    r.onstart = () => { micb.classList.add("on"); status.textContent = t("sayListening"); };
+    r.onresult = (e) => {
+      const res = e.results[e.results.length - 1], alts = [];
+      for (let k = 0; k < res.length; k++) alts.push(res[k].transcript);
+      sayQueue = alts.slice(1); sendSay(alts[0]);
+    };
+    r.onerror = (e) => { status.textContent = (e.error === "not-allowed" || e.error === "service-not-allowed") ? t("sayDenied") : e.error === "network" ? t("sayNoMic") : ""; };
+    r.onend = () => { micb.classList.remove("on"); if (rec === r) rec = null; if (status.textContent === t("sayListening")) status.textContent = ""; };
+    try { r.start(); } catch (e) { rec = null; }
+  };
+  fill.style.transition = `width ${m.seconds}s linear`;
+  requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  timers.push(setTimeout(() => bar.classList.add("hot"), Math.max(0, (m.seconds - 3) * 1000)));
+}
+
+// Konuşma düellosundan sonra yanlışlar için yazarak tekrar
+function practiceType(items) {
+  mode = "play"; clearTimers(); stopRec();
+  const qs = shuf(items), miss = [];
+  let i = 0, right = 0;
+  const done = () => {
+    const card = el("div", "card center"), r = el("div", "row"); r.style.cssText = "justify-content:center;margin-top:16px";
+    card.append(el("h2", "", t("dpracDone", right, qs.length)));
+    if (miss.length) { const b = el("button", "primary", t("retryWrong", miss.length)); b.onclick = () => practiceType(miss.slice()); r.append(b); }
+    const back = el("button", miss.length ? "" : "primary", t("dback")); back.onclick = () => finish(lastEnd, true);
+    r.append(back); card.append(r); app.replaceChildren(card);
+    if (!miss.length) { FX.play("win"); FX.confetti(0.6); }
+  };
+  const step = () => {
+    if (i >= qs.length) return done();
+    const w = qs[i], card = el("div", "card qcard"), top = el("div", "row"), inp = el("input"), go = el("button", "primary", t("sayGo")), row = el("div", "sayrow"), res = el("div", "heard");
+    top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)));
+    inp.placeholder = t("sayType"); inp.autocomplete = "off"; inp.setAttribute("autocapitalize", "off"); inp.spellcheck = false; inp.maxLength = 60;
+    const check = () => {
+      if (!inp.value.trim()) return; inp.disabled = go.disabled = true;
+      const ok = sayMatch(inp.value, w.eng);
+      res.textContent = (ok ? "✓ " : "✗ ") + w.eng; res.style.color = ok ? "var(--ok)" : "var(--bad)";
+      if (ok) { right++; FX.play("correct", 1); } else { miss.push(w); FX.play("wrong"); FX.shake(card); }
+      if (canSpeak()) speak(w.eng, w.lang);
+      timers.push(setTimeout(() => { i++; step(); }, ok ? 1100 : 1800));
+    };
+    go.onclick = check; inp.onkeydown = (e) => { if (e.key === "Enter") check(); };
+    row.append(inp, go);
+    card.append(top, el("div", "qword", w.tr), el("p", "dim small center", t("sayWord", langName(w.lang))), res, row);
+    app.replaceChildren(card); inp.focus();
+  };
+  step();
+}
+
 function podium(sc) {
   const order = [sc[1], sc[0], sc[2]].filter(Boolean), pod = el("div", "pod");
   order.forEach((p) => {
@@ -203,8 +362,8 @@ function podium(sc) {
   });
   return pod;
 }
-function finish(m) {
-  mode = "lobby"; clearTimers(); prevRank = {}; prevScores = {};
+function finish(m, quiet) {
+  mode = "lobby"; clearTimers(); prevRank = {}; prevScores = {}; lastEnd = m;
   const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
   const myPlace = m.scores.findIndex((p) => p.id === myId) + 1, won = myPlace === 1 && !tie;
   const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
@@ -218,9 +377,10 @@ function finish(m) {
   card.append(el("p", "dim small", t("gameOver")), el("h1", "", head));
   if (myPlace && !won) card.append(el("p", "dim", t("youPlace", myPlace)));
   if (m.scores.length >= 2) card.append(podium(m.scores));
-  card.append(pl, act);
+  card.append(pl, act, wrongBox());
   if (!(room && room.host === myId)) { const w = el("p", "dim small", t("hostRestarts")); w.style.marginTop = "12px"; card.append(w); }
   app.replaceChildren(card);
+  if (quiet) return;
   if (won || tie) { FX.play("win"); FX.confetti(1); FX.vibrate([80, 40, 80, 40, 160]); } else FX.play("lose");
 }
 

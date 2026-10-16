@@ -20,7 +20,38 @@ const ICONS = {
   settings: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
   moon: '<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',
+  speak: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',
 };
+
+/* ---------- Sesli okuma (cihazın kendi sesi, sunucuya hiçbir şey gitmez) ---------- */
+const SPEECH_LANG = { tr: "tr-TR", en: "en-US", fr: "fr-FR", it: "it-IT", de: "de-DE", es: "es-ES", pt: "pt-PT", ru: "ru-RU", ar: "ar-SA" };
+const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+function speak(text, lang) {
+  if (!canSpeak() || !text) return false;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text)), want = (SPEECH_LANG[lang] || lang || "en-US");
+    u.lang = want; u.rate = 0.9;
+    const v = (speechSynthesis.getVoices() || []).find((x) => String(x.lang).replace("_", "-").toLowerCase() === want.toLowerCase())
+      || (speechSynthesis.getVoices() || []).find((x) => String(x.lang).toLowerCase().startsWith(want.slice(0, 2).toLowerCase()));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+    return true;
+  } catch (e) { return false; }
+}
+/* Öğrenilen dil: arayüz dilinin dışındaki dil (arayüz Türkçe, çift tr>en ise İngilizce). */
+function learnLang(src, dst) { const ui = I18N.lang; return dst === ui ? src : src === ui ? dst : src; }
+function speakBtn(text, lang, cls) {
+  const b = el("span", "spk " + (cls || ""));
+  b.setAttribute("role", "button"); b.tabIndex = 0; b.title = t("listen"); b.setAttribute("aria-label", t("listen"));
+  b.append(svg(ICONS.speak));
+  const go = (e) => { e.preventDefault(); e.stopPropagation(); if (!speak(text, lang)) toast(t("noVoice")); };
+  b.onclick = go; b.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") go(e); };
+  return b;
+}
+/* Konuşmayı yazıya çeviren tarayıcı özelliği (Chrome/Edge). Yoksa null. */
+const SpeechRec = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition || null) : null;
 
 async function api(path, body) {
   const opt = body !== undefined ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
@@ -75,4 +106,28 @@ function mountTools(box) {
   paint();
   th.onclick = () => { I18N.setTheme(I18N.theme() === "dark" ? "light" : "dark"); paint(); };
   box.replaceChildren(sel, th);
+}
+
+const setBack = () => { document.getElementById("back").textContent = "← " + t("backToPanel"); };
+
+/* Konuşma/yazı eşleştirme: sunucudaki say_match ile aynı kural (kişisel tekrar quizi için). */
+function sayNorm(x) {
+  return String(x || "").replace(/İ/g, "i").replace(/I/g, "i").replace(/ı/g, "i").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean).join(" ");
+}
+function sayDist(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function sayMatch(heard, answer) {
+  const h = sayNorm(heard), a = sayNorm(answer);
+  if (!h || !a) return false;
+  if (h === a) return true;
+  const n = a.length, lim = n < 7 ? 0 : n < 11 ? 1 : 2;
+  return lim > 0 && Math.abs(h.length - n) <= lim && sayDist(h, a) <= lim;
 }

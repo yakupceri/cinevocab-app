@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineVocab · Daily</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<style>.stage{max-width:640px;margin:0 auto}.center{text-align:center}</style>
+<script src="/static/i18n.js"></script>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <a href="/account" id="back" class="dim small" style="text-decoration:none"></a>
+  <div id="tools" class="row" style="gap:6px"></div>
+</div></header>
+<main class="wrap"><div class="stage" id="app"></div></main>
+<script src="/static/common.js"></script>
+<script src="/static/fx.js"></script>
+<script>
+const app = document.getElementById("app");
+let P = { src: "tr", dst: "en" }, tmo = [], view = "info", lastResult = null;
+const clearT = () => { tmo.forEach(clearTimeout); tmo = []; };
+
+async function pickPair() {
+  const u = new URLSearchParams(location.search), s = u.get("src"), d = u.get("dst");
+  if (s && d && PAIR_LANGS.includes(s) && PAIR_LANGS.includes(d) && s !== d) return { src: s, dst: d };
+  try { const [a, b] = (localStorage.getItem("cv-pair") || "").split(":"); if (PAIR_LANGS.includes(a) && PAIR_LANGS.includes(b) && a !== b) return { src: a, dst: b }; } catch (e) {}
+  try { const ps = await api("/api/pairs"); if (ps.length) return { src: ps[0].src, dst: ps[0].dst }; } catch (e) {}
+  return { src: "tr", dst: "en" };
+}
+const qs = () => "?src=" + P.src + "&dst=" + P.dst;
+const pairLabel = () => langName(P.src) + " → " + langName(P.dst);
+
+function shell(...nodes) { app.replaceChildren(...nodes); }
+function headCard(info) {
+  const h = el("div", "head"), l = el("div");
+  l.append(el("h1", "", t("dcTitle")), el("p", "", t("dcSub") + " · " + pairLabel()));
+  h.append(l); return h;
+}
+
+async function home(err) {
+  view = "info"; clearT();
+  let info;
+  try { info = await api("/api/daily" + qs()); }
+  catch (e) { if (e.status === 401) { location = "/account"; return; } shell(headCard(), el("div", "card", e.message || t("dcLoadErr"))); return; }
+  if (!info.ready) {
+    const c = el("div", "card center"); c.append(el("h2", "", t("dcNum", info.num)), el("p", "dim", t("dcNo")));
+    const b = el("a", "", "←"); b.href = "/account"; c.append(b);
+    return shell(headCard(), c);
+  }
+  if (info.done) return result(info.result, true);
+  const c = el("div", "card center daily-card"), chips = el("div", "chips"); chips.style.justifyContent = "center";
+  chips.append(chip(t("dcNum", info.num)));
+  if (info.streak) chips.append(chip("🔥 " + t("dcStreakN", info.streak)));
+  const go = el("button", "primary go-btn", info.started ? t("dcResume") : t("dcPlay"));
+  go.style.cssText = "width:100%;margin-top:18px";
+  go.onclick = () => { FX.play("go"); play(); };
+  c.append(el("h2", "", t("dcTitle")), chips, el("p", "dim", t("dcCard")), go);
+  shell(headCard(), c, el("div"));
+  board(app);
+}
+function chip(text) { return el("span", "chip", text); }
+
+async function play() {
+  let st;
+  try { st = await api("/api/daily/start", { src: P.src, dst: P.dst }); }
+  catch (e) { if (e.status === 409) return home(); toast(e.message); return; }
+  view = "play";
+  const Q = st.questions, SEC = st.seconds, grid = st.progress.map((p) => (p.ok ? "🟩" : "🟥"));
+  let i = st.progress.length, score = st.score;
+  const step = () => {
+    clearT();
+    if (i >= Q.length) return home();
+    const q = Q[i], card = el("div", "card qcard in"), hud = el("div", "hud"), scEl = el("span", "sc", String(score));
+    hud.append(el("span", "dim small", t("qOf", i + 1, Q.length)), el("span", "dim small", grid.join("")), scEl);
+    const bar = el("div", "tbar"), fill = el("i"); bar.append(fill);
+    const og = el("div", "opts"), btns = [];
+    let locked = false;
+    const t0 = performance.now();
+    q.options.forEach((o, k) => {
+      const b = el("button"); b.append(el("span", "k", k + 1), el("span", "", o));
+      b.onclick = () => answer(b, o); og.append(b); btns.push(b);
+    });
+    card.append(hud, bar, el("div", "qword", q.tr), og);
+    shell(card);
+    fill.style.transition = "none"; fill.style.transform = "scaleX(1)";
+    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.transition = "transform " + SEC + "s linear"; fill.style.transform = "scaleX(0)"; }));
+    tmo.push(setTimeout(() => bar.classList.add("low"), (SEC - 3) * 1000));
+    tmo.push(setTimeout(() => answer(null, ""), SEC * 1000));
+    const onKey = (e) => {
+      if (!document.body.contains(card)) { document.removeEventListener("keydown", onKey); return; }
+      const n = parseInt(e.key, 10); if (n >= 1 && n <= 4 && !locked) btns[n - 1].click();
+    };
+    document.addEventListener("keydown", onKey);
+
+    async function answer(btn, choice) {
+      if (locked) return; locked = true; clearT(); fill.style.transition = "none";
+      btns.forEach((b) => (b.disabled = true));
+      let r;
+      try { r = await api("/api/daily/answer", { src: P.src, dst: P.dst, idx: i, choice, ms: Math.round(performance.now() - t0) }); }
+      catch (e) { toast(e.message); tmo.push(setTimeout(home, 1200)); return; }
+      btns.forEach((b) => { if (b.lastChild.textContent === r.correct) b.classList.add("ok"); else if (b === btn) b.classList.add("no"); });
+      grid.push(r.ok ? "🟩" : "🟥"); score = r.score; scEl.textContent = score; FX.bump(scEl);
+      if (r.ok) { card.classList.add("ok"); FX.play("correct", 1); FX.vibrate(14); if (btn) FX.float(btn, "+" + r.delta, "good"); }
+      else { card.classList.add("no"); FX.play("wrong"); FX.shake(card); FX.vibrate([50, 40, 50]); }
+      i++;
+      tmo.push(setTimeout(() => { if (r.done) result(r.result, false); else step(); }, r.ok ? 900 : 1500));
+    }
+  };
+  step();
+}
+
+function shareText(r) {
+  return "CineVocab " + t("dcNum", r.num) + "\n" + r.grid + "\n" + t("dcScoreLine", r.correct, r.total, r.score) + (r.streak >= 2 ? " · 🔥" + r.streak : "") + "\n" + location.origin + "/daily";
+}
+async function share(r) {
+  const text = shareText(r);
+  try { if (navigator.share) { await navigator.share({ text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(text); toast(t("dcCopied")); }
+  catch (e) { window.prompt(t("dcShare"), text); }
+}
+function result(r, already) {
+  view = "result"; clearT(); lastResult = r;
+  const c = el("div", "card center daily-card"), big = el("div", "big", String(r.score));
+  c.append(el("p", "dim small", t("dcNum", r.num) + " · " + pairLabel()), big, el("p", "dim", t("result", r.correct, r.total)));
+  c.append(el("div", "grid-emoji", r.grid));
+  if (r.rank) c.append(el("p", "", t("dcRank", r.rank, r.players)));
+  if (r.streak >= 2) { const ch = el("div", "chips"); ch.style.justifyContent = "center"; ch.append(chip("🔥 " + t("dcStreakN", r.streak))); c.append(ch); }
+  const sh = el("button", "primary", t("dcShare")); sh.style.cssText = "width:100%;margin-top:16px"; sh.onclick = () => share(r);
+  c.append(sh, el("p", "dim small", already ? t("dcPlayed") + " " + t("dcNext") : t("dcNext")));
+  c.lastChild.style.marginTop = "12px";
+  shell(headCard(), c, el("div"));
+  board(app);
+  if (!already) { FX.count(big, r.score, 900); if (r.correct >= 8) { FX.play("win"); FX.confetti(0.9); } }
+}
+function board(host) {
+  const card = el("div", "card board"), list = el("div"); card.style.marginTop = "16px";
+  card.append(el("h2", "", t("dcBoard")), list); list.style.marginTop = "8px";
+  host.append(card);
+  api("/api/daily/board" + qs()).then((d) => {
+    if (!d.rows.length) return list.replaceChildren(el("p", "dim", t("dcEmpty")));
+    const ul = el("ul", "players");
+    d.rows.forEach((r, i) => {
+      const li = el("li", r.me ? "me" : ""), nm = el("span", "nm", flag(r.country) + r.username);
+      if (r.me) nm.append(el("span", "tag", t("you")));
+      li.append(el("span", "rk", i + 1), nm, el("span", "dim small", r.correct + "/" + 10), el("b", "", r.score)); ul.append(li);
+    });
+    list.replaceChildren(ul);
+  }).catch(() => {});
+}
+
+I18N.onChange(() => { mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("dcTitle"); if (view === "info") home(); else if (view === "result" && lastResult) result(lastResult, true); });
+mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("dcTitle");
+pickPair().then((p) => { P = p; home(); });
+</script>
+</body>
+</html>

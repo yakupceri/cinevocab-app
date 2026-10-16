@@ -337,7 +337,7 @@ def delete_account(c: DeleteReq, request: Request, response: Response):
 
 
 def delete_user_data(uid: int):
-    for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress"):
+    for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress", "daily_play"):
         try:
             q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
         except Exception as e:
@@ -456,13 +456,15 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 10 Ekim 2026</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 17 Ekim 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube ve Udemy'de altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li></ul>
+<h2>Sesli okuma ve mikrofon (isteğe bağlı)</h2><p>Kelimeleri seslendirme özelliği cihazının kendi sesini kullanır; sunucuya hiçbir şey gönderilmez. Konuşma düellosunda mikrofonu yalnızca sen düğmeye dokununca kullanabilirsin. Konuşmayı yazıya çevirme işini tarayıcın yapar (Chrome, sesi bu iş için Google'ın konuşma tanıma hizmetine gönderebilir). Sunucumuz yalnızca tanınan <b>metni</b> alır; ses kaydı almaz, saklamaz. İstersen mikrofon yerine cevabı yazabilirsin.</p>
+<h2>Günlük meydan okuma</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür.</p>
 <h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
 <h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
 <h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, hesap sayfandaki <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin.</p>
@@ -470,7 +472,33 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <p>CineVocab, Amazon, Prime Video, Google, YouTube ve Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
 
 
+PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CineVocab Privacy Policy</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
+<p><a href="/privacy?lang=tr">Türkçe</a></p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: October 17, 2026</p>
+<h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube and Udemy, and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list.</p>
+<h2>What data we collect</h2><ul>
+<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash), your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
+<li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
+<li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
+<li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li></ul>
+<h2>Read-aloud and microphone (optional)</h2><p>The read-aloud feature uses your device's own voices; nothing is sent to our server. In the speaking duel the microphone is used only when you tap the button. Your browser converts speech to text (Chrome may send the audio to Google's speech-recognition service for this). Our server receives only the recognised <b>text</b>; we do not receive, record or store audio. You can type your answer instead of using the microphone.</p>
+<h2>Daily challenge</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard.</p>
+<h2>Third parties</h2><p>Subtitle sentences and words are sent to the Google Translate service (translate.googleapis.com) to be translated. The server is hosted on Railway. We do not sell your data, use it for advertising, or share it for any other purpose.</p>
+<h2>Cookies and local storage</h2><p>The website uses a session cookie to keep you logged in. The extension uses browser storage to keep your extension key and settings.</p>
+<h2>Deleting your data</h2><p>You can delete your account and all of your data at any time with the <b>Delete my account</b> button on your account page. You can also ask us to delete it by writing to the address below.</p>
+<h2>Contact</h2><p>__CONTACT__</p>
+<p>CineVocab is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube or Udemy.</p></body></html>"""
+
+
 @router.get("/privacy", response_class=HTMLResponse)
-def privacy():
-    mail = os.environ.get("CONTACT_EMAIL", "").strip() or "[CONTACT_EMAIL ortam değişkenini ayarla]"
-    return PRIVACY.replace("__CONTACT__", mail)
+def privacy(request: Request):
+    """?lang=tr|en; yoksa tarayıcı diline göre (Türkçe değilse İngilizce)."""
+    mail = os.environ.get("CONTACT_EMAIL", "").strip() or "[set the CONTACT_EMAIL environment variable]"
+    lang = (request.query_params.get("lang") or "").lower()
+    if lang not in ("tr", "en"):
+        lang = "tr" if request.headers.get("accept-language", "").lower().startswith("tr") else "en"
+    if lang == "tr":
+        return PRIVACY.replace("__CONTACT__", mail).replace("<h1>", '<p><a href="/privacy?lang=en">English</a></p><h1>', 1)
+    return PRIVACY_EN.replace("__CONTACT__", mail)
