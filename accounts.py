@@ -337,7 +337,13 @@ def delete_account(c: DeleteReq, request: Request, response: Response):
 
 
 def delete_user_data(uid: int):
-    for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress", "daily_play"):
+    try:
+        import leagues
+        leagues.on_user_deleted(uid)
+    except Exception as e:
+        print(f"Lig temizleme hatası: {e}")
+    for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress", "daily_play",
+              "word_stats", "xp_log"):
         try:
             q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
         except Exception as e:

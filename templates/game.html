@@ -16,6 +16,18 @@
   .opts button .k { width:24px; height:24px; border-radius:6px; background:var(--bg2); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; color:var(--dim); flex:none; }
   .opts button.pick { border-color:var(--accent); background:var(--accent-soft); }
   .d { color:var(--ok); margin-left:10px; font-size:14px; font-weight:700; } .d.x { color:var(--bad); }
+  .scr-code { font:800 clamp(80px,18vw,200px)/1 var(--display); letter-spacing:.12em; text-align:center; padding-left:.12em; }
+  .scr-word { font:800 clamp(48px,9vw,120px)/1.05 var(--display); text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
+  .scr-opts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .scr-opts .o { position:relative; border-radius:14px; padding:22px 24px; font:700 clamp(22px,3.6vw,44px)/1.1 var(--display); color:#fff; display:flex; align-items:center; gap:16px; overflow:hidden; }
+  .scr-opts .o b { font-size:.7em; opacity:.85; border:2px solid rgba(255,255,255,.6); border-radius:8px; width:1.5em; height:1.5em; display:grid; place-items:center; flex:none; }
+  .scr-opts .o.c0 { background:#c0392b; } .scr-opts .o.c1 { background:#2a6fb0; } .scr-opts .o.c2 { background:#b8860b; } .scr-opts .o.c3 { background:#2e8b57; }
+  .scr-opts .o.dim { opacity:.28; } .scr-opts .o.right { outline:5px solid var(--ok); }
+  .scr-opts .o .n { margin-left:auto; font-size:.9em; }
+  .scr-bar { display:flex; align-items:center; gap:14px; } .scr-bar .grow { flex:1; }
+  .scr-chips { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
+  .scr-chips .pc { font-size:20px; padding:8px 16px; }
+  .scr-top { margin-top:20px; display:grid; gap:6px; }
   .timer.hot i { background:var(--bad) !important; } .timer { height:8px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
 </style>
 <script src="/static/i18n.js"></script>
@@ -33,8 +45,9 @@
 <script>
 const app = document.getElementById("app");
 let ws, myId = "", room = null, chosen = null, me = { username: "" }, lastQ = null, mode = "home";
+let scrAns = 0, scrTotal = 0;
 let rec = null, sayQueue = [], sayLast = "", sayUi = null; // konuşma modu
-let wrongs = [], lastEnd = null; // bu oyunda yanlış bildiklerim
+let wrongs = [], lastEnd = null, seenLog = []; // seenLog: akıllı tekrar için {w, ok} // bu oyunda yanlış bildiklerim
 const errBox = el("div", "err");
 
 function connect(first) {
@@ -127,19 +140,21 @@ function lobby(info) {
 
 function handle(m) {
   if (m.t === "me") myId = m.id;
-  else if (m.t === "room") { room = m; if (mode !== "play") lobby(m); else room = m; }
+  else if (m.t === "closed") { room = null; mode = "home"; ws.close(); home(t("scrClosed")); }
+  else if (m.t === "room") { room = m; app.style.maxWidth = isScreen() ? "1100px" : ""; if (mode !== "play") (isScreen() ? sLobby(m) : lobby(m)); else room = m; }
   else if (m.t === "error") { const msg = I18N.err(m.msg); if (room) { errBox.textContent = msg; toast(msg); } else { ws.close(); home(msg); } }
   else if (m.t === "countdown") countdown(m.seconds || 3);
   else if (m.t === "say_miss") sayMiss(m);
+  else if (m.t === "answered" && isScreen()) { scrAns++; const c = document.getElementById("scount"); if (c) c.textContent = t("scrAnswered", scrAns, scrTotal); FX.play("tick"); }
   else if (m.t === "answered") { const c = document.querySelector('#pstrip .pc[data-id="' + m.id + '"]'); if (c) { c.classList.add("done"); FX.bump(c); } if (m.id !== myId) FX.play("tick"); else if (sayUi) sayLock(); }
-  else if (m.t === "question") question(m);
-  else if (m.t === "reveal") reveal(m);
-  else if (m.t === "end") finish(m);
+  else if (m.t === "question") (isScreen() ? sQuestion(m) : question(m));
+  else if (m.t === "reveal") (isScreen() ? sReveal(m) : reveal(m));
+  else if (m.t === "end") (isScreen() ? sEnd(m) : finish(m));
 }
 
 function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 function countdown(n) {
-  mode = "play"; clearTimers(); prevRank = {}; streaks = {}; wrongs = [];
+  mode = "play"; clearTimers(); prevRank = {}; streaks = {}; wrongs = []; seenLog = [];
   const box = el("div", "card center"); let num = el("div", "cd");
   box.append(el("p", "dim", t("getReady")), num);
   app.replaceChildren(box);
@@ -192,6 +207,7 @@ function reveal(m) {
     if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("no");
   });
   const mine = m.results.find((r) => r.id === myId);
+  if (mine && lastQ && lastQ.mode !== "speak" && !seenLog.some((x) => x.w === lastQ.tr)) seenLog.push({ w: lastQ.tr, ok: mine.ok });
   if (mine && !mine.ok && lastQ && lastQ.mode !== "speak" && !wrongs.some((w) => w.tr === lastQ.tr)) wrongs.push({ tr: lastQ.tr, eng: m.correct, mine: chosen, options: lastQ.options.slice() });
   if (mine && card) {
     if (mine.ok) {
@@ -353,6 +369,68 @@ function practiceType(items) {
   step();
 }
 
+
+/* ---------- Büyük ekran (sunum) modu: kurucu oyuncu değil, ekran. Oyuncular telefondan katılır. ---------- */
+const isScreen = () => !!(room && room.screen && room.host === myId);
+const SCR_LETTERS = ["A", "B", "C", "D"];
+function sLobby(info) {
+  mode = "lobby";
+  const card = el("div", "card center"), start = el("button", "primary", t("scrStart")), leave = el("button", "ghost", t("leave"));
+  start.style.cssText = "font-size:22px;padding:14px 36px"; start.disabled = !info.players.length;
+  start.onclick = () => send({ t: "start" });
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
+  if (info.locked) meta.push(t("locked"));
+  const chips = el("div", "scr-chips");
+  info.players.forEach((p) => { const c = el("div", "pc"); c.append(avatar(p.name), el("span", "", p.name.slice(0, 16))); chips.append(c); });
+  card.append(el("p", "dim", t("scrJoinAt", location.host + "/game")), el("div", "scr-code", info.code), el("p", "dim small", meta.join(" · ")),
+    el("p", "", info.players.length ? t("scrPlayers", info.players.length) : t("scrWaiting")), chips);
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:24px"; act.append(start, leave);
+  errBox.textContent = ""; card.append(act, errBox);
+  app.replaceChildren(card);
+}
+function sQuestion(m) {
+  mode = "play"; lastQ = m; clearTimers(); scrAns = 0; scrTotal = room && room.players ? room.players.length : 0;
+  const card = el("div", "card qcard"), top = el("div", "scr-bar"), bar = el("div", "timer"), fill = el("i"); bar.append(fill);
+  const cnt = el("span", "dim", t("scrAnswered", 0, scrTotal)); cnt.id = "scount";
+  top.append(el("span", "dim", t("qOf", m.idx + 1, m.total)), el("span", "grow"), cnt);
+  const og = el("div", "scr-opts");
+  m.options.forEach((o, i) => { const d = el("div", "o c" + i); d.dataset.opt = o; d.append(el("b", "", SCR_LETTERS[i]), el("span", "", o)); og.append(d); });
+  top.style.marginBottom = "10px";
+  card.append(top, bar, el("div", "scr-word", m.tr), og);
+  app.replaceChildren(card);
+  fill.style.transition = `width ${m.seconds}s linear`;
+  requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  timers.push(setTimeout(() => bar.classList.add("hot"), Math.max(0, (m.seconds - 3) * 1000)));
+}
+function sReveal(m) {
+  clearTimers();
+  app.querySelectorAll(".scr-opts .o").forEach((d) => {
+    const n = (m.dist && m.dist[d.dataset.opt]) || 0;
+    if (d.dataset.opt === m.correct) d.classList.add("right"); else d.classList.add("dim");
+    d.append(el("span", "n", n));
+  });
+  const ok = m.results.filter((r) => r.ok).length;
+  FX.play(ok ? "correct" : "wrong", 1);
+  const rows = [...m.results].sort((a, b) => b.score - a.score).slice(0, 5), c = el("div", "card scr-top");
+  c.append(el("b", "", t("scrTop")), playerList(rows, { delta: true, rank: true }));
+  const old = app.querySelector(".scr-top"); if (old) old.remove();
+  app.append(c);
+  prevRank = {}; [...m.results].sort((a, b) => b.score - a.score).forEach((p, i) => (prevRank[p.id] = i));
+}
+function sEnd(m) {
+  mode = "lobby"; clearTimers(); prevRank = {};
+  const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
+  again.onclick = () => send({ t: "start" }); leave.onclick = () => { room = null; ws.close(); home(); };
+  const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
+  card.append(el("p", "dim small", t("gameOver")), el("h1", "", tie ? t("tie") : t("winner", top.name)));
+  if (m.scores.length >= 2) card.append(podium(m.scores));
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:16px"; pl.append(playerList(m.scores.slice(0, 10), { rank: true }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:16px"; act.append(again, leave);
+  card.append(pl, act); app.replaceChildren(card);
+  FX.play("win"); FX.confetti(1);
+}
+
 function podium(sc) {
   const order = [sc[1], sc[0], sc[2]].filter(Boolean), pod = el("div", "pod");
   order.forEach((p) => {
@@ -381,6 +459,7 @@ function finish(m, quiet) {
   if (!(room && room.host === myId)) { const w = el("p", "dim small", t("hostRestarts")); w.style.marginTop = "12px"; card.append(w); }
   app.replaceChildren(card);
   if (quiet) return;
+  if (seenLog.length && room) { api("/api/srs/report", { src: room.src || "tr", dst: room.dst || "en", items: seenLog }).catch(() => {}); seenLog = []; }
   if (won || tie) { FX.play("win"); FX.confetti(1); FX.vibrate([80, 40, 80, 40, 160]); } else FX.play("lose");
 }
 

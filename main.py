@@ -22,7 +22,9 @@ from accounts import (router, init_accounts, user_from_request, user_from_token,
 import admin
 
 import daily
+import leagues
 import multilang
+import srs
 import vocab
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +32,8 @@ app = FastAPI()
 app.include_router(router)
 app.include_router(admin.router)
 app.include_router(daily.router)
+app.include_router(srs.router)
+app.include_router(leagues.router)
 app.include_router(vocab.router)
 
 app.add_middleware(
@@ -344,6 +348,8 @@ try:
     init_accounts(DB_CONFIG)
     multilang.init(DB_CONFIG)
     daily.init(lambda src, dst: global_pairs(src, dst))
+    srs.init(lambda pairs, src, dst: quality_pairs(pairs, src, dst))
+    leagues.init()
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")
@@ -1028,6 +1034,11 @@ def all_translations(src: str, dst: str) -> list:
     return list({w["eng"] for w in valid_pairs(rows, (src, dst) == ("tr", "en"))})
 
 
+def quality_pairs(pairs, src: str, dst: str) -> dict:
+    """[(kelime, çeviri)] içinden quizde sorulabilir olanlar: {kelime: çeviri}."""
+    return {w["tr"]: w["eng"] for w in valid_pairs(list(pairs), (src, dst) == ("tr", "en"))}
+
+
 def global_pairs(src: str, dst: str) -> list:
     """Bu dil çiftindeki tüm kaliteli (kelime, çeviri) çiftleri; aynı çeviri bir kez. Günlük meydan okuma için."""
     legacy = (src, dst) == ("tr", "en")
@@ -1127,8 +1138,10 @@ def build_speak_questions(episode: str, uids: list, n: int, src: str, dst: str, 
 
 class Room:
     def __init__(self, code: str, episode: str, src="tr", dst="en", n=N_QUESTIONS, seconds=Q_SECONDS, password="",
-                 mode="choice", learn="dst"):
+                 mode="choice", learn="dst", screen=False, host_uid=0):
         self.code, self.episode = code, episode
+        self.screen, self.host_uid = screen, host_uid   # screen: sunum modu, kurucu oyuncu değil ekran
+        self.watchers = {}     # pid -> {"name", "ws"} (sunum ekranı)
         self.mode, self.learn = mode, learn
         self.src, self.dst, self.n, self.seconds, self.password = src, dst, n, seconds, password
         self.players = {}      # pid -> {"name", "ws", "score"}
@@ -1143,7 +1156,7 @@ class Room:
 
 
 async def broadcast(room: Room, msg: dict):
-    for p in list(room.players.values()):
+    for p in list(room.players.values()) + list(room.watchers.values()):
         try:
             await p["ws"].send_json(msg)
         except Exception:
@@ -1154,7 +1167,7 @@ def room_info(room: Room) -> dict:
     return {
         "t": "room", "code": room.code, "episode": room.episode, "host": room.host,
         "src": room.src, "dst": room.dst, "n": room.n, "seconds": room.seconds,
-        "locked": bool(room.password), "mode": room.mode, "learn": room.learn,
+        "locked": bool(room.password), "mode": room.mode, "learn": room.learn, "screen": room.screen,
         "players": [{"id": pid, "name": p["name"], "score": p["score"]}
                     for pid, p in room.players.items()],
     }
@@ -1162,7 +1175,8 @@ def room_info(room: Room) -> dict:
 
 async def run_game(room: Room):
     try:
-        uids = [p["uid"] for p in room.players.values()]
+        # Sunum modunda sorular kurucunun (öğretmenin) kelimelerinden gelir, oyuncuların değil.
+        uids = [room.host_uid] if room.screen else [p["uid"] for p in room.players.values()]
         if room.mode == "speak":
             questions = await asyncio.to_thread(build_speak_questions, room.episode, uids, room.n,
                                                 room.src, room.dst, room.learn)
@@ -1180,6 +1194,7 @@ async def run_game(room: Room):
     await asyncio.sleep(3.2)
     for i, q in enumerate(questions):
         if not room.players:
+            room.state = "lobby"
             return
         room.answers, room.event, room.q_start = {}, asyncio.Event(), time.time()
         room.tries = {}
@@ -1208,7 +1223,10 @@ async def run_game(room: Room):
             p["score"] += delta
             results.append({"id": pid, "name": p["name"], "ok": ok, "delta": delta, "score": p["score"],
                             "streak": p["streak"]})
-        await broadcast(room, {"t": "reveal", "correct": correct_text, "results": results})
+        dist = {}
+        for a in room.answers.values():
+            dist[a[0]] = dist.get(a[0], 0) + 1
+        await broadcast(room, {"t": "reveal", "correct": correct_text, "results": results, "dist": dist})
         await asyncio.sleep(REVEAL_SECONDS)
     room.state = "done"
     final = sorted(room.players.items(), key=lambda kv: -kv[1]["score"])
@@ -1223,15 +1241,31 @@ async def run_game(room: Room):
 
 
 async def leave_room(room, pid):
-    if not room or pid not in room.players:
+    if not room:
+        return
+    if pid in room.watchers:
+        room.watchers.pop(pid, None)
+        if room.screen:   # ekran kapandı: oyun biter
+            if room.task:
+                room.task.cancel()
+            await broadcast(room, {"t": "closed"})
+            ROOMS.pop(room.code, None)
+        return
+    if pid not in room.players:
         return
     room.players.pop(pid, None)
+    if not room.players and room.screen:
+        if room.state == "playing" and room.task:
+            room.task.cancel()
+        room.state = "lobby"
+        await broadcast(room, room_info(room))
+        return
     if not room.players:
         if room.task:
             room.task.cancel()
         ROOMS.pop(room.code, None)
         return
-    if room.host == pid:
+    if room.host == pid and not room.screen:
         room.host = next(iter(room.players))
     if room.state == "playing" and len(room.answers) >= len(room.players):
         room.event.set()
@@ -1269,7 +1303,8 @@ async def ws_endpoint(ws: WebSocket):
                     except (TypeError, ValueError):
                         qn, qsec = N_QUESTIONS, Q_SECONDS
                     pw = str(msg.get("password") or "")[:30]
-                    rmode = "speak" if msg.get("mode") == "speak" else "choice"
+                    screen = bool(msg.get("screen"))
+                    rmode = "speak" if (msg.get("mode") == "speak" and not screen) else "choice"
                     learn = "src" if msg.get("learn") == "src" else "dst"
                     n = len(await asyncio.to_thread(episode_pool, episode, [user["id"]], src, dst))
                     if n < 4:
@@ -1277,7 +1312,7 @@ async def ws_endpoint(ws: WebSocket):
                         continue
                     code = next(c for c in (f"{random.randint(0, 9999):04d}" for _ in range(1000))
                                 if c not in ROOMS)
-                    room = ROOMS[code] = Room(code, episode, src, dst, qn, qsec, pw, rmode, learn)
+                    room = ROOMS[code] = Room(code, episode, src, dst, qn, qsec, pw, rmode, learn, screen, user["id"])
                     room.host = pid
                 else:
                     room = ROOMS.get(str(msg.get("code") or "").strip())
@@ -1289,15 +1324,21 @@ async def ws_endpoint(ws: WebSocket):
                         room = None
                         await ws.send_json({"t": "error", "msg": "Oda şifresi yanlış."})
                         continue
-                room.players[pid] = {"name": name, "ws": ws, "score": 0, "uid": user["id"]}
+                if room.screen and t == "create":
+                    room.watchers[pid] = {"name": name, "ws": ws}
+                else:
+                    room.players[pid] = {"name": name, "ws": ws, "score": 0, "uid": user["id"]}
                 await ws.send_json({"t": "me", "id": pid})
                 await broadcast(room, room_info(room))
 
             elif t == "start" and room and room.host == pid and room.state == "lobby":
+                if room.screen and not room.players:
+                    await ws.send_json({"t": "error", "msg": "En az 1 oyuncu katılmalı."})
+                    continue
                 room.state = "playing"  # çift başlatmayı engeller
                 room.task = asyncio.create_task(run_game(room))
 
-            elif t == "answer" and room and room.state == "playing" and pid not in room.answers:
+            elif t == "answer" and room and room.state == "playing" and pid in room.players and pid not in room.answers:
                 text = str(msg.get("choice"))[:80]
                 if room.mode == "speak":
                     # Konuşma tanıma hatası olabilir: yanlış denemeler serbest (en çok 6), doğru olan kaydedilir.
@@ -1341,6 +1382,11 @@ def game_page(request: Request):
 @app.get("/daily", response_class=HTMLResponse)
 def daily_page(request: Request):
     return templates.TemplateResponse(request, "daily.html")
+
+
+@app.get("/join/{code}", response_class=HTMLResponse)
+def join_page(code: str, request: Request):
+    return templates.TemplateResponse(request, "join.html")
 
 
 @app.get("/health")

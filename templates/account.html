@@ -23,6 +23,7 @@
 <script>
 const app = document.getElementById("app");
 let me = null, pairs = [], PAIR = loadPair(), V = { words: [], known: [] }, VIDS = [];
+let LG = { open: null, period: "week" };
 let tab = "words", Q = "", EP = "", SHOW = 240, LBP = "all", LBS = "people";
 const SELW = new Set(), SELV = new Set(), SELK = new Set();
 
@@ -140,10 +141,13 @@ function authView() {
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { me = null; return authView(); }
   loadG(); await syncG();
+  let joined = null;
+  try { const jc = localStorage.getItem("cv-join"); if (jc) { localStorage.removeItem("cv-join"); joined = await api("/api/leagues/join", { code: jc }); tab = "leagues"; LG.open = joined.id; } } catch (e) { if (e && e.message) setTimeout(() => toast(e.message), 700); }
   try { pairs = await api("/api/pairs"); } catch (e) { pairs = []; }
   let saved = false; try { saved = !!localStorage.getItem("cv-pair"); } catch (e) {}
   if (!saved && pairs.length) PAIR = { src: pairs[0].src, dst: pairs[0].dst };
   await reload();
+  if (joined && joined.joined) toast(t("lgJoined", joined.name));
 }
 async function reload() {
   const qs = "?src=" + PAIR.src + "&dst=" + PAIR.dst;
@@ -181,7 +185,7 @@ function newPairModal() {
   c.children[1].style.marginBottom = "14px"; m.append(c); document.body.append(m);
 }
 
-const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["settings", "settings"]];
+const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["leagues", "league"], ["settings", "settings"]];
 const uniqWords = () => { const m = new Map(); V.words.forEach((w) => { if (!m.has(w.tr)) m.set(w.tr, w); }); return [...m.values()]; };
 const counts = () => ({ words: uniqWords().length, videos: VIDS.length, known: V.known.length });
 
@@ -196,7 +200,7 @@ function render() {
     nav.append(mkb(true)); bar.append(mkb(false));
   });
   const main = el("div");
-  main.append({ words: tWords, videos: tVideos, known: tKnown, practice: tPractice, duel: tDuel, settings: tSettings }[tab]());
+  main.append({ words: tWords, videos: tVideos, known: tKnown, practice: tPractice, duel: tDuel, leagues: tLeagues, settings: tSettings }[tab]());
   const lay = el("div", "layout"); lay.append(nav, main);
   app.replaceChildren(lay);
   document.body.append(bar);
@@ -508,15 +512,55 @@ function tPractice() {
   dcard.href = "/daily?src=" + PAIR.src + "&dst=" + PAIR.dst; dcard.style.cssText = "display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;margin-top:16px;border-color:var(--accent)";
   dtx.append(el("h2", "", "📅 " + t("dcTitle")), el("p", "dim small", t("dcSub")));
   dcard.append(dtx, el("span", "grow"), el("b", "", "→"));
-  intro.append(pc, dcard, modes, setup);
+  const srsBox = el("div"); srsBox.style.marginTop = "16px";
+  loadSrs(srsBox, area, intro, engs);
+  intro.append(pc, dcard, srsBox, modes, setup);
   box.append(intro, area);
   return box;
+}
+
+/* Akıllı tekrar kartı + zor kelimeler tablosu */
+function loadSrs(host, area, intro, engs) {
+  api("/api/srs?src=" + PAIR.src + "&dst=" + PAIR.dst).then((d) => {
+    const c = el("div", "card in"), chips = el("div", "chips");
+    chips.append(chip(null, t("srsDue", d.due), d.due ? "fire" : ""), chip(null, t("srsNew", d.new)), chip(null, t("srsLearning", d.learning)), chip(null, t("srsMastered", d.mastered)));
+    const row = el("div", "row"); row.style.marginTop = "12px";
+    const go = el("button", "primary", t("srsStart"));
+    go.disabled = d.due + d.new < 4;
+    go.onclick = () => startSrs(false, area, intro, engs);
+    row.append(go);
+    c.append(el("h2", "", "🧠 " + t("srsTitle")), el("p", "dim small", t("srsSub")), chips, row);
+    if (go.disabled) c.append(el("p", "dim small", t("srsNone")));
+    host.append(c);
+    const h = el("div", "card in"); h.style.marginTop = "16px";
+    h.append(el("h2", "", "🔥 " + t("hardTitle")));
+    if (!d.hard.length) h.append(el("p", "dim small", t("hardEmpty")));
+    else {
+      const l = el("div", "list"); l.style.marginTop = "8px";
+      d.hard.slice(0, 8).forEach((w) => { const li = el("div", "li"); li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng), el("span", "dim small", "✗" + w.wrong + " ✓" + w.right)); if (canSpeak()) li.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst))); l.append(li); });
+      const hb = el("button", "primary", t("hardStudy", d.hard.length)); hb.style.marginTop = "12px"; hb.disabled = d.hard.length < 4;
+      hb.onclick = () => startSrs(true, area, intro, engs);
+      h.append(l, hb);
+      if (hb.disabled) h.append(el("p", "dim small", t("hardNeed")));
+    }
+    host.append(h);
+  }).catch(() => {});
+}
+async function startSrs(hard, area, intro, engs) {
+  try {
+    const d = await api("/api/srs/session?src=" + PAIR.src + "&dst=" + PAIR.dst + "&n=" + PR.n + (hard ? "&hard=1" : ""));
+    const ws = d.words.filter(quizOk);
+    if (ws.length < 4) return toast(t(hard ? "hardNeed" : "srsNone"));
+    FX.play("go");
+    runQuiz(area, intro, ws.map((w) => mkQ(w, engs, false)), "classic");
+  } catch (e) { toast(e.message); }
 }
 
 function runQuiz(area, intro, qs, mode) {
   intro.classList.add("hide");
   const SPEED = 8;
   let i = 0, score = 0, combo = 0, bestCombo = 0, lives = 3, correct = 0, answered = 0, cur = null, advance = null, tmo = [];
+  const log = []; // akıllı tekrar için: {w, ok}
   const wrongs = [], engs = [...new Set(V.words.map((x) => x.eng))];
   const clearT = () => { tmo.forEach(clearTimeout); tmo = []; };
   const onKey = (e) => {
@@ -567,7 +611,7 @@ function runQuiz(area, intro, qs, mode) {
 
     function answer(btn, choice) {
       if (cur.locked) return; cur.locked = true; clearT();
-      const el_ = (performance.now() - t0) / 1000, ok = choice === ans; answered++;
+      const el_ = (performance.now() - t0) / 1000, ok = choice === ans; answered++; log.push({ w: w.tr, ok });
       btns.forEach((x) => { if (x.lastChild.textContent === ans) x.classList.add("ok"); else if (x === btn) x.classList.add("no"); });
       if (Q.listen) { const q = prompt.querySelector(".dim"); if (q) q.textContent = Q.say + " = " + ans; }
       else if (canSpeak()) { const sp = speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst)); sp.style.cssText = "display:grid;margin:-8px auto 12px"; prompt.after(sp); }
@@ -592,6 +636,7 @@ function runQuiz(area, intro, qs, mode) {
 
   function end(reason) {
     clearT(); document.removeEventListener("keydown", onKey); cur = null;
+    if (log.length) api("/api/srs/report", { src: PAIR.src, dst: PAIR.dst, items: log }).catch(() => {});
     const pct = answered ? Math.round(correct / answered * 100) : 0;
     const xpGain = correct * 10 + bestCombo * 2 + (pct === 100 && answered >= 5 ? 20 : 0);
     const lvBefore = levelOf(G.xp), fracBefore = (G.xp % XP_LEVEL) / XP_LEVEL;
@@ -654,11 +699,11 @@ function tDuel() {
   n.type = s.type = "number"; n.min = 4; n.max = 30; n.value = 10; s.min = 5; s.max = 60; s.value = 12; cpw.placeholder = t("roomPwCreate"); cpw.maxLength = 30;
   const r2 = el("div", "row"), fn = f(t("questions"), n), fs = f(t("seconds"), s); fn.style.flex = fs.style.flex = "1"; r2.append(fn, fs); r2.style.alignItems = "flex-start";
   cb.disabled = uniqWords().length < 4;
-  const rm = el("select"); rm.append(new Option(t("roomChoice"), "choice"), new Option(t("roomSpeak"), "speak"));
+  const rm = el("select"); rm.append(new Option(t("roomChoice"), "choice"), new Option(t("roomSpeak"), "speak"), new Option(t("roomScreen"), "screen"));
   const noteSay = el("p", "dim small", t("sayNote")); noteSay.style.display = "none";
-  rm.onchange = () => { noteSay.style.display = rm.value === "speak" ? "" : "none"; };
+  rm.onchange = () => { noteSay.style.display = rm.value === "choice" ? "none" : ""; noteSay.textContent = rm.value === "screen" ? t("scrDesc") : t("sayNote"); };
   cb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: src.value === "\u0000" ? "" : src.value, n: +n.value, seconds: +s.value, password: cpw.value,
-    mode: rm.value, learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
+    mode: rm.value === "speak" ? "speak" : "choice", screen: rm.value === "screen", learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
   const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), f(t("roomMode"), rm), noteSay, r2, f(t("roomPwCreateLabel"), cpw), cb);
   c.append(el("h2", "", t("createRoom")), el("p", "dim", cb.disabled ? t("needWordsText") : t("createSub", langName(PAIR.src), langName(PAIR.dst))), cf);
   g.append(j, c); box.append(g, leaderboard());
@@ -685,6 +730,74 @@ function leaderboard() {
     });
     list.replaceChildren(ul);
   }).catch(() => {});
+  return card;
+}
+
+/* ---------- Arkadaş ligleri ---------- */
+const lgLink = (code) => location.origin + "/join/" + code;
+function tLeagues() {
+  const box = el("div"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
+  box.append(head(t("lgTitle"), t("lgSub")));
+  const g = el("div", "grid2");
+  const c = el("div", "card"), nm = el("input"), cb = el("button", "primary", t("lgCreateBtn"));
+  nm.placeholder = t("lgName"); nm.maxLength = 30;
+  cb.onclick = async () => { try { const r = await api("/api/leagues", { name: nm.value }); LG.open = r.id; render(); } catch (e) { toast(e.message); } };
+  nm.onkeydown = (e) => { if (e.key === "Enter") cb.click(); };
+  c.append(el("h2", "", t("lgCreate")), f(t("lgName"), nm), cb);
+  const j = el("div", "card"), cd = el("input"), jb = el("button", "", t("lgJoinBtn"));
+  cd.placeholder = "ABC123"; cd.maxLength = 8; cd.style.cssText = "text-transform:uppercase;letter-spacing:.2em;text-align:center;font-weight:700";
+  jb.onclick = async () => { try { const r = await api("/api/leagues/join", { code: cd.value }); LG.open = r.id; toast(t("lgJoined", r.name)); render(); } catch (e) { toast(e.message); } };
+  cd.onkeydown = (e) => { if (e.key === "Enter") jb.click(); };
+  j.append(el("h2", "", t("lgJoin")), f(t("lgCode"), cd), jb);
+  g.append(c, j);
+  const list = el("div"); list.style.marginTop = "16px";
+  box.append(g, list);
+  api("/api/leagues").then((rows) => {
+    if (!rows.length) return list.replaceChildren(empty(t("lgNone"), ""));
+    list.replaceChildren(...rows.map((l) => leagueCard(l)));
+  }).catch((e) => list.replaceChildren(el("p", "err", e.message)));
+  return box;
+}
+function leagueCard(l) {
+  const card = el("div", "card"), top = el("button", "ghost"), open = LG.open === l.id;
+  card.style.marginBottom = "12px"; top.style.cssText = "display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:0;background:none;border:0";
+  const nmBox = el("div"); nmBox.style.flex = "1";
+  nmBox.append(el("h2", "", l.name), el("p", "dim small", t("lgMembers", l.members) + (l.rank ? " · " + t("lgRank", l.rank) : "") + " · " + t("lgPts", l.pts)));
+  top.append(nmBox, el("span", "dim", open ? "▲" : "▼"));
+  top.onclick = () => { LG.open = open ? null : l.id; render(); };
+  card.append(top);
+  if (open) {
+    const body = el("div"); body.style.marginTop = "14px"; card.append(body);
+    const paint = () => api("/api/leagues/" + l.id + "?period=" + LG.period).then((d) => {
+      const seg = el("div", "seg");
+      [[t("lgWeek"), "week"], [t("lgAll"), "all"]].forEach(([lb, v]) => { const b = el("button", LG.period === v ? "on" : "", lb); b.onclick = () => { LG.period = v; paint(); }; seg.append(b); });
+      const ul = el("ul", "players"), n = d.rows.length;
+      d.rows.forEach((r, i) => {
+        const li = el("li", r.me ? "me" : ""), nm = el("span", "nm", flag(r.country) + r.username + (i === 0 && r.pts > 0 ? " 👑" : n >= 3 && i === n - 1 ? " 🐢" : ""));
+        if (r.me) nm.append(el("span", "tag", t("you")));
+        if (r.owner) nm.append(el("span", "tag", t("lgOwner")));
+        li.append(el("span", "rk", i + 1), nm, el("b", "", r.pts));
+        if (d.owner && !r.me) { const k = el("button", "ghost icon-sm", "×"); k.title = t("lgKick"); k.setAttribute("aria-label", t("lgKick") + " " + r.username); k.onclick = async () => { if (await ask(t("lgKick") + ": " + r.username + "?", "", t("lgKick"))) { try { await api("/api/leagues/kick", { id: l.id, username: r.username }); paint(); } catch (e) { toast(e.message); } } }; li.append(k); }
+        ul.append(li);
+      });
+      const inv = el("div"); inv.style.cssText = "margin-top:16px;padding-top:14px;border-top:1px solid var(--line)";
+      const link = el("input"); link.readOnly = true; link.value = lgLink(d.code); link.onfocus = () => link.select();
+      const row = el("div", "row"), cp = el("button", "primary", t("lgCopyLink")), sh = el("button", "", t("lgShare"));
+      const msg = t("lgInviteText", d.name, lgLink(d.code));
+      cp.onclick = () => navigator.clipboard.writeText(lgLink(d.code)).then(() => toast(t("copied")), () => link.select());
+      sh.onclick = async () => { try { if (navigator.share) await navigator.share({ text: msg }); else { await navigator.clipboard.writeText(msg); toast(t("copied")); } } catch (e) {} };
+      row.append(cp, sh); row.style.marginTop = "10px";
+      inv.append(el("b", "", t("lgInvite") + " · " + d.code), link, row);
+      const act = el("div", "row"); act.style.marginTop = "14px";
+      const lv = el("button", "", t("lgLeave"));
+      lv.onclick = async () => { if (await ask(t("lgLeaveQ"), "", t("lgLeave"))) { try { await api("/api/leagues/leave", { id: l.id }); LG.open = null; render(); } catch (e) { toast(e.message); } } };
+      act.append(lv);
+      if (d.owner) { const dl = el("button", "danger", t("lgDelete")); dl.onclick = async () => { if (await ask(t("lgDeleteQ"), "", t("lgDelete"))) { try { await api("/api/leagues/delete", { id: l.id }); LG.open = null; render(); } catch (e) { toast(e.message); } } }; act.append(dl); }
+      body.replaceChildren(seg, el("div"), ul, el("p", "dim small", t("lgPtsInfo")), inv, act);
+      seg.style.marginBottom = "10px";
+    }).catch((e) => body.replaceChildren(el("p", "err", e.message)));
+    paint();
+  }
   return card;
 }
 

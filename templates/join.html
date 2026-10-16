@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineVocab · League invite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<style>.stage{max-width:520px;margin:40px auto 0}.center{text-align:center}</style>
+<script src="/static/i18n.js"></script>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <div id="tools" class="row" style="gap:6px"></div>
+</div></header>
+<main class="wrap"><div class="stage" id="app"></div></main>
+<script src="/static/common.js"></script>
+<script>
+const app = document.getElementById("app");
+const code = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+let info = null, err = "";
+async function load() {
+  try { info = await api("/api/leagues/preview?code=" + encodeURIComponent(code)); } catch (e) { err = e.message; }
+  paint();
+}
+async function paint() {
+  const card = el("div", "card center");
+  if (!info) { card.append(el("h2", "", t("joinBad")), el("p", "dim", err)); const a = el("a", "", "←"); a.href = "/account"; card.append(a); return app.replaceChildren(card); }
+  let logged = false;
+  try { await api("/api/me"); logged = true; } catch (e) {}
+  const btn = el("button", "primary", logged ? t("joinBtn") : t("joinLogin")); btn.style.cssText = "width:100%;margin-top:18px";
+  btn.onclick = async () => {
+    try { localStorage.setItem("cv-join", code); } catch (e) {}
+    if (!logged) { location = "/account"; return; }
+    location = "/account";   // hesap sayfası kayıtlı kodla otomatik katılır
+  };
+  card.append(el("p", "dim small", t("joinTitle")), el("h1", "", info.name), el("p", "dim", t("joinText", info.owner, info.members)), btn);
+  app.replaceChildren(card);
+}
+I18N.onChange(() => { mountTools(document.getElementById("tools")); document.title = "CineVocab · " + t("joinTitle"); paint(); });
+mountTools(document.getElementById("tools")); document.title = "CineVocab · " + t("joinTitle");
+load();
+</script>
+</body>
+</html>
