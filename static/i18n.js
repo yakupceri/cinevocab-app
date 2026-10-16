@@ -1031,6 +1031,14 @@
   Object.assign(D.de, {"modeSpeakD": "Sag das Wort laut (Chrome / Edge) oder tippe es.", "saySkip": "Überspringen"});
   Object.assign(D.es, {"modeSpeakD": "Di la palabra en voz alta (Chrome / Edge) o escríbela.", "saySkip": "Saltar"});
 
+
+  Object.assign(D.en, {"voiceTitle": "Read-aloud voice", "voiceSub": "Pick the clearest voice for {0}. Voices come from your device and browser; the “Natural” and “Google” ones usually sound best.", "voiceAuto": "Automatic (best available)", "voiceTry": "Try"});
+  Object.assign(D.tr, {"voiceTitle": "Sesli okuma sesi", "voiceSub": "{0} için en net sesi seç. Sesler cihazından ve tarayıcından gelir; “Natural” ve “Google” olanlar genelde en iyisidir.", "voiceAuto": "Otomatik (en iyisi)", "voiceTry": "Dene"});
+  Object.assign(D.fr, {"voiceTitle": "Voix de lecture", "voiceSub": "Choisis la voix la plus claire pour {0}. Les voix viennent de ton appareil et de ton navigateur ; celles « Natural » et « Google » sonnent souvent le mieux.", "voiceAuto": "Automatique (la meilleure)", "voiceTry": "Essayer"});
+  Object.assign(D.it, {"voiceTitle": "Voce di lettura", "voiceSub": "Scegli la voce più chiara per {0}. Le voci arrivano dal dispositivo e dal browser; quelle «Natural» e «Google» di solito suonano meglio.", "voiceAuto": "Automatica (la migliore)", "voiceTry": "Prova"});
+  Object.assign(D.de, {"voiceTitle": "Vorlese-Stimme", "voiceSub": "Wähle die klarste Stimme für {0}. Die Stimmen kommen von Gerät und Browser; „Natural“ und „Google“ klingen meist am besten.", "voiceAuto": "Automatisch (beste)", "voiceTry": "Testen"});
+  Object.assign(D.es, {"voiceTitle": "Voz de lectura", "voiceSub": "Elige la voz más clara para {0}. Las voces vienen de tu dispositivo y navegador; las «Natural» y «Google» suelen sonar mejor.", "voiceAuto": "Automática (la mejor)", "voiceTry": "Probar"});
+
   function detect() {
     var s = store("cv-lang");
     if (s && D[s]) return s;

@@ -28,19 +28,46 @@ const ICONS = {
 /* ---------- Sesli okuma (cihazın kendi sesi, sunucuya hiçbir şey gitmez) ---------- */
 const SPEECH_LANG = { tr: "tr-TR", en: "en-US", fr: "fr-FR", it: "it-IT", de: "de-DE", es: "es-ES", pt: "pt-PT", ru: "ru-RU", ar: "ar-SA" };
 const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+/* Ses seçimi: tarayıcının ilk sesi çoğu zaman en kötüsü (ör. macOS'ta "Albert", "Fred" gibi robot/şaka sesleri).
+   Doğal/nöral/Google/Premium seslere ve bilinen iyi seslere puan, robotik seslere eksi puan verilir. */
+const BAD_VOICE = /^(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|princess|espeak)\b|compact|espeak/i;
+const GOOD_VOICE = /natural|neural|online|google|premium|enhanced|siri|samantha|karen|moira|tessa|yelda|am[eé]lie|audrey|thomas|alice|federica|paola|anna|petra|marlene|paulina|monica|luciana|milena|joana|daniel|serena|aria|jenny/i;
+function voiceScore(v, want) {
+  const name = String(v.name || ""), lang = String(v.lang || "").replace("_", "-").toLowerCase(), w = want.toLowerCase();
+  if (!(lang === w || lang.startsWith(w.slice(0, 2)))) return -1000;
+  let sc = lang === w ? 10 : 0;
+  if (BAD_VOICE.test(name)) sc -= 100;
+  if (/natural|neural|online/i.test(name)) sc += 50;
+  if (/google/i.test(name)) sc += 40;
+  if (/premium|enhanced|siri/i.test(name)) sc += 35;
+  if (GOOD_VOICE.test(name)) sc += 25;
+  if (v.default) sc += 3;
+  return sc;
+}
+function voicesFor(lang) {
+  if (!canSpeak()) return [];
+  const want = SPEECH_LANG[lang] || lang || "en-US";
+  return (speechSynthesis.getVoices() || []).map((v) => [voiceScore(v, want), v]).filter((x) => x[0] > -1000).sort((a, b) => b[0] - a[0]).map((x) => x[1]);
+}
+function pickVoice(lang) {
+  let saved = ""; try { saved = localStorage.getItem("cv-voice-" + lang) || ""; } catch (e) {}
+  const list = voicesFor(lang);
+  if (saved) { const v = list.find((x) => x.name === saved); if (v) return v; }
+  return list.length && voiceScore(list[0], SPEECH_LANG[lang] || lang) > -50 ? list[0] : null;
+}
 function speak(text, lang) {
   if (!canSpeak() || !text) return false;
   try {
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(String(text)), want = (SPEECH_LANG[lang] || lang || "en-US");
-    u.lang = want; u.rate = 0.9;
-    const v = (speechSynthesis.getVoices() || []).find((x) => String(x.lang).replace("_", "-").toLowerCase() === want.toLowerCase())
-      || (speechSynthesis.getVoices() || []).find((x) => String(x.lang).toLowerCase().startsWith(want.slice(0, 2).toLowerCase()));
-    if (v) u.voice = v;
+    const u = new SpeechSynthesisUtterance(String(text));
+    u.lang = SPEECH_LANG[lang] || lang || "en-US"; u.rate = 0.95; u.pitch = 1.05; u.volume = 1;
+    const v = pickVoice(lang);
+    if (v) { u.voice = v; u.lang = v.lang || u.lang; }
     speechSynthesis.speak(u);
     return true;
   } catch (e) { return false; }
 }
+if (canSpeak()) { try { speechSynthesis.getVoices(); speechSynthesis.addEventListener("voiceschanged", () => speechSynthesis.getVoices()); } catch (e) {} }
 /* Öğrenilen dil: arayüz dilinin dışındaki dil (arayüz Türkçe, çift tr>en ise İngilizce). */
 function learnLang(src, dst) { const ui = I18N.lang; return dst === ui ? src : src === ui ? dst : src; }
 function speakBtn(text, lang, cls) {

@@ -14,6 +14,8 @@
 5. i18n: 6 dilde tüm yeni metinler ve hata mesajları. Mobil alt çubuk 7 sekmeye ayarlandı.
 6. Hesap silinince `word_stats`, `xp_log`, lig üyelikleri de silinir (sahip ayrılırsa lig en eski üyeye geçer).
 
+- **Ses kalitesi:** sesli okuma artık tarayıcının ilk sesini değil, en iyi sesi seçer (Natural/Neural/Google/Premium ve bilinen iyi sesler önde; macOS'taki Albert, Fred, Zarvox gibi robot sesler en sonda). Hız 0,95, perde 1,05. Ayarlar'da "Sesli okuma sesi" kartından elle ses seçilip denenebilir (tercih tarayıcıda saklanır).
+
 ## Yeni tablolar (açılışta otomatik)
 `word_stats`, `xp_log`, `leagues`, `league_members` (+ v9'dan `daily_sets`, `daily_play`)
 

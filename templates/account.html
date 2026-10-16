@@ -866,6 +866,22 @@ function tSettings() {
   save.onclick = async () => { try { await api("/api/settings", { username: name.value.trim(), country: cc.value, avatar: "" }); me = await api("/api/me"); toast(t("saved")); render(); } catch (e) { err.textContent = e.message; } };
   const h = el("h2", "", t("profile")); h.style.marginBottom = "14px";
   p.append(h, f(t("username"), name), f(t("country"), cc), save, err);
+  // sesli okuma: ses seçimi
+  const vc = el("div", "card");
+  if (canSpeak()) {
+    const lang = learnLang(PAIR.src, PAIR.dst), sel = el("select"), tryB = el("button", "", t("voiceTry"));
+    const fill = () => {
+      const list = voicesFor(lang); sel.replaceChildren(new Option(t("voiceAuto"), ""));
+      list.forEach((v) => sel.append(new Option(v.name + " (" + v.lang + ")", v.name)));
+      let saved = ""; try { saved = localStorage.getItem("cv-voice-" + lang) || ""; } catch (e) {}
+      sel.value = list.some((v) => v.name === saved) ? saved : "";
+    };
+    fill(); try { speechSynthesis.addEventListener("voiceschanged", fill, { once: true }); } catch (e) {}
+    sel.onchange = () => { try { sel.value ? localStorage.setItem("cv-voice-" + lang, sel.value) : localStorage.removeItem("cv-voice-" + lang); } catch (e) {} };
+    tryB.onclick = () => { if (!speak(lang === "en" ? "Hello, this is how I sound." : (V.words[0] ? V.words[0][LF()] : "Hello"), lang)) toast(t("noVoice")); };
+    const hv = el("h2", "", t("voiceTitle")); hv.style.marginBottom = "6px";
+    vc.append(hv, el("p", "dim small", t("voiceSub", langName(lang))), f(t("voiceTitle"), sel), tryB);
+  } else vc.append(el("h2", "", t("voiceTitle")), el("p", "dim small", t("noVoice")));
   // eklenti
   const x = el("div", "card"), key = el("code"), gen = el("button", "primary", t("genKey")), cp = el("button", "hide", t("copy"));
   key.style.cssText = "display:block;word-break:break-all;padding:10px;background:var(--bg2);border-radius:8px;margin:12px 0;font-size:13px";
@@ -905,7 +921,7 @@ function tSettings() {
   };
   rr2.append(rb); rc.append(el("h2", "", t("recoveryCode")), el("p", "dim", me.has_recovery ? t("recoveryHas") : t("recoveryNone")), rr2); rc.firstChild.style.marginBottom = "8px";
   const g2 = el("div", "grid2"); g2.style.marginTop = "16px"; g2.append(sec, rc);
-  g.append(p, x); box.append(g, g2, a);
+  g.append(p, x); vc.style.marginTop = "16px"; box.append(g, vc, g2, a);
   return box;
 }
 
