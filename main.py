@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 import html
 import time
 import asyncio
@@ -45,6 +46,29 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+
+def _asset_version() -> str:
+    """static/ dosyalarının içeriğinden kısa sürüm: dosya değişince adres de değişir, tarayıcı eski JS/CSS'i kullanmaz."""
+    h = hashlib.md5()
+    for name in sorted(os.listdir("static")):
+        try:
+            with open(os.path.join("static", name), "rb") as f:
+                h.update(name.encode() + f.read())
+        except OSError:
+            pass
+    return h.hexdigest()[:8]
+
+
+templates.env.globals["ASSET_V"] = _asset_version()
+
+
+@app.middleware("http")
+async def static_no_stale(request: Request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "no-cache"   # her seferinde ETag ile kontrol et (değişmediyse 304)
+    return resp
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

@@ -1023,6 +1023,14 @@
     "eScrNeed": "Primero debe unirse al menos un jugador."
   });
 
+
+  Object.assign(D.en, {"modeSpeakD": "Say the word out loud (Chrome / Edge) or type it.", "saySkip": "Skip"});
+  Object.assign(D.tr, {"modeSpeakD": "Kelimeyi sesli söyle (Chrome / Edge) ya da yaz.", "saySkip": "Geç"});
+  Object.assign(D.fr, {"modeSpeakD": "Dis le mot à voix haute (Chrome / Edge) ou écris-le.", "saySkip": "Passer"});
+  Object.assign(D.it, {"modeSpeakD": "Di' la parola a voce (Chrome / Edge) o scrivila.", "saySkip": "Salta"});
+  Object.assign(D.de, {"modeSpeakD": "Sag das Wort laut (Chrome / Edge) oder tippe es.", "saySkip": "Überspringen"});
+  Object.assign(D.es, {"modeSpeakD": "Di la palabra en voz alta (Chrome / Edge) o escríbela.", "saySkip": "Saltar"});
+
   function detect() {
     var s = store("cv-lang");
     if (s && D[s]) return s;
