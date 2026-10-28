@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineVocab · Duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
+<style>
+  .stage { max-width:640px; margin:0 auto; }
+  .code { font:800 clamp(56px,16vw,92px)/1 var(--display); letter-spacing:.14em; text-align:center; padding-left:.14em; margin:8px 0 4px; }
+  .center { text-align:center; }
+  .opts button { position:relative; text-align:left; display:flex; gap:12px; align-items:center; }
+  .opts button .k { width:24px; height:24px; border-radius:6px; background:var(--bg2); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; color:var(--dim); flex:none; }
+  .opts button.pick { border-color:var(--accent); background:var(--accent-soft); }
+  .d { color:var(--ok); margin-left:10px; font-size:14px; font-weight:700; } .d.x { color:var(--bad); }
+  .scr-code { font:800 clamp(80px,18vw,200px)/1 var(--display); letter-spacing:.12em; text-align:center; padding-left:.12em; }
+  .scr-word { font:800 clamp(48px,9vw,120px)/1.05 var(--display); text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
+  .scr-opts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .scr-opts .o { position:relative; border-radius:14px; padding:22px 24px; font:700 clamp(22px,3.6vw,44px)/1.1 var(--display); color:#fff; display:flex; align-items:center; gap:16px; overflow:hidden; }
+  .scr-opts .o b { font-size:.7em; opacity:.85; border:2px solid rgba(255,255,255,.6); border-radius:8px; width:1.5em; height:1.5em; display:grid; place-items:center; flex:none; }
+  .scr-opts .o.c0 { background:#c0392b; } .scr-opts .o.c1 { background:#2a6fb0; } .scr-opts .o.c2 { background:#b8860b; } .scr-opts .o.c3 { background:#2e8b57; }
+  .scr-opts .o.dim { opacity:.28; } .scr-opts .o.right { outline:5px solid var(--ok); }
+  .scr-opts .o .n { margin-left:auto; font-size:.9em; }
+  .scr-bar { display:flex; align-items:center; gap:14px; } .scr-bar .grow { flex:1; }
+  .scr-chips { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
+  .scr-chips .pc { font-size:20px; padding:8px 16px; }
+  .scr-top { margin-top:20px; display:grid; gap:6px; }
+  .timer.hot i { background:var(--bad) !important; } .timer { height:8px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
+</style>
+<script src="/static/i18n.js?v={{ ASSET_V }}"></script>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <a href="/account" id="back" class="dim small" style="text-decoration:none"></a>
+  <div id="tools" class="row" style="gap:6px"></div>
+</div></header>
+<main class="wrap"><div class="stage" id="app"></div></main>
+<script src="/static/common.js?v={{ ASSET_V }}"></script>
+<script src="/static/fx.js?v={{ ASSET_V }}"></script>
+<script>
+const app = document.getElementById("app");
+let ws, myId = "", room = null, chosen = null, me = { username: "" }, lastQ = null, mode = "home";
+let scrAns = 0, scrTotal = 0;
+let rec = null, sayQueue = [], sayLast = "", sayUi = null; // konuşma modu
+let wrongs = [], lastEnd = null, seenLog = []; // seenLog: akıllı tekrar için {w, ok} // bu oyunda yanlış bildiklerim
+const errBox = el("div", "err");
+
+function connect(first) {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => ws.send(JSON.stringify(first));
+  ws.onmessage = (e) => handle(JSON.parse(e.data));
+  ws.onclose = () => { if (room) { room = null; home(t("connLost")); } };
+}
+const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+const field = (label, node) => { const w = el("label", "f"); w.append(el("span", "", label), node); return w; };
+
+async function home(error, auto) {
+  room = null; mode = "home";
+  try {
+    const r = await fetch("/api/me");
+    if (r.status === 401) { location = "/account"; return; }
+    me = await r.json();
+  } catch (e) {}
+  let saved = null;
+  if (auto) { try { saved = JSON.parse(sessionStorage.getItem("cv-duel") || "null"); sessionStorage.removeItem("cv-duel"); } catch (e) {} }
+  if (saved && saved.t) { connect(saved); return; }
+
+  const code = el("input"), pw = el("input"), join = el("button", "primary", t("join"));
+  code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.style.cssText = "font:800 28px var(--display);letter-spacing:.3em;text-align:center";
+  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30;
+  join.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) { errBox.textContent = t("codeHint"); return; } connect({ t: "join", code: code.value.trim(), password: pw.value }); };
+  code.onkeydown = (e) => { if (e.key === "Enter") join.click(); };
+  const card = el("div", "card"), form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:14px";
+  errBox.textContent = error || "";
+  form.append(code, pw, join, errBox);
+  const mk = el("a"); mk.href = "/account"; mk.className = "dim small"; mk.textContent = t("createInPanel"); mk.style.cssText = "display:block;text-align:center;margin-top:14px";
+  card.append(el("h2", "", t("joinRoom")), el("p", "dim", t("joinSub")), form, mk);
+  const h = el("div", "head"); const l = el("div"); l.append(el("h1", "", t("gameTitle")), el("p", "", t("gameSub"))); h.append(l);
+  app.replaceChildren(h, card);
+}
+
+const hue = (n) => { let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const avatar = (name) => { const a = el("span", "av c", (name || "?").slice(0, 1).toUpperCase()); a.style.setProperty("--h", hue(name)); return a; };
+let prevRank = {}, timers = [], streaks = {};
+function playerList(rows, opts = {}) {
+  const ul = el("ul", "players");
+  rows.forEach((p, i) => {
+    const li = el("li");
+    if (opts.rank) { const rk = el("span", "rk", i + 1); li.append(rk); }
+    li.append(avatar(p.name));
+    const nm = el("span", "nm", p.name);
+    if (p.id === myId) nm.append(el("span", "tag", t("you")));
+    if (opts.host && p.id === opts.host) nm.append(el("span", "tag", t("host")));
+    if (opts.delta && p.id in prevRank && prevRank[p.id] !== i) nm.append(el("span", prevRank[p.id] > i ? "rank-up" : "rank-dn", prevRank[p.id] > i ? "▲" : "▼"));
+    if (opts.delta && p.streak >= 2) nm.append(el("span", "fire-n", "🔥 " + t("inARow", p.streak)));
+    li.append(nm);
+    if (p.score !== undefined) {
+      const r = el("span"), sc = el("b", "", p.score); r.append(sc);
+      if (opts.delta && p.delta !== undefined) r.append(el("span", "d" + (p.ok ? "" : " x"), p.ok ? "+" + p.delta : "✗"));
+      li.append(r);
+      if (opts.delta && p.ok && p.delta) { FX.count(sc, p.score, 700, null, p.score - p.delta); }
+    }
+    ul.append(li);
+  });
+  return ul;
+}
+
+function strip(players) {
+  const s = el("div", "pstrip"); s.id = "pstrip";
+  (players || []).forEach((p) => { const c = el("div", "pc"); c.dataset.id = p.id; c.append(avatar(p.name), el("span", "", p.name.slice(0, 12)), el("b", "", p.score || 0)); s.append(c); });
+  return s;
+}
+
+function lobby(info) {
+  mode = "lobby";
+  const card = el("div", "card center"), start = el("button", "primary", t("startGame")), copy = el("button", "", t("copyCode")), leave = el("button", "ghost", t("leave"));
+  start.onclick = () => send({ t: "start" });
+  copy.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(info.code); copy.textContent = t("copied"); setTimeout(() => (copy.textContent = t("copyCode")), 1500); };
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
+  if (info.locked) meta.push(t("locked"));
+  if (info.mode === "speak") meta.push(t("roomSpeak"));
+  const m = el("p", "dim small", meta.join(" · "));
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:18px"; pl.append(playerList(info.players, { host: info.host }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:18px";
+  act.append(copy, leave);
+  card.append(el("p", "dim small", t("room")), el("div", "code", info.code), m, el("p", "dim", t("shareCode")));
+  if (info.mode === "speak") card.append(el("p", "dim small", t("sayLobbyNote")));
+  card.append(pl);
+  if (info.host === myId) { start.disabled = info.players.length < 1; start.style.cssText = "width:100%;margin-top:16px"; card.append(start); }
+  else { const w = el("p", "dim", t("waitHost")); w.style.marginTop = "16px"; card.append(w); }
+  errBox.textContent = ""; card.append(act, errBox);
+  app.replaceChildren(card);
+}
+
+function handle(m) {
+  if (m.t === "me") myId = m.id;
+  else if (m.t === "closed") { room = null; mode = "home"; ws.close(); home(t("scrClosed")); }
+  else if (m.t === "room") { room = m; app.style.maxWidth = isScreen() ? "1100px" : ""; if (mode !== "play") (isScreen() ? sLobby(m) : lobby(m)); else room = m; }
+  else if (m.t === "error") { const msg = I18N.err(m.msg); if (room) { errBox.textContent = msg; toast(msg); } else { ws.close(); home(msg); } }
+  else if (m.t === "countdown") countdown(m.seconds || 3);
+  else if (m.t === "say_miss") sayMiss(m);
+  else if (m.t === "answered" && isScreen()) { scrAns++; const c = document.getElementById("scount"); if (c) c.textContent = t("scrAnswered", scrAns, scrTotal); FX.play("tick"); }
+  else if (m.t === "answered") { const c = document.querySelector('#pstrip .pc[data-id="' + m.id + '"]'); if (c) { c.classList.add("done"); FX.bump(c); } if (m.id !== myId) FX.play("tick"); else if (sayUi) sayLock(); }
+  else if (m.t === "question") (isScreen() ? sQuestion(m) : question(m));
+  else if (m.t === "reveal") (isScreen() ? sReveal(m) : reveal(m));
+  else if (m.t === "end") (isScreen() ? sEnd(m) : finish(m));
+}
+
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function countdown(n) {
+  mode = "play"; clearTimers(); prevRank = {}; streaks = {}; wrongs = []; seenLog = [];
+  const box = el("div", "card center"); let num = el("div", "cd");
+  box.append(el("p", "dim", t("getReady")), num);
+  app.replaceChildren(box);
+  const step = (k) => {
+    if (k > 0) { num.replaceWith(num = Object.assign(el("div", "cd"), { textContent: k })); FX.play("beep"); FX.vibrate(20); timers.push(setTimeout(() => step(k - 1), 1000)); }
+    else { num.replaceWith(num = Object.assign(el("div", "cd"), { textContent: t("goText") })); FX.play("go"); }
+  };
+  step(n);
+}
+
+function question(m) {
+  mode = "play"; chosen = null; lastQ = m; clearTimers(); stopRec(); sayUi = null;
+  if (m.mode === "speak") return speakQuestion(m);
+  const card = el("div", "card qcard"), top = el("div", "row");
+  top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
+  const bar = el("div", "timer"), fill = el("i"); bar.append(fill);
+  const grid = el("div", "opts");
+  m.options.forEach((o, i) => {
+    const b = el("button"); b.dataset.opt = o; b.append(el("span", "k", i + 1), el("span", "", o));
+    b.onclick = () => pick(b, o, grid); grid.append(b);
+  });
+  top.style.marginBottom = "8px";
+  card.append(top, bar, el("div", "qword", m.tr), grid);
+  const ps = room && room.players ? strip(room.players.map((p) => ({ ...p, score: (prevScores[p.id] || 0) }))) : el("div");
+  app.replaceChildren(ps, card);
+  fill.style.transition = `width ${m.seconds}s linear`;
+  requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  const hot = Math.max(0, (m.seconds - 3) * 1000);
+  timers.push(setTimeout(() => { bar.classList.add("hot"); [0, 1, 2].forEach((i) => timers.push(setTimeout(() => chosen === null && FX.play("tick"), i * 1000))); }, hot));
+}
+let prevScores = {};
+function pick(btn, opt, grid) {
+  if (chosen !== null) return;
+  chosen = opt; btn.classList.add("pick");
+  grid.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  send({ t: "answer", choice: opt });
+  const c = document.querySelector('#pstrip .pc[data-id="' + myId + '"]'); if (c) c.classList.add("done");
+}
+function reveal(m) {
+  clearTimers(); stopRec();
+  const card = app.querySelector(".qcard");
+  if (lastQ && lastQ.mode === "speak") {
+    const mine0 = m.results.find((r) => r.id === myId);
+    if (mine0 && !mine0.ok && !wrongs.some((w) => w.tr === lastQ.tr)) wrongs.push({ tr: lastQ.tr, eng: m.correct, mine: sayLast || null, speak: true, lang: lastQ.lang });
+    if (sayUi) { sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true)); sayUi.heard.textContent = (mine0 && mine0.ok ? "✓ " : "✗ ") + m.correct; sayUi.heard.style.color = mine0 && mine0.ok ? "var(--ok)" : "var(--bad)"; }
+    if (canSpeak()) setTimeout(() => speak(m.correct, lastQ.lang), 250);
+  }
+  app.querySelectorAll(".opts button").forEach((b) => {
+    b.disabled = true; b.classList.remove("pick");
+    if (b.dataset.opt === m.correct) b.classList.add("ok"); else if (b.dataset.opt === chosen) b.classList.add("no");
+  });
+  const mine = m.results.find((r) => r.id === myId);
+  if (mine && lastQ && lastQ.mode !== "speak" && !seenLog.some((x) => x.w === lastQ.tr)) seenLog.push({ w: lastQ.tr, ok: mine.ok });
+  if (mine && !mine.ok && lastQ && lastQ.mode !== "speak" && !wrongs.some((w) => w.tr === lastQ.tr)) wrongs.push({ tr: lastQ.tr, eng: m.correct, mine: chosen, options: lastQ.options.slice() });
+  if (mine && card) {
+    if (mine.ok) {
+      card.classList.add("ok"); FX.play("correct", mine.streak || 1); FX.vibrate(25);
+      FX.float(card, "+" + mine.delta, "good");
+      if (mine.streak >= 3) { FX.play("combo"); FX.confetti(0.3); }
+    } else { card.classList.add("no"); FX.play("wrong"); FX.shake(card); FX.vibrate([60, 40, 60]); }
+  }
+  const rows = [...m.results].sort((a, b) => b.score - a.score), c = el("div", "card");
+  c.style.marginTop = "14px"; c.append(playerList(rows, { delta: true, rank: true }));
+  const old = app.querySelector(".rv"); if (old) old.remove(); c.classList.add("rv");
+  app.append(c);
+  prevRank = {}; rows.forEach((p, i) => (prevRank[p.id] = i));
+  prevScores = {}; rows.forEach((p) => (prevScores[p.id] = p.score));
+}
+// Düello sonu: yanlış bildiğim kelimeler ve onlarla tekrar quizi
+function wrongBox() {
+  const box = el("div"); box.style.cssText = "text-align:left;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)";
+  if (!wrongs.length) { const p = el("p", "dim center", t("dperfect")); p.style.textAlign = "center"; box.append(p); return box; }
+  box.append(el("h2", "", t("dwrongTitle", wrongs.length)));
+  const l = el("div", "list"); l.style.marginTop = "10px";
+  wrongs.forEach((w) => {
+    const li = el("div", "li");
+    li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng + " · " + (w.mine ? t("dyours") + ": " + w.mine : t("dnoans"))));
+    l.append(li);
+  });
+  const b = el("button", "primary", t("retryWrong", wrongs.length)); b.style.cssText = "width:100%;margin-top:14px";
+  b.onclick = () => practice(wrongs.slice());
+  box.append(l, b);
+  return box;
+}
+
+function practice(items) {
+  if (items.length && items[0].speak) return practiceType(items);
+  mode = "play"; clearTimers(); // "play": oda mesajları bu ekranı bozmasın
+  const qs = shuf(items), miss = [];
+  let i = 0, right = 0;
+  const done = () => {
+    const card = el("div", "card center"), r = el("div", "row"); r.style.cssText = "justify-content:center;margin-top:16px";
+    card.append(el("h2", "", t("dpracDone", right, qs.length)));
+    if (miss.length) { const b = el("button", "primary", t("retryWrong", miss.length)); b.onclick = () => practice(miss.slice()); r.append(b); }
+    const back = el("button", miss.length ? "" : "primary", t("dback")); back.onclick = () => finish(lastEnd, true);
+    r.append(back); card.append(r); app.replaceChildren(card);
+    if (!miss.length) { FX.play("win"); FX.confetti(0.6); }
+  };
+  const step = () => {
+    if (i >= qs.length) return done();
+    const w = qs[i], card = el("div", "card qcard"), top = el("div", "row"), grid = el("div", "opts");
+    top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)));
+    shuf(w.options).forEach((o, k) => {
+      const b = el("button"); b.dataset.opt = o; b.append(el("span", "k", k + 1), el("span", "", o));
+      b.onclick = () => {
+        const ok = o === w.eng;
+        grid.querySelectorAll("button").forEach((x) => { x.disabled = true; if (x.dataset.opt === w.eng) x.classList.add("ok"); });
+        if (ok) { right++; FX.play("correct", 1); } else { b.classList.add("no"); miss.push(w); FX.play("wrong"); FX.shake(card); }
+        timers.push(setTimeout(() => { i++; step(); }, ok ? 700 : 1500));
+      };
+      grid.append(b);
+    });
+    card.append(top, el("div", "qword", w.tr), grid);
+    app.replaceChildren(card);
+  };
+  step();
+}
+
+
+/* ---------- Konuşma modu ---------- */
+function stopRec() { if (rec) { try { rec.abort(); } catch (e) {} rec = null; } }
+function sendSay(text) {
+  text = String(text || "").trim(); if (!text || chosen !== null) return;
+  sayLast = text;
+  if (sayUi) { sayUi.heard.textContent = t("sayHeard", text); sayUi.heard.style.color = ""; }
+  send({ t: "answer", choice: text });
+}
+function sayMiss(m) {
+  if (!sayUi || chosen !== null) return;
+  if (sayQueue.length && m.left > 0) return sendSay(sayQueue.shift()); // tanıyıcının diğer tahminini dene
+  sayUi.heard.textContent = "✗ " + t("sayHeard", sayLast); sayUi.heard.style.color = "var(--bad)";
+  FX.play("wrong"); FX.shake(sayUi.root);
+  if (m.left <= 0) { sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true)); }
+}
+function sayLock() {
+  chosen = "said"; stopRec();
+  if (!sayUi) return;
+  sayUi.root.querySelectorAll("button,input").forEach((x) => (x.disabled = true));
+  sayUi.heard.textContent = "✓ " + sayLast; sayUi.heard.style.color = "var(--ok)"; sayUi.status.textContent = t("sayWaiting");
+  FX.play("tick");
+}
+function speakQuestion(m) {
+  sayQueue = []; sayLast = "";
+  const card = el("div", "card qcard"), top = el("div", "row"), bar = el("div", "timer"), fill = el("i"); bar.append(fill);
+  top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", m.idx + 1, m.total)), el("span", "dim small", t("fastBonus")));
+  const info = el("p", "dim small center", t("sayWord", langName(m.lang))), heard = el("div", "heard"), status = el("p", "dim small center");
+  const typed = el("input"), go = el("button", "", t("sayGo")), row = el("div", "sayrow");
+  typed.placeholder = t("sayType"); typed.maxLength = 60; typed.autocomplete = "off"; typed.setAttribute("autocapitalize", "off"); typed.spellcheck = false;
+  go.onclick = () => { sendSay(typed.value); typed.value = ""; };
+  typed.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  row.append(typed, go);
+  const micb = el("button", "mic");
+  micb.append(svg(ICONS.mic)); micb.setAttribute("aria-label", t("sayStart")); micb.title = t("sayStart");
+  const wrap = el("div", "center"); wrap.append(micb);
+  card.append(top, bar, el("div", "qword", m.tr), info);
+  if (SpeechRec) card.append(wrap); else status.textContent = t("sayNoMic");
+  card.append(heard, row, status);
+  const ps = room && room.players ? strip(room.players.map((p) => ({ ...p, score: (prevScores[p.id] || 0) }))) : el("div");
+  app.replaceChildren(ps, card);
+  sayUi = { root: card, heard, status, micb, typed, go };
+  if (!SpeechRec) typed.focus();
+  micb.onclick = () => {
+    if (rec) { stopRec(); micb.classList.remove("on"); return; }
+    const r = new SpeechRec(); rec = r;
+    r.lang = SPEECH_LANG[m.lang] || m.lang; r.interimResults = false; r.maxAlternatives = 3; r.continuous = false;
+    r.onstart = () => { micb.classList.add("on"); status.textContent = t("sayListening"); };
+    r.onresult = (e) => {
+      const res = e.results[e.results.length - 1], alts = [];
+      for (let k = 0; k < res.length; k++) alts.push(res[k].transcript);
+      sayQueue = alts.slice(1); sendSay(alts[0]);
+    };
+    r.onerror = (e) => { status.textContent = (e.error === "not-allowed" || e.error === "service-not-allowed") ? t("sayDenied") : e.error === "network" ? t("sayNoMic") : ""; };
+    r.onend = () => { micb.classList.remove("on"); if (rec === r) rec = null; if (status.textContent === t("sayListening")) status.textContent = ""; };
+    try { r.start(); } catch (e) { rec = null; }
+  };
+  fill.style.transition = `width ${m.seconds}s linear`;
+  requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  timers.push(setTimeout(() => bar.classList.add("hot"), Math.max(0, (m.seconds - 3) * 1000)));
+}
+
+// Konuşma düellosundan sonra yanlışlar için yazarak tekrar
+function practiceType(items) {
+  mode = "play"; clearTimers(); stopRec();
+  const qs = shuf(items), miss = [];
+  let i = 0, right = 0;
+  const done = () => {
+    const card = el("div", "card center"), r = el("div", "row"); r.style.cssText = "justify-content:center;margin-top:16px";
+    card.append(el("h2", "", t("dpracDone", right, qs.length)));
+    if (miss.length) { const b = el("button", "primary", t("retryWrong", miss.length)); b.onclick = () => practiceType(miss.slice()); r.append(b); }
+    const back = el("button", miss.length ? "" : "primary", t("dback")); back.onclick = () => finish(lastEnd, true);
+    r.append(back); card.append(r); app.replaceChildren(card);
+    if (!miss.length) { FX.play("win"); FX.confetti(0.6); }
+  };
+  const step = () => {
+    if (i >= qs.length) return done();
+    const w = qs[i], card = el("div", "card qcard"), top = el("div", "row"), inp = el("input"), go = el("button", "primary", t("sayGo")), row = el("div", "sayrow"), res = el("div", "heard");
+    top.style.marginBottom = "8px"; top.append(el("span", "dim small grow", t("qOf", i + 1, qs.length)));
+    inp.placeholder = t("sayType"); inp.autocomplete = "off"; inp.setAttribute("autocapitalize", "off"); inp.spellcheck = false; inp.maxLength = 60;
+    const check = () => {
+      if (!inp.value.trim()) return; inp.disabled = go.disabled = true;
+      const ok = sayMatch(inp.value, w.eng);
+      res.textContent = (ok ? "✓ " : "✗ ") + w.eng; res.style.color = ok ? "var(--ok)" : "var(--bad)";
+      if (ok) { right++; FX.play("correct", 1); } else { miss.push(w); FX.play("wrong"); FX.shake(card); }
+      if (canSpeak()) speak(w.eng, w.lang);
+      timers.push(setTimeout(() => { i++; step(); }, ok ? 1100 : 1800));
+    };
+    go.onclick = check; inp.onkeydown = (e) => { if (e.key === "Enter") check(); };
+    row.append(inp, go);
+    card.append(top, el("div", "qword", w.tr), el("p", "dim small center", t("sayWord", langName(w.lang))), res, row);
+    app.replaceChildren(card); inp.focus();
+  };
+  step();
+}
+
+
+/* ---------- Büyük ekran (sunum) modu: kurucu oyuncu değil, ekran. Oyuncular telefondan katılır. ---------- */
+const isScreen = () => !!(room && room.screen && room.host === myId);
+const SCR_LETTERS = ["A", "B", "C", "D"];
+function sLobby(info) {
+  mode = "lobby";
+  const card = el("div", "card center"), start = el("button", "primary", t("scrStart")), leave = el("button", "ghost", t("leave"));
+  start.style.cssText = "font-size:22px;padding:14px 36px"; start.disabled = !info.players.length;
+  start.onclick = () => send({ t: "start" });
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
+  if (info.locked) meta.push(t("locked"));
+  const chips = el("div", "scr-chips");
+  info.players.forEach((p) => { const c = el("div", "pc"); c.append(avatar(p.name), el("span", "", p.name.slice(0, 16))); chips.append(c); });
+  card.append(el("p", "dim", t("scrJoinAt", location.host + "/game")), el("div", "scr-code", info.code), el("p", "dim small", meta.join(" · ")),
+    el("p", "", info.players.length ? t("scrPlayers", info.players.length) : t("scrWaiting")), chips);
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:24px"; act.append(start, leave);
+  errBox.textContent = ""; card.append(act, errBox);
+  app.replaceChildren(card);
+}
+function sQuestion(m) {
+  mode = "play"; lastQ = m; clearTimers(); scrAns = 0; scrTotal = room && room.players ? room.players.length : 0;
+  const card = el("div", "card qcard"), top = el("div", "scr-bar"), bar = el("div", "timer"), fill = el("i"); bar.append(fill);
+  const cnt = el("span", "dim", t("scrAnswered", 0, scrTotal)); cnt.id = "scount";
+  top.append(el("span", "dim", t("qOf", m.idx + 1, m.total)), el("span", "grow"), cnt);
+  const og = el("div", "scr-opts");
+  m.options.forEach((o, i) => { const d = el("div", "o c" + i); d.dataset.opt = o; d.append(el("b", "", SCR_LETTERS[i]), el("span", "", o)); og.append(d); });
+  top.style.marginBottom = "10px";
+  card.append(top, bar, el("div", "scr-word", m.tr), og);
+  app.replaceChildren(card);
+  fill.style.transition = `width ${m.seconds}s linear`;
+  requestAnimationFrame(() => requestAnimationFrame(() => (fill.style.width = "0%")));
+  timers.push(setTimeout(() => bar.classList.add("hot"), Math.max(0, (m.seconds - 3) * 1000)));
+}
+function sReveal(m) {
+  clearTimers();
+  app.querySelectorAll(".scr-opts .o").forEach((d) => {
+    const n = (m.dist && m.dist[d.dataset.opt]) || 0;
+    if (d.dataset.opt === m.correct) d.classList.add("right"); else d.classList.add("dim");
+    d.append(el("span", "n", n));
+  });
+  const ok = m.results.filter((r) => r.ok).length;
+  FX.play(ok ? "correct" : "wrong", 1);
+  const rows = [...m.results].sort((a, b) => b.score - a.score).slice(0, 5), c = el("div", "card scr-top");
+  c.append(el("b", "", t("scrTop")), playerList(rows, { delta: true, rank: true }));
+  const old = app.querySelector(".scr-top"); if (old) old.remove();
+  app.append(c);
+  prevRank = {}; [...m.results].sort((a, b) => b.score - a.score).forEach((p, i) => (prevRank[p.id] = i));
+}
+function sEnd(m) {
+  mode = "lobby"; clearTimers(); prevRank = {};
+  const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
+  again.onclick = () => send({ t: "start" }); leave.onclick = () => { room = null; ws.close(); home(); };
+  const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
+  card.append(el("p", "dim small", t("gameOver")), el("h1", "", tie ? t("tie") : t("winner", top.name)));
+  if (m.scores.length >= 2) card.append(podium(m.scores));
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:16px"; pl.append(playerList(m.scores.slice(0, 10), { rank: true }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:16px"; act.append(again, leave);
+  card.append(pl, act); app.replaceChildren(card);
+  FX.play("win"); FX.confetti(1);
+}
+
+function podium(sc) {
+  const order = [sc[1], sc[0], sc[2]].filter(Boolean), pod = el("div", "pod");
+  order.forEach((p) => {
+    const place = sc.indexOf(p) + 1, d = el("div", "p" + place);
+    d.append(avatar(p.name), el("span", "nm", p.name), el("span", "pt", p.score), el("div", "blk", place));
+    pod.append(d);
+  });
+  return pod;
+}
+function finish(m, quiet) {
+  mode = "lobby"; clearTimers(); prevRank = {}; prevScores = {}; lastEnd = m;
+  const top = m.scores[0], tie = m.scores.length > 1 && m.scores[1].score === top.score;
+  const myPlace = m.scores.findIndex((p) => p.id === myId) + 1, won = myPlace === 1 && !tie;
+  const card = el("div", "card center"), again = el("button", "primary", t("playAgain")), leave = el("button", "", t("leave"));
+  again.onclick = () => { if (room && room.host === myId) send({ t: "start" }); };
+  leave.onclick = () => { room = null; ws.close(); home(); };
+  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:16px"; pl.append(playerList(m.scores, { rank: true }));
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:16px";
+  if (room && room.host === myId) act.append(again);
+  act.append(leave);
+  const head = won ? t("youWon") : tie ? t("tie") : t("winner", top.name);
+  card.append(el("p", "dim small", t("gameOver")), el("h1", "", head));
+  if (myPlace && !won) card.append(el("p", "dim", t("youPlace", myPlace)));
+  if (m.scores.length >= 2) card.append(podium(m.scores));
+  card.append(pl, act, wrongBox());
+  if (!(room && room.host === myId)) { const w = el("p", "dim small", t("hostRestarts")); w.style.marginTop = "12px"; card.append(w); }
+  app.replaceChildren(card);
+  if (quiet) return;
+  if (seenLog.length && room) { api("/api/srs/report", { src: room.src || "tr", dst: room.dst || "en", items: seenLog }).catch(() => {}); seenLog = []; }
+  if (won || tie) { FX.play("win"); FX.confetti(1); FX.vibrate([80, 40, 80, 40, 160]); } else FX.play("lose");
+}
+
+document.addEventListener("keydown", (e) => {
+  if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const n = parseInt(e.key, 10), btns = app.querySelectorAll(".opts button");
+  if (n >= 1 && n <= btns.length && !btns[n - 1].disabled) btns[n - 1].click();
+});
+
+I18N.onChange(() => { mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("nav_duel"); if (mode === "home") home(); else if (mode === "lobby" && room) lobby(room); });
+mountTools(document.getElementById("tools")); setBack(); document.title = "CineVocab · " + t("nav_duel");
+home("", true);
+</script>
+</body>
+</html>
