@@ -31,6 +31,8 @@ class Limited(Exception):
 def init(cfg: dict = None):
     q("CREATE TABLE IF NOT EXISTS words_ml (src TEXT NOT NULL, dst TEXT NOT NULL, word TEXT NOT NULL, "
       "trans TEXT NOT NULL, PRIMARY KEY (src, dst, word));")
+    q("ALTER TABLE words_ml ADD COLUMN IF NOT EXISTS created_at TIMESTAMP;")
+    q("ALTER TABLE words_ml ALTER COLUMN created_at SET DEFAULT now();")
     q("CREATE TABLE IF NOT EXISTS user_words_ml (user_id INT NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
       "word TEXT NOT NULL, episode TEXT NOT NULL DEFAULT '', created_at TIMESTAMP DEFAULT now(), "
       "PRIMARY KEY (user_id, src, dst, word, episode));")

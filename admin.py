@@ -418,14 +418,76 @@ async def close_room(code: str, request: Request):
 
 # ---------- Kelime havuzu ----------
 
+_LANG_RE = re.compile(r"^[a-z]{2,3}$")
+
+
+def _pair(pair: str):
+    """'ro>tr' -> ('ro', 'tr'); tr>en (eski tablo) için None döner."""
+    src, _, dst = (pair or "tr>en").partition(">")
+    if not (_LANG_RE.match(src) and _LANG_RE.match(dst)):
+        raise HTTPException(400, "Dil çifti geçersiz.")
+    return None if (src, dst) == ("tr", "en") else (src, dst)
+
+
+@router.get("/admin/api/word-pairs")
+def word_pairs(request: Request):
+    """Önbellekte kelimesi olan dil çiftleri ve sayıları (tr>en eski `words` tablosundadır)."""
+    need_admin(request)
+    out = [{"pair": "tr>en", "n": q("SELECT count(*) FROM words;", (), True)[0][0]}]
+    out += [{"pair": f"{r[0]}>{r[1]}", "n": r[2]} for r in q(
+        "SELECT src, dst, count(*) FROM words_ml GROUP BY src, dst ORDER BY count(*) DESC;", (), True)]
+    return out
+
+
 @router.get("/admin/api/words")
-def words(request: Request, q_: str = "", limit: int = 80):
+def words(request: Request, q_: str = "", limit: int = 80, pair: str = "tr>en"):
     need_admin(request)
     limit = max(1, min(limit, 300))
     like = "%" + q_.strip().replace("%", "").replace("_", r"\_") + "%"
-    rows = q("SELECT id, tr, eng, created_at FROM words WHERE tr ILIKE %s OR eng ILIKE %s "
-             "ORDER BY id DESC LIMIT %s;", (like, like, limit), True)
-    return [{"id": r[0], "tr": r[1], "eng": r[2], "at": _iso(r[3])} for r in rows]
+    p = _pair(pair)
+    if p is None:
+        rows = q("SELECT id, tr, eng, created_at FROM words WHERE tr ILIKE %s OR eng ILIKE %s "
+                 "ORDER BY id DESC LIMIT %s;", (like, like, limit), True)
+        return [{"id": r[0], "tr": r[1], "eng": r[2], "at": _iso(r[3])} for r in rows]
+    rows = q("SELECT word, trans, created_at FROM words_ml WHERE src = %s AND dst = %s "
+             "AND (word ILIKE %s OR trans ILIKE %s) ORDER BY created_at DESC NULLS LAST, word LIMIT %s;",
+             (p[0], p[1], like, like, limit), True)
+    return [{"id": None, "tr": r[0], "eng": r[1], "at": _iso(r[2]) if r[2] else "(eski kayıt)"} for r in rows]
+
+
+class WordMlEdit(BaseModel):
+    pair: str
+    word: str
+    eng: str = ""
+
+
+@router.post("/admin/api/words-ml/edit")
+def word_ml_edit(c: WordMlEdit, request: Request):
+    need_admin(request)
+    p = _pair(c.pair)
+    eng = c.eng.strip()[:80]
+    if p is None or not eng:
+        raise HTTPException(400, "Geçersiz istek.")
+    r = q("UPDATE words_ml SET trans = %s WHERE src = %s AND dst = %s AND word = %s RETURNING word;",
+          (eng, p[0], p[1], c.word[:60]), True)
+    if not r:
+        raise HTTPException(404, "Kelime yok.")
+    log(request, "word_ml_edit", f"{c.pair}:{r[0][0]}", eng)
+    return {"ok": True}
+
+
+@router.post("/admin/api/words-ml/delete")
+def word_ml_delete(c: WordMlEdit, request: Request):
+    need_admin(request)
+    p = _pair(c.pair)
+    if p is None:
+        raise HTTPException(400, "Geçersiz istek.")
+    r = q("DELETE FROM words_ml WHERE src = %s AND dst = %s AND word = %s RETURNING word;",
+          (p[0], p[1], c.word[:60]), True)
+    if not r:
+        raise HTTPException(404, "Kelime yok.")
+    log(request, "word_ml_delete", f"{c.pair}:{r[0][0]}")
+    return {"ok": True}
 
 
 class WordEdit(BaseModel):

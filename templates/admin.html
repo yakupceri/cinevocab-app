@@ -226,19 +226,25 @@ async function viewRooms() {
 
 // ---------- Kelimeler ----------
 async function viewWords() {
-  const box = h("div"), search = h("input", { placeholder: "Türkçe ya da İngilizce kelime ara…" });
+  const box = h("div"), search = h("input", { placeholder: "Kelime ara (kaynak ya da çeviri)…" }), sel = h("select");
+  const pairs = await api("/word-pairs");
+  pairs.forEach((p) => sel.append(h("option", { value: p.pair }, p.pair.replace(">", " → ") + " (" + p.n + ")")));
   const load = async () => {
-    const list = await api("/words?q_=" + encodeURIComponent(search.value));
+    const pair = sel.value, legacy = pair === "tr>en";
+    const list = await api("/words?pair=" + encodeURIComponent(pair) + "&q_=" + encodeURIComponent(search.value));
     box.textContent = "";
     box.append(h("div", { class: "wrap" }, h("table", {}, list.map((w) => {
       const inp = h("input", { value: w.eng, style: "width:100%" });
+      const save = legacy ? () => api("/words/" + w.id + "/edit", "POST", { eng: inp.value }) : () => api("/words-ml/edit", "POST", { pair, word: w.tr, eng: inp.value });
+      const del = legacy ? () => api("/words/" + w.id + "/delete", "POST") : () => api("/words-ml/delete", "POST", { pair, word: w.tr });
       return h("tr", {}, h("td", {}, w.tr), h("td", {}, inp), h("td", { class: "dim" }, w.at),
-        h("td", {}, h("button", { onclick: () => act(() => api("/words/" + w.id + "/edit", "POST", { eng: inp.value }), "Kaydedildi") }, "Kaydet"), " ",
-          h("button", { class: "danger", onclick: async () => { await act(() => api("/words/" + w.id + "/delete", "POST"), "Silindi"); load(); } }, "Sil")));
+        h("td", {}, h("button", { onclick: () => act(save, "Kaydedildi") }, "Kaydet"), " ",
+          h("button", { class: "danger", onclick: async () => { await act(del, "Silindi"); load(); } }, "Sil")));
     }))));
   };
   search.addEventListener("input", () => { clearTimeout(load.t); load.t = setTimeout(() => load().catch(() => {}), 300); });
-  $("view").append(h("p", { class: "dim" }, "Yanlış çevirileri burada düzeltebilir ya da silebilirsin. (main.py'deki DICTIONARY her zaman önceliklidir.)"), h("div", { class: "bar" }, search), box);
+  sel.addEventListener("change", () => load().catch(() => {}));
+  $("view").append(h("p", { class: "dim" }, "Yanlış çevirileri burada düzeltebilir ya da silebilirsin. Dil çiftini listeden seç. (main.py'deki DICTIONARY her zaman önceliklidir; tr → en dışındaki eski kayıtların tarihi yoktur.)"), h("div", { class: "bar" }, sel, search), box);
   await load();
 }
 
