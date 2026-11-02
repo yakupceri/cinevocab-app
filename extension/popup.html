@@ -20,6 +20,9 @@
   button.b.p { background:var(--acc); border-color:var(--acc); color:var(--on); }
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
   .note { font-size:12.5px; color:var(--dim); margin:10px 0 0; min-height:18px; } .note.bad { color:var(--bad); } .note.ok { color:var(--ok); }
+  .how summary { cursor:pointer; font-weight:700; }
+  .how ol { margin:8px 0 0; padding-left:20px; font-size:13px; line-height:1.55; }
+  .how li { margin-bottom:3px; }
   .guide { border-color:var(--acc); }
   .guide b { display:block; margin-bottom:6px; }
   .guide ol { margin:0; padding-left:20px; font-size:13px; line-height:1.55; }
@@ -30,6 +33,12 @@
   <div class="top"><div class="brand"><i></i>CineVocab</div><button class="sw" id="sw" role="switch" aria-checked="false" aria-label="On/Off"></button></div>
   <p id="state" class="off"></p>
   <p class="note" id="hint"></p>
+  <p class="note" id="site" hidden style="color:var(--acc)"></p>
+  <details class="card how" id="how">
+    <summary id="howTitle"></summary>
+    <ol><li id="h1"></li><li id="h2"></li><li id="h3"></li></ol>
+    <p class="note" id="hNote"></p>
+  </details>
   <div class="card guide" id="guide" hidden>
     <b id="gTitle"></b>
     <ol><li id="g1"></li><li id="g2"></li><li id="g3"></li></ol>
@@ -54,6 +63,7 @@
   </div>
   <div class="card">
     <label for="key" id="lKey"></label>
+    <p class="note" id="keyHelp" style="margin:0 0 8px"></p>
     <input id="key" autocomplete="off" spellcheck="false">
     <button class="b p" id="save"></button>
     <p class="note ok" id="keyState" hidden></p>

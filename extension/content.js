@@ -419,6 +419,9 @@ setInterval(() => {
   showSentence(text);
 }, POLL_MS);
 
+// Açılır pencere "bu sekmede CineVocab çalışıyor mu?" diye sorar
+try { chrome.runtime.onMessage.addListener((m, _s, send) => { if (m && m.cv === "ping") send({ ok: true }); }); } catch (e) {}
+
 // ---------- Ayarlar (canlı): aç/kapa ve dil değişince sayfayı yenilemeye gerek yok ----------
 function applyEnabled() {
   if (ENABLED) return;

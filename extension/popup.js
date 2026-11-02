@@ -9,6 +9,7 @@ function fill(sel) {
 fill($("src")); fill($("dst"));
 $("lSrc").textContent = T("subLang"); $("lDst").textContent = T("transLang"); $("lKey").textContent = T("key");
 $("key").placeholder = T("keyPh");
+for (const id of ["howTitle", "h1", "h2", "h3", "hNote", "keyHelp"]) $(id).textContent = T(id);
 $("gTitle").textContent = T("gTitle"); $("g1").textContent = T("g1"); $("g2").textContent = T("g2"); $("g3").textContent = T("g3"); $("gOpen").textContent = T("gOpen"); $("gNote").textContent = T("gNote"); $("keyState").textContent = T("keyOk"); $("save").textContent = T("save"); $("open").textContent = T("panel"); $("hint").textContent = T("hint");
 
 function opt(sel, pairs) { sel.replaceChildren(...pairs.map(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; })); }
@@ -27,6 +28,7 @@ function paint() {
   $("src").value = st.src; $("dst").value = st.dst;
   const hasKey = !!st.key;
   $("guide").hidden = hasKey; $("keyState").hidden = !hasKey; $("open").hidden = !hasKey;
+  if (!paint.howSet) { $("how").open = !hasKey; paint.howSet = true; } // ilk açılışta yeni kullanıcıya açık, anahtarı olana kapalı
 }
 chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "ui"], (r) => {
   if (r.ui) { ui = { ...ui, ...r.ui }; }
@@ -54,3 +56,18 @@ $("save").onclick = () => { st.key = $("key").value.trim(); paint(); chrome.stor
 $("open").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
 
 $("gOpen").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
+
+// Etkin sekmede CineVocab çalışıyor mu? (içerik betiği yalnızca Prime Video, YouTube ve Udemy'de yüklü; ek izin gerekmez)
+(function checkSite() {
+  const note = $("site");
+  const show = (bad) => { note.hidden = !bad; if (bad) note.textContent = T("siteNote"); };
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs && tabs[0];
+      if (!tab || tab.id == null) return show(false);
+      try {
+        chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => { void chrome.runtime.lastError; show(!(r && r.ok)); });
+      } catch (e) { show(false); }
+    });
+  } catch (e) { show(false); }
+})();
