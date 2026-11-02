@@ -1521,7 +1521,7 @@ def translate_words(batch: WordsBatch, request: Request):
     batch.episode = batch.episode[:80]
     if not batch.lookup_only:
         try:
-            count_usage(bool(user_from_request(request)), len(batch.words))
+            count_usage(bool(user_from_request(request)), len(batch.words), batch.src, batch.dst)
         except Exception:
             pass
     if batch.thumb and batch.episode:

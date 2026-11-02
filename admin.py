@@ -183,6 +183,9 @@ def stats(request: Request):
         "usage": [{"day": str(r[0]), "calls": r[1], "anon": r[2], "words": r[3]} for r in q(
             "SELECT day, calls, anon_calls, words FROM usage_daily WHERE day > current_date - 14 "
             "ORDER BY day;", (), True)],
+        "pairs": [{"pair": r[0] + "→" + r[1], "calls": r[2]} for r in q(
+            "SELECT src, dst, sum(calls) FROM usage_pairs WHERE day > current_date - 14 "
+            "GROUP BY src, dst ORDER BY sum(calls) DESC LIMIT 12;", (), True)],
         "top_sources": [{"episode": r[0], "n": r[1]} for r in q(
             "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
