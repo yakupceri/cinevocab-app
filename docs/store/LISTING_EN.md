@@ -1,5 +1,5 @@
 # CineVocab: Chrome Web Store listing (English, default language)
-For extension version 1.8.5. Copy each block into the matching field of the Developer Dashboard.
+For extension version 1.8.7. Copy each block into the matching field of the Developer Dashboard.
 
 ## Store listing tab
 
@@ -7,42 +7,43 @@ For extension version 1.8.5. Copy each block into the matching field of the Deve
 CineVocab
 
 ### Summary (132 characters max; this is the same text as in the extension's manifest)
-Translate Prime Video, YouTube & Udemy subtitles word by word. Any language pair, word lists, quizzes and live duels.
+Learn a language from the shows you watch. Every subtitle word translated live on Prime Video, YouTube & Udemy. Free.
 
 ### Description
-Learn the words you actually meet while watching. CineVocab shows the translation of every subtitle word as you watch, saves the words for you, and turns them into quizzes, daily challenges and live duels against your friends.
+Stop pausing to look up words. Watch your show, and CineVocab puts the translation of every subtitle word right on screen, live.
 
-HOW IT WORKS
-1. Pick your language pair in the popup and switch the extension on.
-2. Watch on Prime Video, YouTube or Udemy. Every subtitle word appears with its translation, and the whole sentence is translated underneath.
-3. Your words are saved automatically, grouped by platform, show and episode.
-4. Practice them on the CineVocab website, or challenge your friends.
+Works on Prime Video, YouTube and Udemy. Free. No account needed to try it.
 
-GETTING STARTED
-1. Install CineVocab and pin it with the puzzle icon in Chrome's toolbar.
-2. Create a free account at https://cinevocab.up.railway.app, open Settings and press "Create key".
-3. Click the CineVocab icon, paste the key and press "Save key". Translations also work without a key; the key is only needed to save your words.
-4. Open a video with subtitles on Prime Video, YouTube or Udemy, pick the subtitle language in the popup and switch it on. On YouTube, turn on captions (CC) first.
+WHY IT WORKS
+You remember words you met in a scene far better than words from a list. CineVocab turns the thing you already do (watching) into practice: every word you see is translated, saved, and brought back later as a quiz.
+
+TRY IT IN 30 SECONDS
+1. Install CineVocab and pin it from the puzzle icon in Chrome's toolbar.
+2. Open a video with subtitles on Prime Video, YouTube or Udemy (on YouTube, turn on captions with CC).
+3. Click the CineVocab icon, choose the subtitle language and the language you want translations in, and switch it on.
+Each subtitle word now appears with its translation, and the whole sentence is translated underneath.
+
+KEEP YOUR WORDS (optional, free)
+Create a free account at https://cinevocab.up.railway.app, press "Create key" in Settings and paste the key into the popup. Your words are then saved by platform, show and episode. Translating works without a key; the key is only for saving.
 
 WHILE YOU WATCH
-- Works with any language pair (for example Spanish to English, French to English, Turkish to English)
+- Any language pair, for example Spanish to English, French to English or Turkish to English
 - 11 subtitle languages: Turkish, English, French, Italian, German, Spanish, Portuguese, Russian, Arabic, Romanian and Japanese
-- On/off switch: nothing is translated until you turn it on
-- Language guard: pauses translation when the subtitles are not in the language you chose
-- Move the subtitle box to any corner, make it bigger or smaller, and set how transparent it is
+- Off by default: nothing is translated until you switch it on
+- Language guard: pauses when the subtitles are not in the language you chose
+- Move the subtitle box to a corner or top/bottom center, resize it and set its transparency
 
 AFTER YOU WATCH (on the CineVocab website)
 - Word lists by platform, show and episode, with thumbnails
-- Quizzes with levels, streaks, daily goals and combos, plus speed and survival modes
-- Smart review: words you get wrong come back sooner, words you know come back later
+- Quizzes with levels, streaks, daily goals, speed and survival modes
+- Smart review: words you miss come back sooner, words you know come back later
 - Listening and speaking practice (speaking is optional and uses your browser's speech recognition)
 - Daily challenge: the same 10 words for everyone, once a day
-- Friend leagues: create a private league, share the invite link and compare points every week
-- Live duels: create a room, share the 4-digit code and race your friends. Afterwards you see the words you missed and can practice them right away
-- Leaderboards (people and countries), light and dark theme, interface in 6 languages
+- Private friend leagues and live duels with a 4-digit room code
+- Big-screen mode for classrooms, light and dark theme, interface in 6 languages
 
 PRIVACY
-The extension sends the subtitle line it reads, and the words you save, to our server (and from there to Google Translate) to be translated and stored. We never sell your data. You can delete your account and all your data at any time. Full policy: https://cinevocab.up.railway.app/privacy
+The extension sends the subtitle line it reads, and the words you save, to our server (and from there to Google Translate) to be translated and stored. We also keep a simple daily count of translation requests, without any username, IP address or text, to see whether the extension is used. We never sell your data. You can delete your account and all your data at any time. Full policy: https://cinevocab.up.railway.app/privacy
 
 CineVocab is an independent project. It is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube or Udemy.
 
