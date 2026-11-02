@@ -13,7 +13,7 @@ for (const id of ["howTitle", "h1", "h2", "h3", "hNote", "keyHelp"]) $(id).textC
 $("gTitle").textContent = T("gTitle"); $("g1").textContent = T("g1"); $("g2").textContent = T("g2"); $("g3").textContent = T("g3"); $("gOpen").textContent = T("gOpen"); $("gNote").textContent = T("gNote"); $("keyState").textContent = T("keyOk"); $("save").textContent = T("save"); $("open").textContent = T("panel"); $("hint").textContent = T("hint");
 
 function opt(sel, pairs) { sel.replaceChildren(...pairs.map(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; })); }
-opt($("pos"), [["tl", T("posTL")], ["tr", T("posTR")], ["bl", T("posBL")], ["br", T("posBR")]]);
+opt($("pos"), [["tl", T("posTL")], ["tr", T("posTR")], ["bl", T("posBL")], ["br", T("posBR")], ["tc", T("posTC")], ["bc", T("posBC")]]);
 opt($("size"), [["s", T("sizeS")], ["m", T("sizeM")], ["l", T("sizeL")]]);
 $("lBox").textContent = T("boxTitle"); $("lPos").textContent = T("boxPos"); $("lSize").textContent = T("boxSize"); $("lOp").textContent = T("boxOp");
 let ui = { pos: "tl", size: "m", op: 0.85 };

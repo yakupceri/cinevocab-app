@@ -455,6 +455,52 @@ def words(request: Request, q_: str = "", limit: int = 80, pair: str = "tr>en"):
     return [{"id": None, "tr": r[0], "eng": r[1], "at": _iso(r[2]) if r[2] else "(eski kayıt)"} for r in rows]
 
 
+class StoreStat(BaseModel):
+    day: str
+    installs: int = 0
+    users: int = 0
+
+
+@router.get("/admin/api/bot-check")
+def bot_check(request: Request):
+    """Mağaza panelinden elle girilen yükleme/kullanıcı sayıları ile sunucudaki gerçek çeviri isteklerini yan yana koyar."""
+    need_admin(request)
+    rows = q("""SELECT d::date, coalesce(s.installs, 0), coalesce(s.users, 0), coalesce(u.calls, 0), coalesce(u.anon_calls, 0),
+                       s.day IS NOT NULL
+                FROM generate_series(current_date - 13, current_date, interval '1 day') d
+                LEFT JOIN store_stats s ON s.day = d::date
+                LEFT JOIN usage_daily u ON u.day = d::date
+                ORDER BY d DESC;""", (), True)
+    days = [{"day": str(r[0]), "installs": r[1], "users": r[2], "calls": r[3], "anon": r[4], "entered": r[5]} for r in rows]
+    entered = [d for d in days if d["entered"]]
+    inst = sum(d["installs"] for d in entered)
+    calls = sum(d["calls"] for d in entered)
+    if inst < 10:
+        verdict = "Yeterli veri yok: mağaza panelinden birkaç günün yükleme sayısını gir (en az ~10 yükleme)."
+    elif calls == 0:
+        verdict = "Şüpheli: yükleme var ama sunucuya hiç çeviri isteği gelmedi. Yüklenenler eklentiyi kullanmamış (bot ya da boş yükleme olabilir)."
+    elif calls < inst:
+        verdict = "Zayıf kullanım: yükleme başına 1'den az istek. Çoğu yükleme eklentiyi çalıştırmamış olabilir."
+    else:
+        verdict = "Kullanım var: yüklemeye oranla düzenli çeviri isteği geliyor. Bu gerçek kullanıcı olabileceğini gösterir, kanıtlamaz."
+    return {"days": days, "installs": inst, "calls": calls, "verdict": verdict}
+
+
+@router.post("/admin/api/store-stats")
+def store_stats_set(c: StoreStat, request: Request):
+    need_admin(request)
+    try:
+        day = datetime.strptime(c.day, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Tarih YYYY-AA-GG olmalı.")
+    if not (0 <= c.installs <= 100000 and 0 <= c.users <= 100000):
+        raise HTTPException(400, "Sayı geçersiz.")
+    q("INSERT INTO store_stats (day, installs, users) VALUES (%s, %s, %s) "
+      "ON CONFLICT (day) DO UPDATE SET installs = EXCLUDED.installs, users = EXCLUDED.users;", (day, c.installs, c.users))
+    log(request, "store_stats", str(day), f"yükleme={c.installs} kullanıcı={c.users}")
+    return {"ok": True}
+
+
 class WordMlEdit(BaseModel):
     pair: str
     word: str

@@ -134,8 +134,30 @@ async function viewStats() {
           : h("p", {}, "Henüz kayıt yok. Sayaç bu sürümden itibaren çalışır."),
         s.pairs.length ? h("table", {}, h("tr", {}, h("th", {}, "Dil çifti (14 gün)"), h("th", {}, "İstek")),
           s.pairs.map((x) => h("tr", {}, h("td", {}, x.pair), h("td", {}, x.calls)))) : ""),
+      botPanel(),
       h("div", { class: "panel" }, h("h3", {}, "En çok kelime toplanan içerikler"),
         h("table", {}, s.top_sources.map((x) => h("tr", {}, h("td", {}, x.episode), h("td", {}, x.n)))))));
+}
+
+// ---------- Bot testi: mağaza yüklemesi ↔ gerçek çeviri isteği ----------
+function botPanel() {
+  const box = h("div", { class: "panel" }, h("h3", {}, "Bot testi (yükleme ↔ kullanım)"));
+  const day = h("input", { type: "date", value: new Date(Date.now() - 864e5).toISOString().slice(0, 10) });
+  const ins = h("input", { type: "number", min: 0, placeholder: "Yükleme", style: "width:90px" });
+  const usr = h("input", { type: "number", min: 0, placeholder: "Aktif kullanıcı", style: "width:110px" });
+  const load = async () => {
+    const r = await api("/bot-check");
+    box.textContent = "";
+    box.append(h("h3", {}, "Bot testi (yükleme ↔ kullanım)"),
+      h("p", { class: "dim" }, "Chrome Web Store panelindeki günlük Yükleme ve Kullanıcı sayısını gir. Sunucudaki gerçek çeviri istekleriyle karşılaştırırım."),
+      h("div", { class: "bar" }, day, ins, usr, h("button", { onclick: () => act(() => api("/store-stats", "POST", { day: day.value, installs: Number(ins.value) || 0, users: Number(usr.value) || 0 }), "Kaydedildi").then(load) }, "Kaydet")),
+      h("p", {}, h("b", {}, r.verdict)),
+      h("table", {}, h("tr", {}, ["Gün", "Yükleme", "Kullanıcı", "Çeviri isteği", "Hesapsız"].map((t) => h("th", {}, t))),
+        r.days.map((d) => h("tr", {}, h("td", {}, d.day), h("td", {}, d.entered ? d.installs : "—"), h("td", {}, d.entered ? d.users : "—"), h("td", {}, d.calls), h("td", {}, d.anon)))),
+      h("p", { class: "dim" }, "Bu bir ipucudur, kanıt değildir. Sayaç kimseyi tanımaz; sadece \"yüklenenler gerçekten kullanıyor mu\" sorusuna yaklaşık cevap verir."));
+  };
+  load().catch(() => {});
+  return box;
 }
 
 // ---------- Kullanıcılar ----------

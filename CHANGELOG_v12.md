@@ -27,3 +27,7 @@ v11 (eklenti 1.8.6, başlarken rehberi) + günlük kullanım sayacı + **Romence
 - Japoncada çekimli fiiller (食べ|まし|た gibi) parçalara ayrılır; sözlük biçimine (lemma) çevrilmez, bu yüzden bazı çeviriler eksik/yanlış olabilir.
 - Arayüz dili: Romence/Japonca tarayıcılar İngilizce arayüz görür (6 arayüz dili değişmedi).
 - Gerçek bir Romen ya da Japon kullanıcı.
+
+## Sonradan eklenenler
+- Altyazı kutusuna "Üst orta" ve "Alt orta" konumları (eklenti 1.8.7, zip yeniden oluşturuldu).
+- Admin → Özet: "Bot testi" paneli. Mağaza panelindeki günlük yükleme/kullanıcı sayısı elle girilir, sunucudaki çeviri istekleriyle karşılaştırılır. Sadece ipucu verir, kanıt değildir.

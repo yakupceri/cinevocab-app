@@ -58,6 +58,7 @@ def init_accounts(db_config: dict):
         # Kimlik içermeyen günlük kullanım sayacı (IP, kullanıcı adı ya da cümle saklanmaz)
         "CREATE TABLE IF NOT EXISTS usage_daily (day DATE PRIMARY KEY, calls INT NOT NULL DEFAULT 0, "
         "anon_calls INT NOT NULL DEFAULT 0, words INT NOT NULL DEFAULT 0);",
+        "CREATE TABLE IF NOT EXISTS store_stats (day DATE PRIMARY KEY, installs INT NOT NULL DEFAULT 0, users INT NOT NULL DEFAULT 0);",
         "CREATE TABLE IF NOT EXISTS usage_pairs (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
         "calls INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst));",
     ):

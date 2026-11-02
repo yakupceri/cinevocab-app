@@ -29,12 +29,13 @@ Object.assign(overlayBox.style, {
 const UI_SIZES = { s: "13px", m: "16px", l: "19px" };
 function applyUi(ui) {
   ui = ui || {};
-  const pos = ["tl", "tr", "bl", "br"].includes(ui.pos) ? ui.pos : "tl";
+  const pos = ["tl", "tr", "bl", "br", "tc", "bc"].includes(ui.pos) ? ui.pos : "tl";
   const op = Math.min(1, Math.max(0.4, Number(ui.op) || 0.85));
   const st = overlayBox.style;
   st.top = st.bottom = st.left = st.right = "auto";
   st[pos[0] === "t" ? "top" : "bottom"] = pos[0] === "t" ? "28px" : "72px"; // altta video kontrolleri için pay
-  st[pos[1] === "l" ? "left" : "right"] = "28px";
+  if (pos[1] === "c") { st.left = "50%"; st.transform = "translateX(-50%)"; }
+  else { st.transform = "none"; st[pos[1] === "l" ? "left" : "right"] = "28px"; }
   st.fontSize = UI_SIZES[ui.size] || UI_SIZES.m;
   st.backgroundColor = "rgba(0,0,0," + op + ")";
 }
