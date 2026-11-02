@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
-from accounts import (router, init_accounts, user_from_request, user_from_token,
+from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
                       record_game, tag_user_words, _throttle_ip)
 import admin
 
@@ -1519,6 +1519,11 @@ def translate_words(batch: WordsBatch, request: Request):
     _throttle_ip(request, limit=240, window=60, bucket="tr")
     batch.sentence = batch.sentence[:300]
     batch.episode = batch.episode[:80]
+    if not batch.lookup_only:
+        try:
+            count_usage(bool(user_from_request(request)), len(batch.words))
+        except Exception:
+            pass
     if batch.thumb and batch.episode:
         vocab.save_thumb(batch.episode, batch.thumb)
     if (batch.src, batch.dst) != ("tr", "en"):

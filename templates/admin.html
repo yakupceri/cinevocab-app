@@ -128,6 +128,10 @@ async function viewStats() {
     h("div", { class: "grid2" },
       h("div", { class: "panel" }, h("h3", {}, "Son 14 gün kayıtlar"),
         h("div", { class: "spark" }, s.signups.map((x) => h("i", { title: x.day + ": " + x.n, style: "height:" + (x.n / max) * 100 + "%" })))),
+      h("div", { class: "panel" }, h("h3", {}, "Eklenti çeviri istekleri (günlük)"),
+        s.usage.length ? h("table", {}, h("tr", {}, h("th", {}, "Gün"), h("th", {}, "İstek"), h("th", {}, "Hesapsız"), h("th", {}, "Kelime")),
+          s.usage.map((x) => h("tr", {}, h("td", {}, x.day), h("td", {}, x.calls), h("td", {}, x.anon), h("td", {}, x.words))))
+          : h("p", {}, "Henüz kayıt yok. Sayaç bu sürümden itibaren çalışır.")),
       h("div", { class: "panel" }, h("h3", {}, "En çok kelime toplanan içerikler"),
         h("table", {}, s.top_sources.map((x) => h("tr", {}, h("td", {}, x.episode), h("td", {}, x.n)))))));
 }

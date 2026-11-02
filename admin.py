@@ -180,6 +180,9 @@ def stats(request: Request):
         "signups": [{"day": str(r[0]), "n": r[1]} for r in q(
             "SELECT created_at::date d, count(*) FROM users WHERE created_at > now() - interval '14 days' "
             "GROUP BY d ORDER BY d;", (), True)],
+        "usage": [{"day": str(r[0]), "calls": r[1], "anon": r[2], "words": r[3]} for r in q(
+            "SELECT day, calls, anon_calls, words FROM usage_daily WHERE day > current_date - 14 "
+            "ORDER BY day;", (), True)],
         "top_sources": [{"episode": r[0], "n": r[1]} for r in q(
             "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
