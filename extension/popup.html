@@ -20,11 +20,22 @@
   button.b.p { background:var(--acc); border-color:var(--acc); color:var(--on); }
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
   .note { font-size:12.5px; color:var(--dim); margin:10px 0 0; min-height:18px; } .note.bad { color:var(--bad); } .note.ok { color:var(--ok); }
+  .guide { border-color:var(--acc); }
+  .guide b { display:block; margin-bottom:6px; }
+  .guide ol { margin:0; padding-left:20px; font-size:13px; line-height:1.55; }
+  .guide li { margin-bottom:3px; }
+  [hidden] { display:none !important; }
 </style></head>
 <body>
   <div class="top"><div class="brand"><i></i>CineVocab</div><button class="sw" id="sw" role="switch" aria-checked="false" aria-label="On/Off"></button></div>
   <p id="state" class="off"></p>
   <p class="note" id="hint"></p>
+  <div class="card guide" id="guide" hidden>
+    <b id="gTitle"></b>
+    <ol><li id="g1"></li><li id="g2"></li><li id="g3"></li></ol>
+    <button class="b p" id="gOpen"></button>
+    <p class="note" id="gNote"></p>
+  </div>
   <div class="card">
     <div class="two">
       <div><label for="src" id="lSrc"></label><select id="src"></select></div>
@@ -33,9 +44,19 @@
     <p class="note" id="det"></p>
   </div>
   <div class="card">
+    <label id="lBox" style="font-weight:700;color:var(--ink)"></label>
+    <div class="two" style="margin-top:6px">
+      <div><label for="pos" id="lPos"></label><select id="pos"></select></div>
+      <div><label for="size" id="lSize"></label><select id="size"></select></div>
+    </div>
+    <label for="op" id="lOp" style="margin-top:10px"></label>
+    <input id="op" type="range" min="40" max="100" step="5" style="padding:0;min-height:24px">
+  </div>
+  <div class="card">
     <label for="key" id="lKey"></label>
     <input id="key" autocomplete="off" spellcheck="false">
     <button class="b p" id="save"></button>
+    <p class="note ok" id="keyState" hidden></p>
     <button class="b" id="open"></button>
   </div>
   <script src="lang.js"></script>

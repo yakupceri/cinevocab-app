@@ -227,6 +227,28 @@ function otherPairs() {
   return r;
 }
 
+
+const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl";
+function startGuide() {
+  const g = el("div", "card guide"), ol = el("ol", "gsteps");
+  g.append(el("h2", "", t("gsTitle")), el("p", "dim", t("gsSub")), ol);
+  const step = (n, extra) => { const li = el("li"), b = el("div", "gbody"); b.append(el("b", "", t("gs" + n + "T")), el("span", "dim small", t("gs" + n))); if (extra) b.append(extra); li.append(b); ol.append(li); return li; };
+  const b1 = el("button", "primary", t("gs1B")); b1.onclick = () => window.open(STORE_URL, "_blank", "noopener");
+  step(1, b1);
+  const b2 = el("button", "primary", t("gs2B")), out = el("code", "gkey hide");
+  const s2 = step(2, b2); s2.querySelector(".gbody").append(out);
+  b2.onclick = async () => {
+    try {
+      const k = (await api("/api/ext-key", {})).key; out.textContent = k; out.classList.remove("hide"); s2.classList.add("done");
+      let ok = false; try { await navigator.clipboard.writeText(k); ok = true; } catch (e) {}
+      toast(ok ? t("gsCopied") : k);
+    } catch (e) { toast(e.message); }
+  };
+  step(3); step(4);
+  g.append(el("p", "dim small gtip", t("gsTip")));
+  return g;
+}
+
 /* ---------- Kelimeler ---------- */
 function tWords() {
   const box = el("div"), c = counts();
@@ -235,7 +257,7 @@ function tWords() {
   [[c.words, t("statWords")], [c.videos, t("statVideos")], [c.known, t("statKnown")], [me.wins || 0, t("statWins")]].forEach(([n, l]) => {
     const s = el("div", "stat"); s.append(el("b", "", n), el("span", "", l)); st.append(s); });
   box.append(st);
-  if (!V.words.length) { box.append(empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
+  if (!V.words.length) { box.append(startGuide(), empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
 
   const q = el("input"), ep = el("select"), all = el("button", "", t("selectShown"));
   q.type = "search"; q.placeholder = t("search"); q.value = Q;
@@ -316,7 +338,7 @@ function loadPoster(name, img) {
 function tVideos() {
   const box = el("div");
   box.append(head(t("nav_videos"), t("videosSub")));
-  if (!VIDS.length) { box.append(empty(t("emptyVideos"), t("emptyVideosText"), otherPairs())); return box; }
+  if (!VIDS.length) { box.append(startGuide(), empty(t("emptyVideos"), t("emptyVideosText"), otherPairs())); return box; }
   const items = videoItems(), cnt = { all: items.length };
   items.forEach((i) => (cnt[i.plat] = (cnt[i.plat] || 0) + 1));
   if (PLAT !== "all" && !cnt[PLAT]) PLAT = "all";
@@ -456,8 +478,10 @@ const QSTOP = new Set("to the a an of and for you are was not has have there tha
 const QNEG = new Set(["not", "no", "never", "cannot", "without", "nobody", "nothing", "nowhere", "none", "neither", "nor"]);
 const quizOk = (w) => {
   const a = String(w.tr || "").trim().toLowerCase(), toks = (String(w.eng || "").toLowerCase().match(/[a-z']+/g) || []);
-  if (a.length < 2 || QSTOP.has(a)) return false;
-  if (!toks.length || toks.every((x) => QSTOP.has(x))) return false;
+  const cjk = /[぀-ヿ㐀-鿿]/.test(a), latinAns = /[a-z]/i.test(String(w.eng || ""));
+  if ((a.length < 2 && !cjk) || QSTOP.has(a)) return false;
+  // "the/a/and" ve olumsuzluk denetimi yalnızca Latin yazılı çevirilerde anlamlı (ja/ru/ar çevirileri atlanmasın)
+  if (latinAns && (!toks.length || toks.every((x) => QSTOP.has(x)))) return false;
   if (/m[ıiuü]yor(um|sun|uz|sunuz|lar)?$/.test(a) && !toks.some((x) => QNEG.has(x) || /n't$/.test(x))) return false;
   return true;
 };
