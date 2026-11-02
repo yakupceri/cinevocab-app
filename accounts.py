@@ -58,17 +58,26 @@ def init_accounts(db_config: dict):
         # Kimlik içermeyen günlük kullanım sayacı (IP, kullanıcı adı ya da cümle saklanmaz)
         "CREATE TABLE IF NOT EXISTS usage_daily (day DATE PRIMARY KEY, calls INT NOT NULL DEFAULT 0, "
         "anon_calls INT NOT NULL DEFAULT 0, words INT NOT NULL DEFAULT 0);",
+        "CREATE TABLE IF NOT EXISTS usage_pairs (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
+        "calls INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst));",
     ):
         q(sql)
 
 
-def count_usage(signed_in: bool, n_words: int):
+def _lang(v) -> str:
+    v = str(v or "").lower()[:8]
+    return v if re.fullmatch(r"[a-z]{2,3}(-[a-z0-9]{2,4})?", v) else "??"
+
+
+def count_usage(signed_in: bool, n_words: int, src: str = "tr", dst: str = "en"):
     """Eklentiden gelen çeviri isteğini günlük toplam olarak sayar. Hata verirse çeviriyi bozmaz."""
     try:
         q("INSERT INTO usage_daily (day, calls, anon_calls, words) VALUES (current_date, 1, %s, %s) "
           "ON CONFLICT (day) DO UPDATE SET calls = usage_daily.calls + 1, "
           "anon_calls = usage_daily.anon_calls + EXCLUDED.anon_calls, words = usage_daily.words + EXCLUDED.words;",
           (0 if signed_in else 1, max(0, min(int(n_words), 30))))
+        q("INSERT INTO usage_pairs (day, src, dst, calls) VALUES (current_date, %s, %s, 1) "
+          "ON CONFLICT (day, src, dst) DO UPDATE SET calls = usage_pairs.calls + 1;", (_lang(src), _lang(dst)))
     except Exception as e:
         print(f"Sayaç hatası: {e}")
 
