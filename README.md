@@ -52,6 +52,7 @@ Create a room, share the 4-digit code and race your friends on the words you col
 - Accounts with repeated-password sign-up, a strength meter and a **recovery code** for password reset
 - Known-words list, word and video delete panels
 - Interface in **Turkish, English, French, Italian, German and Spanish**, with light and dark themes
+- **11 subtitle languages**: Turkish, English, French, Italian, German, Spanish, Portuguese, Russian, Arabic, Romanian and Japanese
 - Admin panel (ban, rename, reset score or password)
 
 ## Tech

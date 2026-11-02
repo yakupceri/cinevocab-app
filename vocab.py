@@ -13,7 +13,7 @@ from accounts import q, need_user
 
 router = APIRouter()
 
-LANGS = {"en", "tr", "fr", "it", "de", "es", "pt", "ru", "ar"}
+LANGS = {"en", "tr", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja"}
 LEGACY = ("tr", "en")
 
 

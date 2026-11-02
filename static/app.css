@@ -287,3 +287,16 @@ button.icon { padding:0; width:40px; display:grid; place-items:center; }
 .daily-card .big{font:800 44px var(--display)}
 .board li.me{outline:1px solid var(--accent);border-radius:8px}
 .w .spk{position:absolute;right:10px;bottom:10px;width:26px;height:26px}
+
+/* v11 başlangıç rehberi */
+.guide { margin:14px 0 18px; }
+.guide h2 { font-size:22px; margin-bottom:4px; }
+.gsteps { list-style:none; counter-reset:gs; margin:16px 0 8px; padding:0; display:grid; gap:12px; }
+.gsteps li { counter-increment:gs; display:flex; gap:14px; align-items:flex-start; }
+.gsteps li::before { content:counter(gs); flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font:700 15px var(--display); color:var(--accent); border:1.5px solid var(--accent); background:var(--accent-soft); }
+.gsteps li.done::before { content:"✓"; background:var(--accent); color:var(--on-accent); }
+.gbody { display:grid; gap:4px; justify-items:start; min-width:0; }
+.gbody b { font-size:15.5px; }
+.gbody button { margin-top:8px; }
+.gkey { display:block; max-width:100%; word-break:break-all; padding:8px 10px; margin-top:8px; background:var(--bg2); border-radius:8px; font-size:12.5px; }
+.gtip { margin-top:10px; }

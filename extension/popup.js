@@ -1,5 +1,5 @@
 const SERVER = "https://cinevocab.up.railway.app";
-const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar"];
+const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja"];
 const $ = (id) => document.getElementById(id);
 const T = CVL.t;
 
@@ -8,7 +8,16 @@ function fill(sel) {
 }
 fill($("src")); fill($("dst"));
 $("lSrc").textContent = T("subLang"); $("lDst").textContent = T("transLang"); $("lKey").textContent = T("key");
-$("key").placeholder = T("keyPh"); $("save").textContent = T("save"); $("open").textContent = T("panel"); $("hint").textContent = T("hint");
+$("key").placeholder = T("keyPh");
+$("gTitle").textContent = T("gTitle"); $("g1").textContent = T("g1"); $("g2").textContent = T("g2"); $("g3").textContent = T("g3"); $("gOpen").textContent = T("gOpen"); $("gNote").textContent = T("gNote"); $("keyState").textContent = T("keyOk"); $("save").textContent = T("save"); $("open").textContent = T("panel"); $("hint").textContent = T("hint");
+
+function opt(sel, pairs) { sel.replaceChildren(...pairs.map(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; })); }
+opt($("pos"), [["tl", T("posTL")], ["tr", T("posTR")], ["bl", T("posBL")], ["br", T("posBR")]]);
+opt($("size"), [["s", T("sizeS")], ["m", T("sizeM")], ["l", T("sizeL")]]);
+$("lBox").textContent = T("boxTitle"); $("lPos").textContent = T("boxPos"); $("lSize").textContent = T("boxSize"); $("lOp").textContent = T("boxOp");
+let ui = { pos: "tl", size: "m", op: 0.85 };
+function saveUi() { ui = { pos: $("pos").value, size: $("size").value, op: Number($("op").value) / 100 }; chrome.storage.local.set({ ui }); }
+$("pos").onchange = saveUi; $("size").onchange = saveUi; $("op").oninput = saveUi;
 
 let st = { enabled: false, src: "tr", dst: "en", key: "" };
 function paint() {
@@ -16,8 +25,12 @@ function paint() {
   $("state").textContent = st.enabled ? T("status_on") : T("status_off");
   $("state").className = st.enabled ? "" : "off";
   $("src").value = st.src; $("dst").value = st.dst;
+  const hasKey = !!st.key;
+  $("guide").hidden = hasKey; $("keyState").hidden = !hasKey; $("open").hidden = !hasKey;
 }
-chrome.storage.local.get(["enabled", "src", "dst", "key", "det"], (r) => {
+chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "ui"], (r) => {
+  if (r.ui) { ui = { ...ui, ...r.ui }; }
+  $("pos").value = ui.pos; $("size").value = ui.size; $("op").value = Math.round(ui.op * 100);
   st = { enabled: !!r.enabled, src: r.src || "tr", dst: r.dst || "en", key: r.key || "" };
   $("key").value = st.key; paint(); showDet(r.det);
 });
@@ -37,5 +50,7 @@ function pair(changed) {
   chrome.storage.local.set({ src, dst });
 }
 $("src").onchange = () => pair("src"); $("dst").onchange = () => pair("dst");
-$("save").onclick = () => { st.key = $("key").value.trim(); chrome.storage.local.set({ key: st.key }, () => { $("hint").textContent = T("saved"); setTimeout(() => ($("hint").textContent = T("hint")), 1800); }); };
+$("save").onclick = () => { st.key = $("key").value.trim(); paint(); chrome.storage.local.set({ key: st.key }, () => { $("hint").textContent = T("saved"); setTimeout(() => ($("hint").textContent = T("hint")), 1800); }); };
 $("open").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
+
+$("gOpen").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });

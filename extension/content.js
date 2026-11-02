@@ -11,19 +11,34 @@ const overlayBox = document.createElement("div");
 overlayBox.id = "cinevocab-overlay";
 Object.assign(overlayBox.style, {
   position: "fixed",
-  top: "20px",
-  left: "20px",
+  top: "28px",
+  left: "28px",
   zIndex: "2147483647",
   backgroundColor: "rgba(0,0,0,0.85)",
   color: "#fff",
   padding: "12px 16px",
   borderRadius: "10px",
   fontFamily: "Arial, sans-serif",
-  fontSize: "15px",
+  fontSize: "16px",
+  lineHeight: "1.4",
   boxShadow: "0 4px 8px rgba(0,0,0,0.4)",
   pointerEvents: "none",
   maxWidth: "640px",
 });
+// Kutu ayarları (açılır pencereden): konum, boyut, şeffaflık
+const UI_SIZES = { s: "13px", m: "16px", l: "19px" };
+function applyUi(ui) {
+  ui = ui || {};
+  const pos = ["tl", "tr", "bl", "br"].includes(ui.pos) ? ui.pos : "tl";
+  const op = Math.min(1, Math.max(0.4, Number(ui.op) || 0.85));
+  const st = overlayBox.style;
+  st.top = st.bottom = st.left = st.right = "auto";
+  st[pos[0] === "t" ? "top" : "bottom"] = pos[0] === "t" ? "28px" : "72px"; // altta video kontrolleri için pay
+  st[pos[1] === "l" ? "left" : "right"] = "28px";
+  st.fontSize = UI_SIZES[ui.size] || UI_SIZES.m;
+  st.backgroundColor = "rgba(0,0,0," + op + ")";
+}
+try { chrome.storage.local.get("ui", (r) => applyUi(r && r.ui)); } catch (e) {}
 overlayBox.style.display = "none"; // altyazı gelene kadar görünmez
 document.body.appendChild(overlayBox);
 let hideTimer = null;
@@ -151,15 +166,37 @@ function makeChip(word) {
 
   const en = document.createElement("div");
   en.textContent = "…";
-  Object.assign(en.style, { fontSize: "13px", color: "#7ee0a8" });
+  Object.assign(en.style, { fontSize: "0.85em", color: "#7ee0a8" });
 
   chip.append(tr, en);
   return { chip, en };
 }
 
+// Japonca: kelimeler boşlukla ayrılmaz; tarayıcının Intl.Segmenter'ı ile bölünür.
+// Tek karakterli yalnızca-hiragana parçalar (は, が, を ...) ve çok yaygın işlev sözcükleri atlanır.
+const JA_STOP = new Set(("んで って たい れる られ ませ ている です ます でし まし ました ません から まで ので のに けど でも そして しかし また この その あの これ それ あれ ここ そこ あそこ ない ある いる する した して され こと もの ため よう など とても").split(/\s+/));
+let jaSegmenter = null;
+function splitJa(text) {
+  const out = [];
+  const ok = (w) => {
+    if (!w || /[\d０-９]/.test(w) || JA_STOP.has(w)) return false;
+    if (/^[぀-ゟ]$/.test(w)) return false; // tek hiragana (parçacık)
+    return /[぀-ヿ㐀-䶿一-鿿]/.test(w);
+  };
+  try {
+    jaSegmenter = jaSegmenter || new Intl.Segmenter("ja", { granularity: "word" });
+    for (const seg of jaSegmenter.segment(text)) if (seg.isWordLike && ok(seg.segment)) out.push(seg.segment);
+    return out;
+  } catch (e) {
+    // Intl.Segmenter yoksa: kanji, katakana ve 2+ hiragana öbeklerini al
+    return (text.match(/[㐀-䶿一-鿿]+|[゠-ヿ]+|[぀-ゟ]{2,}/g) || []).filter(ok);
+  }
+}
+
 function splitWords(sentence) {
-  return sentence
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]]/g, " ")
+  const cleaned = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]。、！？「」『』（）［］【】・〜～，．：；]/g, " ");
+  if (SRC === "ja") return splitJa(cleaned);
+  return cleaned
     .split(/\s+/)
     .map((w) => w.trim().toLocaleLowerCase(SRC))
     .filter((w) => w.length >= 2 && !/\d/.test(w));
@@ -202,7 +239,7 @@ function showSentence(sentence) {
     marginTop: "8px",
     paddingTop: "6px",
     borderTop: "1px solid rgba(255,255,255,0.15)",
-    fontSize: "14px",
+    fontSize: "0.92em",
     color: "#ddd",
     fontStyle: "italic",
   });
@@ -314,7 +351,8 @@ function showSentence(sentence) {
 
 // ---------- Saf Altyazı Yakalama ----------
 let lastSubtitle = "";
-let ytCandidate = "";
+let ytCandidate = "", ytSince = 0;
+const YT_STABLE_MS = 300, POLL_MS = 150;
 
 function readSubtitle() {
   if (IS_YT) return readYouTubeSubtitle();
@@ -364,8 +402,12 @@ setInterval(() => {
     return;
   }
   if (IS_YT) {
-    // Otomatik altyazılar kayarak değişir: metin iki yoklama boyunca aynı kalınca işle.
-    if (text !== ytCandidate) { ytCandidate = text; return; }
+    // Otomatik altyazılar kayarak değişir: metin kısa bir süre (YT_STABLE_MS) değişmeyince işle.
+    // Eskiden "iki yoklama aynı" şartı vardı (500 ms aralıkla 0,5-1 sn gecikme); artık yoklama sıklığı 150 ms
+    // ve bekleme süresi zamana bağlı, böylece ~0,3 sn'de başlar.
+    const now = Date.now();
+    if (text !== ytCandidate) { ytCandidate = text; ytSince = now; return; }
+    if (now - ytSince < YT_STABLE_MS) return;
   }
   if (text.length < 3 || text.length > 200 || text === lastSubtitle) return;
 
@@ -375,7 +417,7 @@ setInterval(() => {
   if (!g.ok) { console.log("CineVocab: altyazı dili uyuşmuyor, atlandı:", g.lang, text); showMismatch(g.lang); return; }
   console.log("Gerçek Altyazı Yakalandı:", text);
   showSentence(text);
-}, 500);
+}, POLL_MS);
 
 // ---------- Ayarlar (canlı): aç/kapa ve dil değişince sayfayı yenilemeye gerek yok ----------
 function applyEnabled() {
@@ -397,5 +439,6 @@ try {
     if (area !== "local") return;
     if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
     if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabled(); }
+    if (ch.ui) applyUi(ch.ui.newValue);
   });
 } catch (e) {}

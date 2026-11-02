@@ -26,7 +26,7 @@ const ICONS = {
 };
 
 /* ---------- Sesli okuma (cihazın kendi sesi, sunucuya hiçbir şey gitmez) ---------- */
-const SPEECH_LANG = { tr: "tr-TR", en: "en-US", fr: "fr-FR", it: "it-IT", de: "de-DE", es: "es-ES", pt: "pt-PT", ru: "ru-RU", ar: "ar-SA" };
+const SPEECH_LANG = { tr: "tr-TR", en: "en-US", fr: "fr-FR", it: "it-IT", de: "de-DE", es: "es-ES", pt: "pt-PT", ru: "ru-RU", ar: "ar-SA", ro: "ro-RO", ja: "ja-JP" };
 const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
 /* Ses seçimi: tarayıcının ilk sesi çoğu zaman en kötüsü (ör. macOS'ta "Albert", "Fred" gibi robot/şaka sesleri).
    Doğal/nöral/Google/Premium seslere ve bilinen iyi seslere puan, robotik seslere eksi puan verilir. */
@@ -112,7 +112,7 @@ function ask(title, text, okLabel, danger = true) {
 }
 
 const COUNTRY_CODES = "TR DE GB US NL FR AZ RU UA KZ SA AE EG IQ IR ES IT SE BE AT CH CA AU BR IN PK JP KR CN ID MX AR PL GR BG RO PT CY".split(" ");
-const PAIR_LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar"];
+const PAIR_LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja"];
 function langName(code, inLang) {
   try { const n = new Intl.DisplayNames([inLang || I18N.lang], { type: "language" }).of(code); return n.charAt(0).toLocaleUpperCase(inLang || I18N.lang) + n.slice(1); } catch (e) { return code; }
 }
