@@ -5,6 +5,7 @@ let ENABLED = false; // varsayılan KAPALI: kullanıcı açmadıkça hiçbir şe
 const guard = new CVL.Guard(); // altyazı dili kontrolü
 const knownCache = new Set(); // "biliyorum" dediğin kelimeler (çevirisi gösterilmez)
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
+const IS_NETFLIX = location.hostname.endsWith("netflix.com");
 
 // ---------- Overlay kutusu ----------
 const overlayBox = document.createElement("div");
@@ -77,6 +78,7 @@ function findEpisodeText() {
 function readEpisode() {
   if (IS_YT) return readYouTubeTitle();
   if (IS_UDEMY) return readUdemyTitle();
+  if (IS_NETFLIX) return readNetflixTitle();
   if (location.href !== lastHref) {
     lastHref = location.href;
     currentEpisode = "";
@@ -109,6 +111,18 @@ function readYouTubeTitle() {
   return title && !/^(\(\d+\)\s*)?YouTube$/i.test(title) ? "YouTube · " + title : "";
 }
 
+// Netflix: oynatıcının başlık alanı ("Dizi", "S1:E3", "Bölüm adı"); yoksa sayfa başlığı
+function readNetflixTitle() {
+  const box = document.querySelector("[data-uia='video-title']");
+  const parts = box ? [...box.children].map((c) => (c.textContent || "").trim()).filter(Boolean) : [];
+  const raw =
+    parts.join(" ") ||
+    firstText("[data-uia='video-title']") ||
+    document.title.replace(/\s*[-–|]\s*Netflix.*$/i, "");
+  const title = raw.replace(/\s+/g, " ").trim().slice(0, 60);
+  return title && !/^Netflix$/i.test(title) ? "Netflix · " + title : "";
+}
+
 // Udemy: kurs adı (sınıf adları sık değiştiği için birkaç yedek seçici + sayfa başlığı)
 function readUdemyTitle() {
   const raw =
@@ -131,6 +145,16 @@ function readThumb() {
   } catch (e) { return ""; }
 }
 const thumbSent = new Set(); // episode -> küçük resim bir kez gönderilir
+
+// Netflix: metin altyazıları oynatıcıda .player-timedtext içinde çizilir (resim altyazıları okunamaz)
+function readNetflixSubtitle() {
+  const nodes = [...document.querySelectorAll(".player-timedtext-text-container")];
+  const outer = nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
+  return outer
+    .map((n) => (n.innerText ? n.innerText.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
+}
 
 function readUdemySubtitle() {
   const nodes = [
@@ -195,7 +219,7 @@ function splitJa(text) {
 }
 
 function splitWords(sentence) {
-  const cleaned = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]。、！？「」『』（）［］【】・〜～，．：；]/g, " ");
+  const cleaned = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]。、！？「」『』（）［］【】・〜～，．：；।॥؟،¿¡«»„“”‘’]/g, " ");
   if (SRC === "ja") return splitJa(cleaned);
   return cleaned
     .split(/\s+/)
@@ -353,11 +377,12 @@ function showSentence(sentence) {
 // ---------- Saf Altyazı Yakalama ----------
 let lastSubtitle = "";
 let ytCandidate = "", ytSince = 0;
-const YT_STABLE_MS = 300, POLL_MS = 150;
+const YT_STABLE_MS = 220, POLL_MS = 100;
 
 function readSubtitle() {
   if (IS_YT) return readYouTubeSubtitle();
   if (IS_UDEMY) return readUdemySubtitle();
+  if (IS_NETFLIX) return readNetflixSubtitle();
   const nodes = [
     ...document.querySelectorAll(
       ".atvwebplayersdk-captions-text, [class*='captions-text'], .timedTextWindow, [data-automation-id='subtitle-line']"

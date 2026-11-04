@@ -1,5 +1,5 @@
 const SERVER = "https://cinevocab.up.railway.app";
-const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja"];
+const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja", "hi", "id", "pl", "nl", "ko"];
 const $ = (id) => document.getElementById(id);
 const T = CVL.t;
 
@@ -71,3 +71,14 @@ $("gOpen").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
     });
   } catch (e) { show(false); }
 })();
+
+// Arkadaşına öner: mağaza bağlantısını ve hazır mesajı panoya kopyalar
+const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=share";
+$("share").textContent = T("share");
+$("share").onclick = async () => {
+  const text = T("shareMsg") + STORE_URL;
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const a = document.createElement("textarea"); a.value = text; document.body.appendChild(a); a.select(); try { document.execCommand("copy"); } catch (_) {} a.remove(); }
+  $("share").textContent = T("shareDone");
+  setTimeout(() => { $("share").textContent = T("share"); }, 2000);
+};

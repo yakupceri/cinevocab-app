@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.8.7",
+  "version": "1.8.8",
   "description": "__MSG_extDesc__",
   "minimum_chrome_version": "102",
   "permissions": [
@@ -26,7 +26,8 @@
       "matches": [
         "https://www.primevideo.com/*",
         "https://www.youtube.com/*",
-        "https://www.udemy.com/*"
+        "https://www.udemy.com/*",
+        "https://www.netflix.com/*"
       ],
       "js": [
         "lang.js",
