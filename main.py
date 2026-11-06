@@ -13,7 +13,7 @@ import requests
 import psycopg2
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
@@ -1390,6 +1390,34 @@ async def ws_endpoint(ws: WebSocket):
 def landing():
     """Herkese açık tanıtım sayfası (eski 'Kelime Arşivim' sayfası artık kökte gösterilmez)."""
     return FileResponse("templates/landing.html")
+
+
+@app.get("/manifest.webmanifest")
+def pwa_manifest():
+    """PWA bildirimi: telefonda 'Ana ekrana ekle' ile uygulama gibi açılır."""
+    data = {
+        "name": "CineVocab", "short_name": "CineVocab",
+        "description": "Film ve dizi altyazılarından kelime öğren: kelime listesi, quiz ve düello.",
+        "start_url": "/account?utm_source=pwa", "scope": "/", "display": "standalone",
+        "background_color": "#0e1e24", "theme_color": "#0e1e24",
+        "icons": [
+            {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+        "shortcuts": [
+            {"name": "Quiz", "url": "/game"},
+            {"name": "Daily", "url": "/daily"},
+        ],
+    }
+    return JSONResponse(data, media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def pwa_sw():
+    """Service worker: statik dosyaları önbelleğe alır, API'ye dokunmaz."""
+    return FileResponse("static/sw.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
 @app.get("/play")

@@ -10,6 +10,11 @@
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <style>.stage{max-width:640px;margin:0 auto}.center{text-align:center}</style>
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0e1e24">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
 </head>
 <body>
 <header class="top"><div class="in">
