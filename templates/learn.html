@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="{{ d.hl }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ d.title }}</title>
+<meta name="description" content="{{ d.desc }}">
+<link rel="canonical" href="{{ site }}{{ d.url }}">
+<link rel="alternate" hreflang="en" href="{{ site }}/learn/{{ d.code }}">
+<link rel="alternate" hreflang="tr" href="{{ site }}/ogren/{{ d.code }}">
+<meta property="og:title" content="{{ d.title }}">
+<meta property="og:description" content="{{ d.desc }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ site }}{{ d.url }}">
+<meta property="og:image" content="{{ site }}/static/icons/icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0e1e24">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<style>
+  .lp { max-width:760px; margin:0 auto; padding:6vh 0 40px }
+  .lp h1 { font-size:clamp(32px,5.5vw,54px); line-height:1.04; letter-spacing:-.03em }
+  .lp .lead { font-size:18px; color:var(--dim); margin:18px 0 26px; max-width:620px }
+  .btn { display:inline-flex; align-items:center; min-height:46px; padding:0 22px; border-radius:11px; font-weight:700; text-decoration:none; border:1px solid var(--line2); color:var(--ink) }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent) }
+  .sub { background:#000; border-radius:14px; padding:22px 20px; margin:12px 0 0; text-align:center }
+  .sub b { display:block; font:700 clamp(20px,3.4vw,28px) var(--display); color:#fff }
+  .sub span { display:block; margin-top:8px; font-size:clamp(16px,2.6vw,20px); color:var(--sub-tr) }
+  .lp section { margin-top:44px } .lp h2 { margin-bottom:12px }
+  .lp ol { padding-left:20px; line-height:1.8 } .lp li + li { margin-top:4px }
+  .lp details { border-top:1px solid var(--line); padding:14px 0 } .lp summary { font-weight:700; cursor:pointer }
+  .lp details p { margin-top:8px; color:var(--dim) }
+  .more a { margin:0 16px 8px 0; display:inline-block }
+  footer { border-top:1px solid var(--line); padding:26px 0 10px; color:var(--dim); font-size:14px } footer a { margin-right:18px }
+</style>
+<script type="application/ld+json">{{ ld|tojson }}</script>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <a class="btn" href="/account" style="min-height:38px;padding:0 16px">{{ 'Giriş' if d.hl == 'tr' else 'Log in' }}</a>
+</div></header>
+<main class="wrap">
+  <article class="lp">
+    <h1>{{ d.h1 }}</h1>
+    <p class="lead">{{ d.lead }}</p>
+    <div class="row">
+      <a class="btn primary" href="https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=seo_{{ d.code }}">{{ d.cta }}</a>
+      <a class="btn" href="{{ d.cta2_url }}">{{ d.cta2 }}</a>
+    </div>
+    <section>
+      <h2>{{ d.ex_h }}</h2>
+      <div class="sub"><b lang="{{ d.code }}">{{ d.ex_orig }}</b><span>{{ d.ex_tr }}</span></div>
+    </section>
+    <section>
+      <h2>{{ d.steps_h }}</h2>
+      <ol>{% for s in d.steps %}<li>{{ s }}</li>{% endfor %}</ol>
+    </section>
+    <section>
+      <h2>{{ d.faq_h }}</h2>
+      {% for qn, an in d.faq %}<details><summary>{{ qn }}</summary><p>{{ an }}</p></details>{% endfor %}
+    </section>
+    <section class="more">
+      <h2>{{ d.more_h }}</h2>
+      {% for k in langs if k != d.code %}<a href="{{ d.prefix }}/{{ k }}">{{ d.lnames[k] }}</a>{% endfor %}
+    </section>
+  </article>
+  <footer><a href="/">CineVocab</a><a href="/explore">{{ 'Video bul' if d.hl == 'tr' else 'Find videos' }}</a><a href="/privacy">{{ 'Gizlilik' if d.hl == 'tr' else 'Privacy' }}</a></footer>
+</main>
+</body>
+</html>

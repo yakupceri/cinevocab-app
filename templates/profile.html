@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+{% if p %}
+<title>{{ name }} · CineVocab</title>
+<meta property="og:title" content="{{ name }}: {{ p.words }} words · Level {{ p.level }}">
+<meta property="og:description" content="Learning languages from movies and series with CineVocab.">
+<meta property="og:image" content="https://cinevocab.up.railway.app/static/icons/icon-512.png">
+{% else %}
+<title>CineVocab</title>
+{% endif %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
+<script src="/static/i18n.js?v={{ ASSET_V }}"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0e1e24">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<style>
+  .pf { max-width:640px; margin:0 auto; padding:7vh 0 40px; text-align:center }
+  .pf h1 { font-size:clamp(34px,6vw,56px); letter-spacing:-.03em; word-break:break-all }
+  .pf .big { font:800 clamp(80px,22vw,150px)/1 var(--display); color:var(--accent); margin:26px 0 0 }
+  .pf .unit { font-weight:700; color:var(--dim); font-size:20px }
+  .pf .row3 { display:flex; justify-content:center; gap:26px; flex-wrap:wrap; margin:26px 0 }
+  .pf .row3 div { min-width:90px } .pf .row3 b { display:block; font:800 28px var(--display) } .pf .row3 span { color:var(--dim); font-size:14px }
+  .bdg { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:26px }
+  .bdg span { padding:6px 14px; border-radius:999px; border:1px solid var(--accent); background:var(--accent-soft); font-weight:700; font-size:14px }
+  .btn { display:inline-flex; align-items:center; min-height:48px; padding:0 24px; border-radius:11px; font-weight:700; text-decoration:none; background:var(--accent); border:1px solid var(--accent); color:var(--on-accent) }
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="/"><i></i>CineVocab</a><div class="grow"></div><div id="tools" class="row" style="gap:6px"></div></div></header>
+<main class="wrap"><div class="pf">
+{% if p %}
+  <h1>{{ name }}</h1>
+  <p class="dim" data-i="profSub"></p>
+  <div class="big">{{ p.words }}</div><div class="unit" data-i="profWords"></div>
+  <div class="row3">
+    <div><b>{{ p.level }}</b><span data-i="profLevel"></span></div>
+    <div><b>{{ p.streak }}</b><span data-i="profStreak"></span></div>
+    <div><b>{{ p.wins }}</b><span data-i="profWins"></span></div>
+  </div>
+  {% if p.badges %}<div class="bdg">{% for b in p.badges %}<span data-i="bdg_{{ b }}"></span>{% endfor %}</div>{% endif %}
+  <a class="btn" href="/?ref={{ name }}&amp;utm_source=profile" data-i="profCta"></a>
+{% else %}
+  <h1>CineVocab</h1><p class="dim" data-i="profNone"></p>
+  <p style="margin-top:20px"><a class="btn" href="/" data-i="profCta"></a></p>
+{% endif %}
+</div></main>
+<script src="/static/common.js?v={{ ASSET_V }}"></script>
+<script>I18N.onChange(()=>mountTools(document.getElementById("tools")));mountTools(document.getElementById("tools"));</script>
+</body>
+</html>

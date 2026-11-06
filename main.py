@@ -21,6 +21,7 @@ from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
                       record_game, tag_user_words, _throttle_ip)
 import admin
+import growth
 
 import daily
 import leagues
@@ -36,6 +37,7 @@ app.include_router(daily.router)
 app.include_router(srs.router)
 app.include_router(leagues.router)
 app.include_router(vocab.router)
+app.include_router(growth.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -374,6 +376,7 @@ try:
     daily.init(lambda src, dst: global_pairs(src, dst))
     srs.init(lambda pairs, src, dst: quality_pairs(pairs, src, dst))
     leagues.init()
+    growth.init()
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")

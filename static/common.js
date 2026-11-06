@@ -1,3 +1,5 @@
+/* davet kodu: ?ref=kullanici adresten yakalanır, kayıtta gönderilir */
+try { var _r = new URLSearchParams(location.search).get("ref"); if (_r && /^\w{3,16}$/.test(_r)) localStorage.setItem("cv-ref", _r); } catch (e) {}
 /* Ortak yardımcılar: DOM, API, bildirim, onay penceresi, ülke/dil adları. i18n.js'ten SONRA yüklenir. */
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);

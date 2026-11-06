@@ -170,6 +170,7 @@ def record_game(episode: str, results: list):
 class Cred(BaseModel):
     username: str
     password: str
+    ref: str = ""
 
 
 _HITS = {}
@@ -236,6 +237,11 @@ def register(c: Cred, request: Request, response: Response):
         raise HTTPException(409, "Bu kullanıcı adı alınmış.")
     uid = q("INSERT INTO users (username, pw_hash) VALUES (%s, %s) RETURNING id;",
             (name, _hash(c.password)), True)[0][0]
+    try:
+        from growth import record_ref
+        record_ref(uid, c.ref)
+    except Exception as e:
+        print(f"   [ref] {e}")
     out = _login_response(uid, request, response, name)
     out["recovery"] = _new_recovery(uid)
     return out

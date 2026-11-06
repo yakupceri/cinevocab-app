@@ -123,7 +123,7 @@ function authView() {
       go.textContent = t("createAccount");
       go.onclick = () => guard(async () => {
         if (pw.inp.value !== pw2.inp.value) throw new Error(t("pwMismatch"));
-        const r = await api("/api/register", { username: user.value.trim(), password: pw.inp.value });
+        const r = await api("/api/register", { username: user.value.trim(), password: pw.inp.value, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() });
         recoveryView(r.recovery);
       });
       const ub = el("div"); ub.append(user, uh);
@@ -254,6 +254,26 @@ function startGuide() {
   return g;
 }
 
+/* ---------- Başlangıç paketleri ---------- */
+function packsCard() {
+  const c = el("div", "card in"), list = el("div"); c.style.marginTop = "16px";
+  c.append(el("h2", "", "🎁 " + t("packsTitle")), el("p", "dim small", t("packsSub")), list);
+  list.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;margin-top:12px";
+  fetch("/api/packs?src=" + PAIR.src).then((r) => r.json()).then((d) => {
+    if (!d.packs.length || (PAIR.src === "tr" && PAIR.dst === "en")) { c.replaceChildren(el("h2", "", "🎁 " + t("packsTitle")), el("p", "dim small", t("packNone"))); return; }
+    d.packs.forEach((p) => {
+      const b = el("button", "", (p.title[I18N.lang] || p.title.en) + " · " + p.count + " · " + t("packAdd"));
+      b.onclick = async () => {
+        b.disabled = true; const old = b.textContent; b.textContent = t("packBusy");
+        try { const r = await api("/api/pack-add", { src: PAIR.src, dst: PAIR.dst, pack: p.id }); toast(t("packAdded", r.added)); reload(); }
+        catch (e) { toast(e.message); b.disabled = false; b.textContent = old; }
+      };
+      list.append(b);
+    });
+  }).catch(() => c.remove());
+  return c;
+}
+
 /* ---------- Kelimeler ---------- */
 function tWords() {
   const box = el("div"), c = counts();
@@ -262,7 +282,7 @@ function tWords() {
   [[c.words, t("statWords")], [c.videos, t("statVideos")], [c.known, t("statKnown")], [me.wins || 0, t("statWins")]].forEach(([n, l]) => {
     const s = el("div", "stat"); s.append(el("b", "", n), el("span", "", l)); st.append(s); });
   box.append(st);
-  if (!V.words.length) { box.append(startGuide(), empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
+  if (!V.words.length) { box.append(startGuide(), packsCard(), empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
 
   const q = el("input"), ep = el("select"), all = el("button", "", t("selectShown"));
   q.type = "search"; q.placeholder = t("search"); q.value = Q;
@@ -305,6 +325,7 @@ function tWords() {
   const bar = el("div", "row"); q.style.cssText = "flex:1 1 200px"; ep.style.cssText = "flex:0 1 260px;width:auto"; bar.append(q, ep, all);
   bar.style.marginBottom = "14px";
   box.append(bar, grid, more); more.style.cssText = "display:block;margin:16px auto 0";
+  if (V.words.length < 40) box.append(packsCard());
   paint(); wbar();
   return box;
 }
@@ -973,8 +994,21 @@ function tSettings() {
     try { const r = await api("/api/new-recovery", { password: pw }); me.has_recovery = true; recoveryModal(r.recovery); } catch (e) { toast(e.message); }
   };
   rr2.append(rb); rc.append(el("h2", "", t("recoveryCode")), el("p", "dim", me.has_recovery ? t("recoveryHas") : t("recoveryNone")), rr2); rc.firstChild.style.marginBottom = "8px";
+  // davet + herkese açık profil
+  const iv = el("div", "card"), ivb = el("div", "row"), ivc = el("button", "primary", t("inviteCopy")), ivn = el("p", "dim small"), ivr = el("div", "chips");
+  iv.append(el("h2", "", "🤝 " + t("inviteTitle")), el("p", "dim", t("inviteSub")), ivb, ivn, ivr); ivb.style.margin = "12px 0"; ivb.append(ivc);
+  api("/api/invite").then((d) => {
+    ivn.textContent = t("inviteCount", d.count);
+    d.badges.forEach((b) => ivr.append(chip(ICO.star, t("bdg_" + b))));
+    ivc.onclick = async () => { try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } };
+  }).catch(() => {});
+  const pu = el("div", "card"), pub = el("button", "", "…"), pul = el("a", "hide", t("publicView")), pr = el("div", "row");
+  pu.append(el("h2", "", t("publicTitle")), el("p", "dim", t("publicSub")), pr); pr.style.marginTop = "12px"; pr.append(pub, pul);
+  const paintPub = (d) => { pub.textContent = d.on ? t("publicOn") : t("publicOff"); pub.className = d.on ? "primary" : ""; pul.href = d.url; pul.target = "_blank"; pul.className = d.on ? "" : "hide"; pub.onclick = async () => paintPub(await api("/api/profile-public", { on: !d.on })); };
+  api("/api/profile-public").then(paintPub).catch(() => {});
+  const g3 = el("div", "grid2"); g3.style.marginTop = "16px"; g3.append(iv, pu);
   const g2 = el("div", "grid2"); g2.style.marginTop = "16px"; g2.append(sec, rc);
-  g.append(p, x); vc.style.marginTop = "16px"; box.append(g, vc, g2, a);
+  g.append(p, x); vc.style.marginTop = "16px"; box.append(g, vc, g3, g2, a);
   return box;
 }
 
