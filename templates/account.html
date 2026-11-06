@@ -467,6 +467,29 @@ function ring(frac, center, cls) {
   requestAnimationFrame(() => requestAnimationFrame(() => { fg.style.strokeDashoffset = C * (1 - Math.max(0, Math.min(1, frac))); }));
   return w;
 }
+// Paylaşılabilir ilerleme kartı (1080x1350 PNG): kelime sayısı, seri, seviye
+async function shareProgress() {
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0e1e24"); g.addColorStop(1, "#08121a"); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  [[540, 470, 420, .05], [540, 470, 330, .09]].forEach(([cx, cy, r, a]) => { x.fillStyle = "rgba(255,138,61," + a + ")"; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); });
+  x.fillStyle = "#ff9a3d"; x.beginPath(); x.arc(540, 470, 250, 0, 7); x.fill();
+  x.fillStyle = "#08121a"; x.beginPath(); x.ellipse(540, 1560, 1000, 860, 0, 0, 7); x.fill();
+  const n = uniqWords().length, st = streakNow(), lv = levelOf(G.xp);
+  x.textAlign = "center"; x.fillStyle = "#0e1e24"; x.font = "800 230px Fraunces, Georgia, serif"; x.fillText(String(n), 540, 520);
+  x.font = "700 52px 'Instrument Sans', Arial, sans-serif"; x.fillText(t("shWords").toUpperCase(), 540, 590);
+  x.fillStyle = "#eef1f7"; x.font = "800 64px Fraunces, Georgia, serif"; x.fillText((me && me.username) || "CineVocab", 540, 840);
+  x.font = "600 44px 'Instrument Sans', Arial, sans-serif";
+  const bits = [t("shLevel") + " " + lv]; if (st) bits.push("🔥 " + st + " " + t("shStreak")); x.fillStyle = "#ffb878"; x.fillText(bits.join("   ·   "), 540, 920);
+  x.fillStyle = "#eef1f7"; x.font = "800 58px Fraunces, Georgia, serif"; x.fillText("CineVocab", 540, 1180);
+  x.fillStyle = "#9db0bb"; x.font = "500 36px 'Instrument Sans', Arial, sans-serif"; x.fillText("cinevocab.up.railway.app", 540, 1240);
+  const blob = await new Promise((r) => c.toBlob(r, "image/png")), url = "https://cinevocab.up.railway.app/?utm_source=progress_card", txt = t("shareTxt", n);
+  const file = new File([blob], "cinevocab-progress.png", { type: "image/png" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: txt, url }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "cinevocab-progress.png"; document.body.append(a); a.click(); a.remove();
+  try { await navigator.clipboard.writeText(txt + " " + url); } catch (e) {}
+}
 const chip = (icon, text, cls) => { const c = el("span", "chip " + (cls || "")); if (icon) c.append(svg(icon)); c.append(document.createTextNode(text)); return c; };
 
 function mountGameChip() {
@@ -516,6 +539,7 @@ function tPractice() {
   if (G.best) chips.append(chip(ICO.star, t("bestScore", G.best)));
   mid.append(el("h2", "", t("lvl", L)), el("p", "dim small", t("xpTo", XP_LEVEL - into, L + 1)), chips);
   goal.append(ring(dn / DAILY_GOAL, dn >= DAILY_GOAL ? "✓" : dn), el("span", "", dn >= DAILY_GOAL ? t("dailyDone") : t("dailyGoal") + " · " + t("dailyOf", dn, DAILY_GOAL)));
+  const shb = el("button", "ghost", "📤 " + t("shareProg")); shb.onclick = () => shareProgress(); shb.style.marginTop = "8px"; mid.append(shb);
   pc.append(ring(into / XP_LEVEL, L), mid, goal);
 
   // mod seçimi
