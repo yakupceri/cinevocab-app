@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find videos with subtitles to learn a language | CineVocab</title>
+<meta name="description" content="Pick a language and topic and open YouTube videos that have subtitles, ready for CineVocab: easy videos for learners and natural-speed videos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
+<style>
+  .xp { display:grid; gap:22px; margin-top:8px }
+  .pills { display:flex; flex-wrap:wrap; gap:8px }
+  .pills button { min-height:40px; padding:0 16px; border-radius:999px; border:1px solid var(--line2); background:var(--panel); color:var(--ink); font-weight:600; cursor:pointer }
+  .pills button.on { background:var(--accent); border-color:var(--accent); color:var(--on-accent) }
+  .topics { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px }
+  .topics a { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 18px; border:1px solid var(--line); border-radius:var(--r); background:var(--panel); color:var(--ink); text-decoration:none; font-weight:600 }
+  .topics a:hover { border-color:var(--accent); background:var(--panel2) }
+  .xp h3 { margin:0 0 10px }
+</style>
+<script src="/static/i18n.js?v={{ ASSET_V }}"></script>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0e1e24">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="/"><i></i>CineVocab</a>
+  <div class="grow"></div>
+  <div id="tools" class="row" style="gap:6px"></div>
+  <a class="btn" href="/account" data-i="login" style="min-height:38px;padding:0 16px"></a>
+</div></header>
+<main class="wrap" style="padding-bottom:50px">
+  <section style="padding:5vh 0 2vh">
+    <h1 data-i="expH" style="font-size:clamp(30px,5vw,50px);letter-spacing:-.03em"></h1>
+    <p class="lead dim" data-i="expSub" style="max-width:620px;margin-top:12px"></p>
+  </section>
+  <div class="xp">
+    <div><h3 data-i="expLang"></h3><div class="pills" id="langs"></div></div>
+    <div><h3 data-i="expLvl"></h3><div class="pills" id="lvls"></div></div>
+    <div><h3 data-i="expTopics"></h3><div class="topics" id="topics"></div></div>
+    <p class="dim small" data-i="expTip"></p>
+    <div><a class="btn primary" href="https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=explore" data-i="expCta"></a></div>
+  </div>
+</main>
+<script src="/static/common.js?v={{ ASSET_V }}"></script>
+<script>
+const Q = {"en": {"easy": "easy english for learners", "t": {"vlog": "day in my life vlog", "cook": "cooking recipe", "news": "news", "cartoon": "cartoon episode", "comedy": "stand up comedy", "talk": "interview", "short": "short film", "travel": "travel vlog"}}, "es": {"easy": "español fácil para aprender", "t": {"vlog": "vlog día a día", "cook": "receta de cocina", "news": "noticias", "cartoon": "dibujos animados", "comedy": "monólogo comedia", "talk": "entrevista", "short": "cortometraje", "travel": "vlog de viaje"}}, "fr": {"easy": "français facile pour apprendre", "t": {"vlog": "vlog du quotidien", "cook": "recette de cuisine", "news": "actualités", "cartoon": "dessin animé", "comedy": "spectacle humour", "talk": "interview", "short": "court métrage", "travel": "vlog voyage"}}, "de": {"easy": "Deutsch langsam für Anfänger", "t": {"vlog": "Alltag Vlog", "cook": "Kochrezept", "news": "Nachrichten", "cartoon": "Zeichentrick Folge", "comedy": "Comedy", "talk": "Interview", "short": "Kurzfilm", "travel": "Reise Vlog"}}, "it": {"easy": "italiano facile per stranieri", "t": {"vlog": "vlog quotidiano", "cook": "ricetta", "news": "notizie", "cartoon": "cartoni animati", "comedy": "comedy show", "talk": "intervista", "short": "cortometraggio", "travel": "vlog di viaggio"}}, "pt": {"easy": "português fácil para estrangeiros", "t": {"vlog": "vlog do dia a dia", "cook": "receita", "news": "notícias", "cartoon": "desenho animado", "comedy": "stand up comedy", "talk": "entrevista", "short": "curta-metragem", "travel": "vlog de viagem"}}, "ru": {"easy": "русский язык медленно для начинающих", "t": {"vlog": "влог из жизни", "cook": "рецепт", "news": "новости", "cartoon": "мультфильм", "comedy": "стендап", "talk": "интервью", "short": "короткометражка", "travel": "влог путешествие"}}, "ja": {"easy": "やさしい日本語 初級", "t": {"vlog": "日常 vlog", "cook": "料理 レシピ", "news": "ニュース", "cartoon": "アニメ", "comedy": "お笑い", "talk": "インタビュー", "short": "短編映画", "travel": "旅行 vlog"}}, "ko": {"easy": "쉬운 한국어 초급", "t": {"vlog": "일상 브이로그", "cook": "요리 레시피", "news": "뉴스", "cartoon": "애니메이션", "comedy": "코미디", "talk": "인터뷰", "short": "단편 영화", "travel": "여행 브이로그"}}, "tr": {"easy": "kolay türkçe yavaş", "t": {"vlog": "günlük vlog", "cook": "yemek tarifi", "news": "haber", "cartoon": "çizgi film", "comedy": "stand up", "talk": "röportaj", "short": "kısa film", "travel": "gezi vlog"}}};
+const CC = "EgIoAQ%3D%3D";            // YouTube "Subtitles/CC" filtresi
+const ST = { lang: "", easy: true };
+try { ST.lang = localStorage.getItem("cv-explore-lang") || ""; } catch (e) {}
+if (!Q[ST.lang]) ST.lang = Q[(navigator.language || "").slice(0, 2)] ? "" : "en";
+if (!ST.lang) ST.lang = "en";
+function draw() {
+  const L = document.getElementById("langs"), V = document.getElementById("lvls"), T = document.getElementById("topics");
+  L.replaceChildren(...Object.keys(Q).map((k) => { const b = el("button", ST.lang === k ? "on" : "", langName(k)); b.onclick = () => { ST.lang = k; try { localStorage.setItem("cv-explore-lang", k); } catch (e) {} draw(); }; return b; }));
+  V.replaceChildren(...[[true, "expEasy"], [false, "expNat"]].map(([e, key]) => { const b = el("button", ST.easy === e ? "on" : "", t(key)); b.onclick = () => { ST.easy = e; draw(); }; return b; }));
+  const d = Q[ST.lang];
+  T.replaceChildren(...Object.keys(d.t).map((k) => {
+    const q = d.t[k] + (ST.easy ? " " + d.easy.split(" ")[0] + " " + d.easy.split(" ")[1] : "");
+    const a = el("a"); a.target = "_blank"; a.rel = "noopener";
+    a.href = "https://www.youtube.com/results?search_query=" + encodeURIComponent(q) + "&sp=" + CC;
+    a.append(el("span", "", t("tp_" + k)), el("b", "", "↗")); return a;
+  }));
+}
+I18N.onChange(() => { mountTools(document.getElementById("tools")); draw(); });
+mountTools(document.getElementById("tools")); draw();
+</script>
+</body>
+</html>

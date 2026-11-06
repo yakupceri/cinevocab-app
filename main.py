@@ -1420,6 +1420,12 @@ def pwa_sw():
                         headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
+@app.get("/explore")
+def explore_page():
+    """Dil + konu seçip altyazılı YouTube araması açan keşfet sayfası."""
+    return FileResponse("templates/explore.html")
+
+
 @app.get("/play")
 def play_page():
     """play.html silindi; eski adres oyun sayfasına yönlendirir."""
