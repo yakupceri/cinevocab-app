@@ -64,3 +64,8 @@ chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled)));
 chrome.runtime.onInstalled.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
 chrome.runtime.onStartup && chrome.runtime.onStartup.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
 chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.enabled) badge(!!ch.enabled.newValue); });
+
+// İlk kurulumda karşılama sayfasını aç (güncellemede açılmaz)
+chrome.runtime.onInstalled.addListener((d) => {
+  if (d.reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+});

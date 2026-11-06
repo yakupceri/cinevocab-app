@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CineVocab</title>
+<style>
+  :root { color-scheme: dark light; --bg:#06141a; --panel:#0f2a31; --line:#24474f; --ink:#f6efdf; --dim:#a9bdb7; --acc:#ff8a3d; --on:#1a0f05; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f6f1e7; --panel:#fffaf0; --line:#e2d8c4; --ink:#1b2a2e; --dim:#5b6b6e; --acc:#d9590f; --on:#fff; } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font:17px/1.55 system-ui,"Segoe UI",sans-serif; display:flex; justify-content:center; padding:48px 20px; }
+  main { width:100%; max-width:640px; }
+  .brand { display:flex; align-items:center; gap:10px; font:700 22px Georgia,serif; }
+  .brand i { width:30px; height:19px; border-radius:5px; background:var(--acc); }
+  h1 { font:700 36px/1.15 Georgia,"Times New Roman",serif; letter-spacing:-.01em; margin:28px 0 8px; }
+  .sub { color:var(--dim); margin:0 0 28px; }
+  ol { list-style:none; counter-reset:s; margin:0; padding:0; }
+  li { counter-increment:s; display:flex; gap:14px; padding:16px; margin-bottom:12px; background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+  li::before { content:counter(s); flex:none; width:30px; height:30px; border-radius:50%; background:var(--acc); color:var(--on); font-weight:800; display:grid; place-items:center; }
+  h2 { font-size:17px; margin:30px 0 12px; }
+  .try { display:flex; flex-wrap:wrap; gap:10px; }
+  .try a { padding:11px 18px; border-radius:999px; border:1px solid var(--acc); color:var(--ink); text-decoration:none; font-weight:700; }
+  .try a:hover, .try a:focus-visible { background:var(--acc); color:var(--on); outline:none; }
+  .note { margin-top:28px; color:var(--dim); font-size:15px; }
+</style></head>
+<body><main>
+  <div class="brand"><i></i>CineVocab</div>
+  <h1 id="title"></h1><p class="sub" id="sub"></p>
+  <ol><li id="s1"></li><li id="s2"></li><li id="s3"></li></ol>
+  <h2 id="tryTitle"></h2>
+  <div class="try" id="try"></div>
+  <p class="note" id="note"></p>
+</main><script src="welcome.js"></script></body></html>
