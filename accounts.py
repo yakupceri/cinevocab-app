@@ -492,8 +492,8 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 2 Kasım 2026</p>
-<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube ve Udemy'de altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder.</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 7 Kasım 2026</p>
+<h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde (ör. Google Meet) altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz. Google Meet'te bu satır, toplantıda söylenenlerin canlı altyazısıdır; yalnızca çevrilmek üzere gönderilir.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
@@ -506,15 +506,15 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
 <h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, hesap sayfandaki <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin.</p>
 <h2>İletişim</h2><p>__CONTACT__</p>
-<p>CineVocab, Amazon, Prime Video, Google, YouTube ve Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
+<p>CineVocab, Amazon, Prime Video, Google, YouTube, Netflix, Meet ve Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
 
 
 PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Privacy Policy</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <p><a href="/privacy?lang=tr">Türkçe</a></p>
-<h1>CineVocab Privacy Policy</h1><p>Last updated: November 2, 2026</p>
-<h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube and Udemy, and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list.</p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: November 7, 2026</p>
+<h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site" (for example Google Meet), and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page. On Google Meet this line is the live caption of what is said in the meeting; it is sent only to be translated.</p>
 <h2>What data we collect</h2><ul>
 <li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash), your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
@@ -527,7 +527,7 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <h2>Cookies and local storage</h2><p>The website uses a session cookie to keep you logged in. The extension uses browser storage to keep your extension key and settings.</p>
 <h2>Deleting your data</h2><p>You can delete your account and all of your data at any time with the <b>Delete my account</b> button on your account page. You can also ask us to delete it by writing to the address below.</p>
 <h2>Contact</h2><p>__CONTACT__</p>
-<p>CineVocab is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube or Udemy.</p></body></html>"""
+<p>CineVocab is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube, Netflix, Meet or Udemy.</p></body></html>"""
 
 
 @router.get("/privacy", response_class=HTMLResponse)
