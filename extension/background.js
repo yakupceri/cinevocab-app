@@ -69,3 +69,31 @@ chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.
 chrome.runtime.onInstalled.addListener((d) => {
   if (d.reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
 });
+
+
+// ---------- Diğer sitelerde çalıştırma ("Bu sitede aç") ----------
+// Açılır pencere izni (kullanıcı hareketiyle) alır; burada içerik betiği kalıcı kaydedilir ve açık sekmeye hemen yüklenir.
+const CS_FILES = ["lang.js", "content.js"];
+async function enableSite(origins, tabId) {
+  const id = "cv-" + origins[0].replace(/[^a-z0-9]/gi, "");
+  try {
+    const have = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (have.length) await chrome.scripting.unregisterContentScripts({ ids: [id] });
+    await chrome.scripting.registerContentScripts([{
+      id, matches: origins, js: CS_FILES, allFrames: true, matchAboutBlank: true,
+      runAt: "document_idle", persistAcrossSessions: true,
+    }]);
+  } catch (e) { console.error("Kayıt hatası:", e); return { ok: false }; }
+  try {
+    const res = await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: () => !!window.__cvLoaded });
+    const todo = res.filter((r) => !r.result).map((r) => r.frameId);
+    if (todo.length) await chrome.scripting.executeScript({ target: { tabId, frameIds: todo }, files: CS_FILES });
+  } catch (e) { console.warn("Anında yükleme olmadı (sayfayı yenile):", e); }
+  return { ok: true };
+}
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "enableSite" && Array.isArray(request.origins) && request.tabId != null) {
+    enableSite(request.origins, request.tabId).then(sendResponse);
+    return true;
+  }
+});

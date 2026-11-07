@@ -72,6 +72,32 @@ $("gOpen").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
   } catch (e) { show(false); }
 })();
 
+// Gizleme ayarı
+$("lHide").textContent = T("hideOrig");
+chrome.storage.local.get("hideOrig", (r) => { $("hide").checked = r.hideOrig !== false; });
+$("hide").onchange = () => chrome.storage.local.set({ hideOrig: $("hide").checked });
+
+// Diğer sitelerde aç: izin kullanıcı hareketiyle istenir, sonra arka plan betiği kaydeder
+(function otherSites() {
+  const card = $("siteCard"), btn = $("siteEnable"), note = $("siteEnableNote");
+  btn.textContent = T("siteEnable"); note.textContent = T("siteEnableNote");
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs && tabs[0];
+      if (!tab || tab.id == null || !/^https?:\/\//.test(tab.url || "")) return;
+      const u = new URL(tab.url), origins = [u.protocol + "//" + u.hostname + "/*", u.protocol + "//*." + u.hostname + "/*"];
+      try { chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => { void chrome.runtime.lastError; card.hidden = !!(r && r.ok); }); } catch (e) { card.hidden = false; }
+      btn.onclick = () => chrome.permissions.request({ origins }, (ok) => {
+        if (!ok) { note.className = "note bad"; note.textContent = T("siteDenied"); return; }
+        chrome.runtime.sendMessage({ action: "enableSite", origins, tabId: tab.id }, (res) => {
+          note.className = "note ok"; note.textContent = T("siteOn"); btn.hidden = true;
+          void chrome.runtime.lastError;
+        });
+      });
+    });
+  } catch (e) {}
+})();
+
 // Arkadaşına öner: mağaza bağlantısını ve hazır mesajı panoya kopyalar
 const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=share";
 $("share").textContent = T("share");

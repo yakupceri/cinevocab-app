@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.8.9",
+  "version": "1.9.0",
   "description": "__MSG_extDesc__",
   "minimum_chrome_version": "102",
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "https://cinevocab.up.railway.app/*"
@@ -41,5 +42,9 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "default_locale": "en"
+  "default_locale": "en",
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
 }
