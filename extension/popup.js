@@ -25,6 +25,7 @@ function paint() {
   $("sw").setAttribute("aria-checked", String(!!st.enabled));
   $("state").textContent = st.enabled ? T("status_on") : T("status_off");
   $("state").className = st.enabled ? "" : "off";
+  $("statusBox").className = "status" + (st.enabled ? " on" : "");
   $("src").value = st.src; $("dst").value = st.dst;
   const hasKey = !!st.key;
   $("guide").hidden = hasKey; $("keyState").hidden = !hasKey; $("open").hidden = !hasKey;

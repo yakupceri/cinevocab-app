@@ -68,6 +68,11 @@ function draw() {
 }
 I18N.onChange(() => { mountTools(document.getElementById("tools")); draw(); });
 mountTools(document.getElementById("tools")); draw();
+fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((me) => {
+  if (!me) return;
+  const b = document.querySelector("header .btn[href='/account']");
+  if (b) { b.setAttribute("data-i", "landAccount"); b.textContent = t("landAccount"); }
+}).catch(() => {});
 </script>
 </body>
 </html>

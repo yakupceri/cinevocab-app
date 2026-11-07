@@ -1,77 +1,123 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
-  :root { color-scheme: dark light; --bg:#0c0f14; --panel:#151a23; --line:#2a3242; --ink:#eef1f7; --dim:#8f9aae; --acc:#ffd447; --on:#17130a; --ok:#47d6a1; --bad:#ff8d94; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f2f3f7; --panel:#fff; --line:#d9dce6; --ink:#141824; --dim:#566074; --acc:#2336d4; --on:#fff; --ok:#0b8f63; --bad:#cf2f3b; } }
+  :root { color-scheme: dark light;
+    --bg:#0b1117; --panel:#131b24; --panel2:#18222d; --line:#243241; --ink:#eef2f7; --dim:#93a1b3;
+    --acc:#ffd447; --on:#1a1505; --ok:#3ddc97; --okbg:rgba(61,220,151,.12); --bad:#ff8d94; --r:14px; }
+  @media (prefers-color-scheme: light) { :root {
+    --bg:#f4f6fa; --panel:#ffffff; --panel2:#f0f3f8; --line:#d8deea; --ink:#121826; --dim:#5b667a;
+    --acc:#2336d4; --on:#ffffff; --ok:#0b8f63; --okbg:rgba(11,143,99,.1); --bad:#cf2f3b; } }
   * { box-sizing:border-box; }
-  body { width:330px; margin:0; padding:16px; background:var(--bg); color:var(--ink); font:14px/1.45 "Segoe UI",system-ui,sans-serif; }
-  .top { display:flex; align-items:center; gap:10px; }
-  .brand { font:800 18px system-ui; letter-spacing:-.02em; display:flex; align-items:center; gap:7px; flex:1; }
-  .brand i { width:20px; height:13px; border-radius:3px; background:var(--acc); display:block; }
-  .sw { position:relative; width:58px; height:32px; border-radius:99px; background:var(--line); border:0; cursor:pointer; padding:0; transition:background .15s; }
-  .sw::after { content:""; position:absolute; top:4px; left:4px; width:24px; height:24px; border-radius:50%; background:#fff; transition:transform .15s; }
-  .sw[aria-checked="true"] { background:var(--ok); } .sw[aria-checked="true"]::after { transform:translateX(26px); }
-  #state { margin:12px 0 0; font-weight:700; } #state.off { color:var(--dim); font-weight:600; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:12px; }
+  body { width:348px; margin:0; padding:14px; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,"Segoe UI",Roboto,sans-serif; }
+  /* üst bar */
+  .top { display:flex; align-items:center; gap:10px; padding:2px 2px 12px; }
+  .brand { flex:1; display:flex; align-items:center; gap:9px; font:800 19px system-ui; letter-spacing:-.02em; }
+  .brand img { width:28px; height:28px; border-radius:8px; display:block; }
+  .sw { position:relative; width:52px; height:30px; border-radius:99px; background:var(--line); border:0; cursor:pointer; padding:0; transition:background .15s; flex:none; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.35); transition:transform .15s; }
+  .sw[aria-checked="true"] { background:var(--ok); } .sw[aria-checked="true"]::after { transform:translateX(22px); }
+  /* durum */
+  .status { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:var(--r); background:var(--panel); border:1px solid var(--line); }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--dim); margin-top:5px; flex:none; }
+  .status.on { border-color:var(--ok); background:var(--okbg); } .status.on .dot { background:var(--ok); box-shadow:0 0 0 4px var(--okbg); }
+  #state { margin:0; font-weight:700; } #state.off { color:var(--dim); font-weight:600; }
+  #hint, #site { margin:2px 0 0; font-size:12.5px; color:var(--dim); } #site { color:var(--acc); }
+  /* kartlar */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px; margin-top:10px; }
+  .card.acc { border-color:var(--acc); }
   .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  label { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; }
-  select, input { width:100%; padding:8px 10px; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:8px; min-height:36px; }
-  button.b { width:100%; margin-top:8px; padding:9px; font:inherit; font-weight:700; border-radius:8px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
-  button.b.p { background:var(--acc); border-color:var(--acc); color:var(--on); }
+  .lang { display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:end; }
+  .arrow { color:var(--dim); padding-bottom:9px; font-size:16px; }
+  label { display:block; font-size:12px; color:var(--dim); margin-bottom:5px; }
+  select, input[type=text], input:not([type]), input[type=password] { width:100%; padding:8px 10px; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:10px; min-height:38px; }
+  select { appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%); background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px; background-size:5px 5px,5px 5px; background-repeat:no-repeat; padding-right:28px; }
+  input[type=range] { width:100%; accent-color:var(--acc); padding:0; min-height:22px; }
+  button.b { width:100%; margin-top:8px; padding:10px; font:inherit; font-weight:700; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
+  button.b:hover { background:var(--panel2); }
+  button.b.p { background:var(--acc); border-color:var(--acc); color:var(--on); } button.b.p:hover { filter:brightness(1.06); }
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
-  .note { font-size:12.5px; color:var(--dim); margin:10px 0 0; min-height:18px; } .note.bad { color:var(--bad); } .note.ok { color:var(--ok); }
-  .how summary { cursor:pointer; font-weight:700; }
-  .how ol { margin:8px 0 0; padding-left:20px; font-size:13px; line-height:1.55; }
-  .how li { margin-bottom:3px; }
-  .guide { border-color:var(--acc); }
+  .note { font-size:12.5px; color:var(--dim); margin:8px 0 0; min-height:0; } .note:empty { display:none; }
+  .note.bad { color:var(--bad); } .note.ok { color:var(--ok); }
+  /* açılır bölümler */
+  details.card { padding:0; }
+  details.card > summary { list-style:none; cursor:pointer; padding:12px 14px; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
+  details.card > summary::-webkit-details-marker { display:none; }
+  details.card > summary::after { content:"+"; color:var(--dim); font-weight:600; font-size:18px; line-height:1; }
+  details.card[open] > summary::after { content:"–"; }
+  details.card > .in { padding:0 14px 14px; }
+  .chk { display:flex; gap:9px; align-items:center; margin-top:14px; color:var(--ink); cursor:pointer; font-size:13.5px; }
+  .chk input { width:auto; min-height:0; accent-color:var(--acc); }
+  .how ol, .guide ol { margin:0; padding-left:20px; font-size:13px; line-height:1.6; }
+  .how li, .guide li { margin-bottom:3px; }
   .guide b { display:block; margin-bottom:6px; }
-  .guide ol { margin:0; padding-left:20px; font-size:13px; line-height:1.55; }
-  .guide li { margin-bottom:3px; }
+  .foot { display:flex; gap:8px; margin-top:10px; }
+  .foot .b { margin-top:0; font-size:13px; padding:9px 8px; }
   [hidden] { display:none !important; }
 </style></head>
 <body>
-  <div class="top"><div class="brand"><i></i>CineVocab</div><button class="sw" id="sw" role="switch" aria-checked="false" aria-label="On/Off"></button></div>
-  <p id="state" class="off"></p>
-  <p class="note" id="hint"></p>
-  <p class="note" id="site" hidden style="color:var(--acc)"></p>
-  <div class="card" id="siteCard" hidden>
+  <div class="top">
+    <div class="brand"><img src="icons/icon128.png" alt="">CineVocab</div>
+    <button class="sw" id="sw" role="switch" aria-checked="false" aria-label="On/Off"></button>
+  </div>
+
+  <div class="status" id="statusBox">
+    <i class="dot"></i>
+    <div><p id="state" class="off"></p><p id="hint"></p><p id="site" hidden></p></div>
+  </div>
+
+  <div class="card acc" id="siteCard" hidden>
     <button class="b p" id="siteEnable" style="margin-top:0"></button>
     <p class="note" id="siteEnableNote"></p>
   </div>
-  <details class="card how" id="how">
-    <summary id="howTitle"></summary>
-    <ol><li id="h1"></li><li id="h2"></li><li id="h3"></li></ol>
-    <p class="note" id="hNote"></p>
+
+  <div class="card">
+    <div class="lang">
+      <div><label for="src" id="lSrc"></label><select id="src"></select></div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div><label for="dst" id="lDst"></label><select id="dst"></select></div>
+    </div>
+    <p class="note" id="det"></p>
+  </div>
+
+  <details class="card">
+    <summary id="lBox"></summary>
+    <div class="in">
+      <div class="two">
+        <div><label for="pos" id="lPos"></label><select id="pos"></select></div>
+        <div><label for="size" id="lSize"></label><select id="size"></select></div>
+      </div>
+      <label for="op" id="lOp" style="margin-top:12px"></label>
+      <input id="op" type="range" min="40" max="100" step="5">
+      <label class="chk"><input id="hide" type="checkbox"><span id="lHide"></span></label>
+    </div>
   </details>
-  <div class="card guide" id="guide" hidden>
+
+  <div class="card acc guide" id="guide" hidden>
     <b id="gTitle"></b>
     <ol><li id="g1"></li><li id="g2"></li><li id="g3"></li></ol>
     <button class="b p" id="gOpen"></button>
     <p class="note" id="gNote"></p>
   </div>
-  <div class="card">
-    <div class="two">
-      <div><label for="src" id="lSrc"></label><select id="src"></select></div>
-      <div><label for="dst" id="lDst"></label><select id="dst"></select></div>
+
+  <details class="card">
+    <summary id="lKey"></summary>
+    <div class="in">
+      <p class="note" id="keyHelp" style="margin:0 0 8px"></p>
+      <input id="key" autocomplete="off" spellcheck="false">
+      <button class="b p" id="save"></button>
+      <p class="note ok" id="keyState" hidden></p>
     </div>
-    <p class="note" id="det"></p>
-  </div>
-  <div class="card">
-    <label id="lBox" style="font-weight:700;color:var(--ink)"></label>
-    <div class="two" style="margin-top:6px">
-      <div><label for="pos" id="lPos"></label><select id="pos"></select></div>
-      <div><label for="size" id="lSize"></label><select id="size"></select></div>
+  </details>
+
+  <details class="card how" id="how">
+    <summary id="howTitle"></summary>
+    <div class="in">
+      <ol><li id="h1"></li><li id="h2"></li><li id="h3"></li></ol>
+      <p class="note" id="hNote"></p>
     </div>
-    <label for="op" id="lOp" style="margin-top:10px"></label>
-    <input id="op" type="range" min="40" max="100" step="5" style="padding:0;min-height:24px">
-    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--ink);cursor:pointer"><input id="hide" type="checkbox" style="width:auto;min-height:0"><span id="lHide"></span></label>
-  </div>
-  <div class="card">
-    <label for="key" id="lKey"></label>
-    <p class="note" id="keyHelp" style="margin:0 0 8px"></p>
-    <input id="key" autocomplete="off" spellcheck="false">
-    <button class="b p" id="save"></button>
-    <p class="note ok" id="keyState" hidden></p>
+  </details>
+
+  <div class="foot">
     <button class="b" id="open"></button>
     <button class="b" id="share"></button>
   </div>

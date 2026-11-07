@@ -99,6 +99,12 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
 }
 I18N.onChange(() => { mountTools(document.getElementById("tools")); showDemo(); });
 mountTools(document.getElementById("tools"));
+// Girişliysen sağ üstte "Giriş yap" yerine "Hesabım" yazsın
+fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((me) => {
+  if (!me) return;
+  const b = document.querySelector("header .btn[href='/account']");
+  if (b) { b.setAttribute("data-i", "landAccount"); b.textContent = I18N.t("landAccount"); }
+}).catch(() => {});
 </script>
 </body>
 </html>
