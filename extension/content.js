@@ -8,7 +8,6 @@ const knownCache = new Set(); // "biliyorum" dediğin kelimeler (çevirisi göst
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
 const IS_NETFLIX = location.hostname.endsWith("netflix.com");
 const IS_PRIME = /(^|\.)(primevideo|amazon)\./.test(location.hostname);
-const IS_MEET = location.hostname === "meet.google.com";
 let HIDE_ORIG = true; // sitenin kendi altyazısını gizle, sadece CineVocab görünsün
 
 // ---------- Overlay kutusu ----------
@@ -116,11 +115,10 @@ function readYouTubeTitle() {
   return title && !/^(\(\d+\)\s*)?YouTube$/i.test(title) ? "YouTube · " + title : "";
 }
 
-// Diğer siteler: sayfa başlığı (Meet'te toplantı adı)
+// Diğer siteler: sayfa başlığı (iframe içindeyse üst sayfanın başlığı)
 function readGenericTitle() {
   let t = document.title.replace(/\s+/g, " ").trim();
-  if (IS_MEET) t = "Meet";
-  else if (window.top !== window) { try { t = window.top.document.title.trim() || t; } catch (e) {} }
+  if (window.top !== window) { try { t = window.top.document.title.trim() || t; } catch (e) {} }
   return t ? t.slice(0, 60) : location.hostname;
 }
 
@@ -413,22 +411,39 @@ function readTrackSubtitle() {
   return "";
 }
 const GENERIC_SEL = ".vjs-text-track-cue, .jw-text-track-cue, .plyr__caption, .mejs__captions-text, .fp-subtitle, .shaka-text-container, .bmpui-ui-subtitle-label, .art-subtitle, .dplayer-subtitle, [class*='subtitle-text'], [class*='caption-text']";
-// Google Meet canlı altyazısı: son konuşma bloğunun metni (ilk satır konuşmacı adı)
-function readMeetSubtitle() {
-  const reg = document.querySelector("[role='region'][aria-label*='aption' i], [role='region'][aria-label*='ltyaz' i], [role='region'][aria-label*='ous-titre' i], [role='region'][aria-label*='ntertitel' i], [role='region'][aria-label*='ubtítulo' i], [role='region'][aria-label*='ottotitol' i]");
-  if (!reg) return "";
-  const blocks = [...reg.querySelectorAll("div")].filter((d) => d.children.length >= 2 && d.innerText && d.innerText.includes("\n"));
-  const last = blocks.length ? blocks[blocks.length - 1] : null;
-  const lines = (last ? last.innerText : reg.innerText || "").split("\n").map((x) => x.trim()).filter(Boolean);
-  return (last && lines.length > 1 ? lines.slice(1) : lines).join(" ");
+// Özel oynatıcılar: videonun üstüne binen, adında subtitle/caption/cue geçen kutuların metni (yoklama 300 ms'de bir)
+const hiddenEls = new Set();
+let ovScanAt = 0, ovLast = "";
+function restoreEls() { hiddenEls.forEach((e) => { try { e.style.removeProperty("opacity"); } catch (x) {} }); hiddenEls.clear(); }
+function readOverlayCaption() {
+  const now = Date.now();
+  if (now - ovScanAt < 300) return ovLast;
+  ovScanAt = now; ovLast = "";
+  const vids = [...document.querySelectorAll("video")].filter((v) => v.clientWidth > 200 && v.clientHeight > 120);
+  if (!vids.length) return "";
+  const nodes = [...document.querySelectorAll("[class*='ubtitle' i], [class*='aption' i], [class*='-cue' i], [id*='ubtitle' i], [id*='aption' i]")]
+    .filter((n) => n.id !== "cinevocab-overlay" && !n.closest("#cinevocab-overlay") && n.tagName !== "VIDEO" && n.tagName !== "BUTTON");
+  const outer = nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
+  const out = [];
+  for (const n of outer) {
+    const t = n.innerText ? n.innerText.replace(/\s+/g, " ").trim() : "";
+    if (!t || t.length > 200) continue;
+    const r = n.getBoundingClientRect();
+    if (r.width < 20 || r.height < 8) continue;
+    if (!vids.some((v) => { const b = v.getBoundingClientRect(); return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top; })) continue;
+    out.push(t);
+    if (HIDE_ORIG) { n.style.setProperty("opacity", "0", "important"); hiddenEls.add(n); }
+  }
+  ovLast = out.join(" ");
+  return ovLast;
 }
 function readGenericSubtitle() {
-  if (IS_MEET) return readMeetSubtitle();
   const fromTrack = readTrackSubtitle();
   if (fromTrack) return fromTrack;
   const nodes = [...document.querySelectorAll(GENERIC_SEL)];
   const outer = nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
-  return outer.map((n) => (n.innerText ? n.innerText.trim() : "")).filter(Boolean).join(" ");
+  const known = outer.map((n) => (n.innerText ? n.innerText.trim() : "")).filter(Boolean).join(" ");
+  return known || readOverlayCaption();
 }
 
 function readSubtitle() {
@@ -508,7 +523,7 @@ hideStyle.textContent =
 function applyHide() {
   const on = ENABLED && HIDE_ORIG;
   if (on) { if (!hideStyle.isConnected) (document.head || document.documentElement).appendChild(hideStyle); }
-  else { hideStyle.remove(); restoreTracks(); }
+  else { hideStyle.remove(); restoreTracks(); restoreEls(); }
 }
 
 // Açılır pencere "bu sekmede CineVocab çalışıyor mu?" diye sorar
