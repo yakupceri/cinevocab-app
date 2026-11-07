@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "__MSG_extDesc__",
   "minimum_chrome_version": "102",
   "permissions": [
     "storage",
-    "scripting"
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "https://cinevocab.up.railway.app/*"
