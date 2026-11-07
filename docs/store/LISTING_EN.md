@@ -7,12 +7,12 @@ For extension version 1.8.7. Copy each block into the matching field of the Deve
 CineVocab
 
 ### Summary (132 characters max; this is the same text as in the extension's manifest)
-Learn a language from the shows you watch. Every subtitle word translated live on Prime Video, YouTube & Udemy. Free.
+Learn a language from the shows you watch. Every subtitle word translated live on Prime Video, YouTube, Netflix & Udemy. Free.
 
 ### Description
 Stop pausing to look up words. Watch your show, and CineVocab puts the translation of every subtitle word right on screen, live.
 
-Works on Prime Video, YouTube and Udemy. Free. No account needed to try it.
+Works on Prime Video, YouTube, Netflix and Udemy, and on other sites with the "Turn on for this site" button. Free. No account needed to try it.
 
 WHY IT WORKS
 You remember words you met in a scene far better than words from a list. CineVocab turns the thing you already do (watching) into practice: every word you see is translated, saved, and brought back later as a quiz.
