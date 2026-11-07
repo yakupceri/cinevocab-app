@@ -219,6 +219,11 @@ def sitemap():
                     + body + "</urlset>", media_type="application/xml")
 
 
+@router.get("/google636bdd3334693425.html")
+def google_verify():
+    return PlainTextResponse("google-site-verification: google636bdd3334693425.html")
+
+
 @router.get("/robots.txt")
 def robots():
     return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nSitemap: {SITE}/sitemap.xml\n")
