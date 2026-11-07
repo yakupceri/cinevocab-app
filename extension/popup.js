@@ -81,6 +81,8 @@ $("gOpen").onclick = () => chrome.tabs.create({ url: SERVER + "/account" });
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs && tabs[0];
       if (!tab || tab.id == null) return show(false);
+      // Normal web sayfalarında "Bu sitede aç" kartı zaten açıklıyor; bu not yalnızca web sayfası olmayan sekmeler için
+      if (/^https?:\/\//.test(tab.url || "")) return show(false);
       try {
         chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => { void chrome.runtime.lastError; show(!(r && r.ok)); });
       } catch (e) { show(false); }
@@ -106,7 +108,7 @@ $("hide").onchange = () => chrome.storage.local.set({ hideOrig: $("hide").checke
       if (!tab || tab.id == null || !/^https?:\/\//.test(tab.url || "")) return;
       const hosts = new Set([new URL(tab.url).hostname]);
       const build = () => [...hosts].slice(0, 6).flatMap(pat);
-      const done = () => { note.className = "note ok"; note.textContent = T("siteOn"); btn.hidden = true; };
+      const done = () => { note.className = "note ok"; note.textContent = T("siteOn"); btn.hidden = true; $("site").hidden = true; };
       // büyük iframe'lerin alan adları (oynatıcı)
       try {
         chrome.scripting.executeScript({
