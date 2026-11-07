@@ -93,23 +93,48 @@ $("lHide").textContent = T("hideOrig");
 chrome.storage.local.get("hideOrig", (r) => { $("hide").checked = r.hideOrig !== false; });
 $("hide").onchange = () => chrome.storage.local.set({ hideOrig: $("hide").checked });
 
-// Diğer sitelerde aç: izin kullanıcı hareketiyle istenir, sonra arka plan betiği kaydeder
+// Diğer sitelerde aç: izin kullanıcı hareketiyle istenir, sonra arka plan betiği kaydeder.
+// Video oynatıcı çoğu zaman başka alan adlı bir iframe'de olduğu için, popup açılırken (activeTab ile) sayfadaki
+// büyük iframe'lerin adresleri okunur ve izin tek seferde hem sayfa hem oynatıcı için istenir.
 (function otherSites() {
   const card = $("siteCard"), btn = $("siteEnable"), note = $("siteEnableNote");
   btn.textContent = T("siteEnable"); note.textContent = T("siteEnableNote");
+  const pat = (h) => ["https://" + h + "/*", "https://*." + h + "/*", "http://" + h + "/*", "http://*." + h + "/*"];
   try {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs && tabs[0];
       if (!tab || tab.id == null || !/^https?:\/\//.test(tab.url || "")) return;
-      const u = new URL(tab.url), origins = [u.protocol + "//" + u.hostname + "/*", u.protocol + "//*." + u.hostname + "/*"];
-      try { chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => { void chrome.runtime.lastError; card.hidden = !!(r && r.ok); }); } catch (e) { card.hidden = false; }
-      btn.onclick = () => chrome.permissions.request({ origins }, (ok) => {
-        if (!ok) { note.className = "note bad"; note.textContent = T("siteDenied"); return; }
-        chrome.runtime.sendMessage({ action: "enableSite", origins, tabId: tab.id }, (res) => {
-          note.className = "note ok"; note.textContent = T("siteOn"); btn.hidden = true;
+      const hosts = new Set([new URL(tab.url).hostname]);
+      const build = () => [...hosts].slice(0, 6).flatMap(pat);
+      const done = () => { note.className = "note ok"; note.textContent = T("siteOn"); btn.hidden = true; };
+      // büyük iframe'lerin alan adları (oynatıcı)
+      try {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => [...document.querySelectorAll("iframe")].filter((f) => f.src && f.offsetWidth >= 300 && f.offsetHeight >= 150).map((f) => f.src),
+        }, (res) => {
           void chrome.runtime.lastError;
+          for (const src of (res && res[0] && res[0].result) || []) { try { const u = new URL(src); if (/^https?:$/.test(u.protocol)) hosts.add(u.hostname); } catch (e) {} }
         });
-      });
+      } catch (e) {}
+      try {
+        chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => {
+          void chrome.runtime.lastError;
+          card.hidden = !!(r && r.ok);
+          // izin daha önce verilmiş ama betik yüklenmemişse (pencere kapanmış olabilir) şimdi yükle
+          if (!(r && r.ok)) chrome.permissions.contains({ origins: pat(new URL(tab.url).hostname) }, (has) => {
+            void chrome.runtime.lastError;
+            if (has) chrome.runtime.sendMessage({ action: "enableSite", origins: pat(new URL(tab.url).hostname), tabId: tab.id }, () => { void chrome.runtime.lastError; done(); });
+          });
+        });
+      } catch (e) { card.hidden = false; }
+      btn.onclick = () => {
+        const origins = build();
+        chrome.permissions.request({ origins }, (ok) => {
+          if (!ok) { note.className = "note bad"; note.textContent = T("siteDenied"); return; }
+          chrome.runtime.sendMessage({ action: "enableSite", origins, tabId: tab.id }, () => { void chrome.runtime.lastError; done(); });
+        });
+      };
     });
   } catch (e) {}
 })();

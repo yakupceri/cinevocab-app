@@ -83,7 +83,12 @@ async function enableSite(origins, tabId) {
       id, matches: origins, js: CS_FILES, allFrames: true, matchAboutBlank: true,
       runAt: "document_idle", persistAcrossSessions: true,
     }]);
-  } catch (e) { console.error("Kayıt hatası:", e); return { ok: false }; }
+  } catch (e) {
+    // eşzamanlı iki çağrı aynı kimliği kaydetmeye çalışmış olabilir: kayıt varsa sorun yok
+    const have2 = await chrome.scripting.getRegisteredContentScripts({ ids: [id] }).catch(() => []);
+    if (!have2.length) { console.error("Kayıt hatası:", e); return { ok: false }; }
+  }
+  if (tabId == null) return { ok: true };
   try {
     const res = await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: () => !!window.__cvLoaded });
     const todo = res.filter((r) => !r.result).map((r) => r.frameId);
@@ -91,6 +96,14 @@ async function enableSite(origins, tabId) {
   } catch (e) { console.warn("Anında yükleme olmadı (sayfayı yenile):", e); }
   return { ok: true };
 }
+// İzin penceresi açılır pencereyi kapatsa bile (Chrome'da olur) izin verilince site yine de etkinleşsin
+chrome.permissions.onAdded.addListener(async (p) => {
+  const o = (p.origins || []).filter((x) => !/cinevocab\.up\.railway\.app|primevideo|youtube|udemy|netflix/.test(x));
+  if (!o.length) return;
+  let tabId = null;
+  try { const tabs = await chrome.tabs.query({ url: o }); if (tabs[0]) tabId = tabs[0].id; } catch (e) {}
+  enableSite(o, tabId);
+});
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "enableSite" && Array.isArray(request.origins) && request.tabId != null) {
     enableSite(request.origins, request.tabId).then(sendResponse);
