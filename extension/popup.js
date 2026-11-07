@@ -43,6 +43,21 @@ function showDet(d) {
   if (d.ok === false) { n.className = "note bad"; n.textContent = T("mismatchPopup", CVL.langName(d.lang), CVL.langName(st.src)); }
   else { n.className = "note ok"; n.textContent = T("detected", CVL.langName(d.lang)); }
 }
+// Altyazı kapalıysa uyar: etkin sekmedeki içerik betiği son 10 sn içinde altyazı okuyamadıysa
+function checkSubs() {
+  if (!st.enabled) return;
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs && tabs[0]; if (!tab || tab.id == null) return;
+      chrome.tabs.sendMessage(tab.id, { cv: "ping" }, (r) => {
+        void chrome.runtime.lastError;
+        if (!r || !r.ok || !st.enabled) return;
+        if (!r.seenAt || Date.now() - r.seenAt > 10000) { const n = $("det"); n.className = "note bad"; n.textContent = T("noSub"); }
+      });
+    });
+  } catch (e) {}
+}
+setTimeout(checkSubs, 600); setInterval(checkSubs, 3000);
 chrome.storage.onChanged.addListener((ch) => { if (ch.det) showDet(ch.det.newValue); });
 
 $("sw").onclick = () => { st.enabled = !st.enabled; chrome.storage.local.set({ enabled: st.enabled }); paint(); };

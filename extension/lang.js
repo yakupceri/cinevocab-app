@@ -173,3 +173,13 @@
   root.CVL = { foreign, detect, verdict, Guard, t, langName, ui };
   if (typeof module !== "undefined") module.exports = root.CVL;
 })(typeof self !== "undefined" ? self : globalThis);
+
+Object.assign(S.en, {"noSub": "No subtitles detected. Turn on subtitles (CC) in the video player."});
+Object.assign(S.tr, {"noSub": "Altyazı algılanmadı. Video oynatıcıda altyazıyı (CC) aç."});
+Object.assign(S.fr, {"noSub": "Aucun sous-titre détecté. Active les sous-titres (CC) dans le lecteur."});
+Object.assign(S.it, {"noSub": "Nessun sottotitolo rilevato. Attiva i sottotitoli (CC) nel player."});
+Object.assign(S.de, {"noSub": "Keine Untertitel erkannt. Schalte die Untertitel (CC) im Player ein."});
+Object.assign(S.es, {"noSub": "No se detectan subtítulos. Activa los subtítulos (CC) en el reproductor."});
+Object.assign(S.pt, {"noSub": "Nenhuma legenda detectada. Ative as legendas (CC) no player."});
+Object.assign(S.hi, {"noSub": "सबटाइटल नहीं मिले। वीडियो प्लेयर में सबटाइटल (CC) चालू करें।"});
+Object.assign(S.id, {"noSub": "Subtitle tidak terdeteksi. Aktifkan subtitle (CC) di pemutar video."});

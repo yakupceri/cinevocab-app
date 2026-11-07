@@ -387,6 +387,7 @@ function showSentence(sentence) {
 
 // ---------- Saf Altyazı Yakalama ----------
 let lastSubtitle = "";
+let seenAt = 0; // son altyazı okunma zamanı (açılır pencere "altyazı kapalı" uyarısı için)
 let ytCandidate = "", ytSince = 0;
 const YT_STABLE_MS = 220, POLL_MS = 100;
 
@@ -491,6 +492,7 @@ setInterval(() => {
   if (!ENABLED) return;
   const text = readSubtitle().replace(/\s+/g, " ").trim();
 
+  if (text) seenAt = Date.now();
   if (!text) {
     lastSubtitle = ""; // altyazı kayboldu; aynı cümle tekrar gelirse yeniden işle
     return;
@@ -527,7 +529,7 @@ function applyHide() {
 }
 
 // Açılır pencere "bu sekmede CineVocab çalışıyor mu?" diye sorar
-try { chrome.runtime.onMessage.addListener((m, _s, send) => { if (m && m.cv === "ping") send({ ok: true }); }); } catch (e) {}
+try { chrome.runtime.onMessage.addListener((m, _s, send) => { if (m && m.cv === "ping") send({ ok: true, seenAt }); }); } catch (e) {}
 
 // ---------- Ayarlar (canlı): aç/kapa ve dil değişince sayfayı yenilemeye gerek yok ----------
 function applyEnabled() {
