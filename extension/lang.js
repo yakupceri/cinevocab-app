@@ -163,7 +163,9 @@
   Object.assign(S.pt, {"share": "Compartilhar com um amigo", "shareDone": "Link copiado!", "shareMsg": "Aprendo idiomas com séries usando o CineVocab: cada palavra da legenda é traduzida ao vivo. Grátis: "});
   Object.assign(S.hi, {"share": "दोस्त को बताएँ", "shareDone": "लिंक कॉपी हो गया!", "shareMsg": "मैं CineVocab से शो देखकर भाषा सीखता/सीखती हूँ: सबटाइटल का हर शब्द लाइव अनुवादित होता है। मुफ़्त: "});
   Object.assign(S.id, {"share": "Bagikan ke teman", "shareDone": "Tautan disalin!", "shareMsg": "Aku belajar bahasa dari tontonan dengan CineVocab: setiap kata subtitle diterjemahkan langsung. Gratis: "});
-  function ui() { const n = ((root.navigator && navigator.language) || "en").slice(0, 2).toLowerCase(); return S[n] ? n : "en"; }
+  function ui() {
+    try { if (root.location && root.location.protocol === "chrome-extension:") { const o = root.localStorage.getItem("cvUi"); if (o && S[o]) return o; } } catch (e) {}
+    const n = ((root.navigator && navigator.language) || "en").slice(0, 2).toLowerCase(); return S[n] ? n : "en"; }
   function t(key) {
     const l = ui(); let s = (S[l] && S[l][key]) || S.en[key] || key;
     for (let i = 1; i < arguments.length; i++) s = s.split("{" + (i - 1) + "}").join(arguments[i]);

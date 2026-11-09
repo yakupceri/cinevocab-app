@@ -151,3 +151,11 @@ $("share").onclick = async () => {
   $("share").textContent = T("shareDone");
   setTimeout(() => { $("share").textContent = T("share"); }, 2000);
 };
+
+// Arayüz dili: tarayıcı dili yerine elle seçilebilir (yalnızca bu açılır pencere için)
+(function uiLang() {
+  const sel = $("uiLang"), names = { en: "English", tr: "Türkçe", fr: "Français", it: "Italiano", de: "Deutsch", es: "Español", pt: "Português", hi: "हिन्दी", id: "Bahasa Indonesia" };
+  sel.replaceChildren(...Object.keys(names).map((c) => { const o = document.createElement("option"); o.value = c; o.textContent = names[c]; return o; }));
+  sel.value = CVL.ui();
+  sel.onchange = () => { try { localStorage.setItem("cvUi", sel.value); } catch (e) {} location.reload(); };
+})();
