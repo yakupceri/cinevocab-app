@@ -140,11 +140,30 @@ function authView() {
   const cap = el("p", "dim small", t("authDemo")); cap.style.cssText = "text-align:center;margin-top:10px";
   const wrap = el("div", "auth"); wrap.append(card, demo, cap);
   app.replaceChildren(wrap);
+  if (authMode !== "forgot") googleButton(card);
+}
+// Google ile giriş: yalnızca sunucuda istemci kimliği ayarlıysa görünür. Düğmeyi Google'ın kendi betiği çizer.
+let GCID = null;
+async function googleButton(card) {
+  try {
+    if (GCID === null) GCID = (await (await fetch("/api/ext/config")).json()).google || "";
+    if (!GCID || !card.isConnected) return;
+    if (!window.google || !google.accounts) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = no; document.head.append(sc); });
+    if (!card.isConnected) return;
+    google.accounts.id.initialize({ client_id: GCID, callback: async (r) => {
+      try { await api("/api/google", { credential: r.credential, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() }); await boot(); } catch (e) { toast(e.message); }
+    } });
+    const or = el("p", "dim small", t("or2")), box = el("div"); or.style.cssText = "text-align:center;margin:16px 0 10px"; box.style.cssText = "display:flex;justify-content:center";
+    card.append(or, box);
+    google.accounts.id.renderButton(box, { theme: "filled_black", size: "large", shape: "pill", text: "continue_with", width: Math.min(320, card.clientWidth - 40) });
+  } catch (e) {}
 }
 
 /* ---------- ana akış ---------- */
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { me = null; return authView(); }
+  try { window.dispatchEvent(new Event("cv-login")); } catch (e) {} // eklenti bu hesaba kendiliğinden bağlanır
+  { const h = location.hash.slice(1); if (["words", "practice", "duel", "leagues", "settings"].includes(h)) { tab = h; try { history.replaceState(null, "", location.pathname); } catch (e) {} } }
   loadG(); await syncG();
   let joined = null;
   try { const jc = localStorage.getItem("cv-join"); if (jc) { localStorage.removeItem("cv-join"); joined = await api("/api/leagues/join", { code: jc }); tab = "leagues"; LG.open = joined.id; } } catch (e) { if (e && e.message) setTimeout(() => toast(e.message), 700); }
@@ -258,6 +277,7 @@ function startGuide() {
   step(1, b1);
   const b2 = el("button", "primary", t("gs2B")), out = el("code", "gkey hide");
   const s2 = step(2, b2); s2.querySelector(".gbody").append(out);
+  if (document.documentElement.dataset.cvExt) { b2.remove(); s2.classList.add("done"); s2.querySelector(".gbody").append(el("span", "dim small", t("extLinked"))); }
   b2.onclick = async () => {
     try {
       const k = (await api("/api/ext-key", {})).key; out.textContent = k; out.classList.remove("hide"); s2.classList.add("done");
@@ -993,16 +1013,18 @@ function tSettings() {
   const steps = el("ol", "dim small"); steps.style.cssText = "margin:14px 0 0;padding-left:18px;line-height:1.7";
   ["ext1", "ext2", "ext3"].forEach((k) => steps.append(el("li", "", t(k))));
   const r = el("div", "row"); r.append(gen, cp);
-  x.append(el("h2", "", t("extension")), el("p", "dim", t("extSub")), key, r, steps);
+  if (document.documentElement.dataset.cvExt) x.append(el("h2", "", t("extension")), el("p", "dim", t("extLinked")));
+  else x.append(el("h2", "", t("extension")), el("p", "dim", t("extSub")), key, r, steps);
   // hesap
   const a = el("div", "card"), out = el("button", "", t("logout")), del = el("button", "danger", t("deleteAccount"));
   out.onclick = async () => { await api("/api/logout", {}); me = null; authView(); };
   del.onclick = () => {
     const m = el("div", "modal"), c = el("div", "card"), pw = el("input"), e = el("p", "err"), ok = el("button", "danger", t("deleteAccount")), no = el("button", "", t("cancel"));
     pw.type = "password"; pw.placeholder = t("password");
+    if (me.has_password === false) { pw.type = "text"; pw.placeholder = me.username; pw.autocomplete = "off"; }
     ok.onclick = async () => { try { await api("/api/delete-account", { password: pw.value }); m.remove(); me = null; toast(t("accountDeleted")); authView(); } catch (er) { e.textContent = er.message; } };
     no.onclick = () => m.remove(); const rr = el("div", "row"); rr.append(ok, no);
-    pw.style.marginTop = "14px"; c.append(el("h2", "", t("deleteAccount")), el("p", "dim", t("deleteAccountSub")), pw, e, rr); m.append(c); document.body.append(m); pw.focus();
+    pw.style.marginTop = "14px"; c.append(el("h2", "", t("deleteAccount")), el("p", "dim", t("deleteAccountSub") + (me.has_password === false ? " " + t("typeName") : "")), pw, e, rr); m.append(c); document.body.append(m); pw.focus();
   };
   const rr = el("div", "row"); rr.style.marginTop = "14px"; rr.append(out, del);
   a.append(el("h2", "", t("account")), el("p", "dim", t("accountSub")), rr); a.style.marginTop = "16px";
@@ -1015,6 +1037,7 @@ function tSettings() {
     try { await api("/api/change-password", { current: cur.inp.value, password: n1.inp.value }); [cur, n1, n2].forEach((f) => (f.inp.value = "")); toast(t("pwChanged")); }
     catch (e) { serr.textContent = e.message; }
   };
+  if (me.has_password === false) cur.wrap.style.display = "none"; // Google ile açılan hesap: ilk parolayı belirler
   sf.append(cur.wrap, n1.wrap, meterFor(n1.inp), n2.wrap, sb, serr); sec.append(el("h2", "", t("security")), sf);
   const rc = el("div", "card"), rb = el("button", me.has_recovery ? "" : "primary", t("newRecovery")), rr2 = el("div"); rr2.style.marginTop = "14px";
   rb.onclick = async () => {

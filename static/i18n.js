@@ -1076,6 +1076,13 @@
   Object.assign(D.it, {"nav_settings": "Io", "setAll": "Tutte le impostazioni", "quickRoom": "Stanza rapida", "roomOpts": "Opzioni della stanza"});
   Object.assign(D.de, {"nav_settings": "Ich", "setAll": "Alle Einstellungen", "quickRoom": "Schnellraum", "roomOpts": "Raumoptionen"});
   Object.assign(D.es, {"nav_settings": "Yo", "setAll": "Todos los ajustes", "quickRoom": "Sala rápida", "roomOpts": "Opciones de la sala"});
+  /* v16: anahtarsız giriş */
+  if (D.en) Object.assign(D.en, {"or2": "or", "extLinked": "✓ The extension is connected to this account. No key needed.", "typeName": "Type your username to confirm."});
+  if (D.tr) Object.assign(D.tr, {"or2": "ya da", "extLinked": "✓ Eklenti bu hesaba bağlı. Anahtar gerekmez.", "typeName": "Onaylamak için kullanıcı adını yaz."});
+  if (D.fr) Object.assign(D.fr, {"or2": "ou", "extLinked": "✓ L'extension est connectée à ce compte. Aucune clé nécessaire.", "typeName": "Saisis ton nom d'utilisateur pour confirmer."});
+  if (D.it) Object.assign(D.it, {"or2": "oppure", "extLinked": "✓ L'estensione è collegata a questo account. Nessuna chiave necessaria.", "typeName": "Scrivi il tuo nome utente per confermare."});
+  if (D.de) Object.assign(D.de, {"or2": "oder", "extLinked": "✓ Die Erweiterung ist mit diesem Konto verbunden. Kein Schlüssel nötig.", "typeName": "Gib zur Bestätigung deinen Benutzernamen ein."});
+  if (D.es) Object.assign(D.es, {"or2": "o", "extLinked": "✓ La extensión está conectada a esta cuenta. No hace falta clave.", "typeName": "Escribe tu nombre de usuario para confirmar."});
   function detect() {
     var s = store("cv-lang");
     if (s && D[s]) return s;

@@ -91,8 +91,23 @@ def _hash(pw: str, salt: str = "") -> str:
     return f"{salt}${h}"
 
 
+NO_PW = "!"  # Google ile açılan hesap: parola yok
+
+
 def _check(pw: str, stored: str) -> bool:
+    if not stored or "$" not in stored:
+        return False
     return hmac.compare_digest(_hash(pw, stored.split("$")[0]), stored)
+
+
+def _owner_ok(uid: int, username: str, typed: str) -> bool:
+    """Hassas işlem onayı: parolası olan hesapta parola, parolasız (Google) hesapta kullanıcı adı."""
+    r = q("SELECT pw_hash FROM users WHERE id = %s;", (uid,), True)
+    if not r:
+        return False
+    if r[0][0] == NO_PW:
+        return (typed or "").strip().lower() == username.lower()
+    return _check(typed or "", r[0][0])
 
 
 def _sha(t: str) -> str:
@@ -225,23 +240,30 @@ def account_page():
     return FileResponse("templates/account.html")
 
 
-@router.post("/api/register")
-def register(c: Cred, request: Request, response: Response):
-    _throttle_ip(request)
-    name = c.username.strip()
+def create_user(name: str, password: str, ref: str = "") -> int:
+    """Kullanıcı adı ve parolayla yeni hesap; kimliği döner."""
+    name = name.strip()
     if not re.fullmatch(r"\w{3,16}", name):
         raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
-    if len(c.password) < 6:
+    if len(password) < 6:
         raise HTTPException(400, "Parola en az 6 karakter olmalı.")
     if q("SELECT 1 FROM users WHERE lower(username) = lower(%s);", (name,), True):
         raise HTTPException(409, "Bu kullanıcı adı alınmış.")
     uid = q("INSERT INTO users (username, pw_hash) VALUES (%s, %s) RETURNING id;",
-            (name, _hash(c.password)), True)[0][0]
+            (name, _hash(password)), True)[0][0]
     try:
         from growth import record_ref
-        record_ref(uid, c.ref)
+        record_ref(uid, ref)
     except Exception as e:
         print(f"   [ref] {e}")
+    return uid
+
+
+@router.post("/api/register")
+def register(c: Cred, request: Request, response: Response):
+    _throttle_ip(request)
+    name = c.username.strip()
+    uid = create_user(name, c.password, c.ref)
     out = _login_response(uid, request, response, name)
     out["recovery"] = _new_recovery(uid)
     return out
@@ -284,7 +306,8 @@ def change_password(c: ChangePw, request: Request):
     _throttle_ip(request, 8, 60, "chpw")
     u = need_user(request)
     r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
-    if not r or not _check(c.current, r[0][0]):
+    # Google ile açılan hesabın parolası yoktur: ilk parolayı eski parola sormadan belirleyebilir
+    if not r or (r[0][0] != NO_PW and not _check(c.current, r[0][0])):
         raise HTTPException(401, "Parola hatalı.")
     if len(c.password) < 6:
         raise HTTPException(400, "Parola en az 6 karakter olmalı.")
@@ -304,25 +327,38 @@ def new_recovery(c: PwOnly, request: Request):
     """Yeni kurtarma kodu (eskisi geçersiz olur). Hesabı eskiden açanlar da buradan alır."""
     _throttle_ip(request, 8, 60, "chpw")
     u = need_user(request)
-    r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
-    if not r or not _check(c.password, r[0][0]):
+    if not _owner_ok(u["id"], u["username"], c.password):
         raise HTTPException(401, "Parola hatalı.")
     return {"recovery": _new_recovery(u["id"])}
+
+
+def ban_guard(uid: int):
+    """Askıdaki hesap giriş yapamaz (karar veritabanı saatiyle verilir)."""
+    r = q("SELECT banned_until, ban_reason, coalesce(banned_until > now(), false) FROM users WHERE id = %s;",
+          (uid,), True)
+    if r and r[0][2]:
+        until = "süresiz" if r[0][0].year >= 9000 else r[0][0].strftime("%d.%m.%Y %H:%M")
+        why = f" Sebep: {r[0][1]}." if r[0][1] else ""
+        raise HTTPException(403, f"Hesabın askıya alındı ({until}).{why}")
+
+
+def check_login(username: str, password: str):
+    """Kullanıcı adı + parola doğrular; (id, kullanıcı adı) döner."""
+    r = q("SELECT id, username, pw_hash FROM users WHERE lower(username) = lower(%s);",
+          (username.strip(),), True)
+    if not r or not _check(password, r[0][2]):
+        if not r:
+            _hash("x")  # kullanıcı var mı yok mu süreden anlaşılmasın
+        raise HTTPException(401, "Kullanıcı adı ya da parola hatalı.")
+    ban_guard(r[0][0])
+    return r[0][0], r[0][1]
 
 
 @router.post("/api/login")
 def login(c: Cred, request: Request, response: Response):
     _throttle_ip(request)
-    r = q("SELECT id, username, pw_hash, banned_until, ban_reason, "
-          "coalesce(banned_until > now(), false) FROM users "
-          "WHERE lower(username) = lower(%s);", (c.username.strip(),), True)
-    if not r or not _check(c.password, r[0][2]):
-        raise HTTPException(401, "Kullanıcı adı ya da parola hatalı.")
-    if r[0][5]:  # ban aktif mi: karar veritabanı saatiyle verilir
-        until = "süresiz" if r[0][3].year >= 9000 else r[0][3].strftime("%d.%m.%Y %H:%M")
-        why = f" Sebep: {r[0][4]}." if r[0][4] else ""
-        raise HTTPException(403, f"Hesabın askıya alındı ({until}).{why}")
-    return _login_response(r[0][0], request, response, r[0][1])
+    uid, name = check_login(c.username, c.password)
+    return _login_response(uid, request, response, name)
 
 
 @router.post("/api/logout")
@@ -344,9 +380,10 @@ def me(request: Request):
         n += q("SELECT count(DISTINCT (src, dst, word)) FROM user_words_ml WHERE user_id = %s;", (u["id"],), True)[0][0]
     except Exception:
         pass
-    ex = q("SELECT country, avatar, recovery_hash IS NOT NULL FROM users WHERE id = %s;", (u["id"],), True)[0]
+    ex = q("SELECT country, avatar, recovery_hash IS NOT NULL, pw_hash <> %s FROM users WHERE id = %s;",
+           (NO_PW, u["id"]), True)[0]
     return {"username": u["username"], "games": g[0], "score": g[1], "wins": g[2], "words": n,
-            "country": ex[0] or "", "avatar": ex[1] or "", "has_recovery": bool(ex[2])}
+            "country": ex[0] or "", "avatar": ex[1] or "", "has_recovery": bool(ex[2]), "has_password": bool(ex[3])}
 
 
 class DeleteReq(BaseModel):
@@ -358,8 +395,7 @@ def delete_account(c: DeleteReq, request: Request, response: Response):
     """Kullanıcının kendi hesabını ve tüm kişisel verilerini siler (mağaza/KVKK şartı)."""
     _throttle_ip(request)
     u = need_user(request)
-    r = q("SELECT pw_hash FROM users WHERE id = %s;", (u["id"],), True)
-    if not r or not _check(c.password, r[0][0]):
+    if not _owner_ok(u["id"], u["username"], c.password):
         raise HTTPException(401, "Parola hatalı.")
     delete_user_data(u["id"])
     response.delete_cookie(COOKIE)
@@ -492,10 +528,10 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 7 Kasım 2026</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 12 Kasım 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
-<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (e-posta adresin, adın ve fotoğrafın saklanmaz), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
@@ -513,10 +549,10 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <title>CineVocab Privacy Policy</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <p><a href="/privacy?lang=tr">Türkçe</a></p>
-<h1>CineVocab Privacy Policy</h1><p>Last updated: November 7, 2026</p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: November 12, 2026</p>
 <h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site", and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page.</p>
 <h2>What data we collect</h2><ul>
-<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash), your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
+<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not stored), your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>

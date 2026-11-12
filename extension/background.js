@@ -110,3 +110,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+
+// ---------- Google ile giriş ----------
+// Açılır pencere Google penceresi açılınca kapanabildiği için akış burada yürür; sonuç chrome.storage'a yazılır.
+// Yalnızca "openid profile" istenir: e-posta alınmaz. Rastgele nonce hem burada hem sunucuda denetlenir.
+async function googleLogin() {
+  let cfg;
+  try { cfg = await (await fetch(API + "/api/ext/config")).json(); } catch (e) { return { error: "net", status: 0 }; }
+  if (!cfg || !cfg.google) return { error: "off" };
+  const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const url = "https://accounts.google.com/o/oauth2/v2/auth?" + new URLSearchParams({
+    client_id: cfg.google, response_type: "id_token", redirect_uri: chrome.identity.getRedirectURL(),
+    scope: "openid profile", nonce, prompt: "select_account",
+  });
+  let back;
+  try { back = await chrome.identity.launchWebAuthFlow({ url, interactive: true }); }
+  catch (e) { return { error: /did not approve|cancel|closed/i.test(String(e && e.message)) ? "cancel" : "fail" }; }
+  let tok = "";
+  try {
+    tok = new URLSearchParams(new URL(back).hash.slice(1)).get("id_token") || "";
+    const body = JSON.parse(atob(tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (body.nonce !== nonce) return { error: "fail" };
+  } catch (e) { return { error: "fail" }; }
+  try {
+    const r = await fetch(API + "/api/ext/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential: tok, nonce }) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || !d || !d.key) return { error: "fail", status: r.status, detail: d && d.detail };
+    await chrome.storage.local.set({ key: d.key, noAuto: false, authSkip: true });
+    return { key: d.key };
+  } catch (e) { return { error: "net", status: 0 }; }
+}
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "googleLogin" && sender.id === chrome.runtime.id && !sender.tab) {
+    googleLogin().then(sendResponse);
+    return true;
+  }
+});

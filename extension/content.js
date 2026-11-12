@@ -10,46 +10,173 @@ const IS_NETFLIX = location.hostname.endsWith("netflix.com");
 const IS_PRIME = /(^|\.)(primevideo|amazon)\./.test(location.hostname);
 let HIDE_ORIG = true; // sitenin kendi altyazısını gizle, sadece CineVocab görünsün
 
-// ---------- Overlay kutusu ----------
+// ---------- Çeviri kutusu ----------
+// Kutu gölge kökte çizilir (sitenin stilleri bozamaz). Fareyle doğrudan videonun üstünde ayarlanır:
+// sürükle = taşı, köşeden çek = boyut, kilit = sabitle (kilitliyken tıklamalar videoya geçer).
 const overlayBox = document.createElement("div");
 overlayBox.id = "cinevocab-overlay";
-Object.assign(overlayBox.style, {
-  position: "fixed",
-  top: "28px",
-  left: "28px",
-  zIndex: "2147483647",
-  backgroundColor: "rgba(0,0,0,0.85)",
-  color: "#fff",
-  padding: "12px 16px",
-  borderRadius: "10px",
-  fontFamily: "Arial, sans-serif",
-  fontSize: "16px",
-  lineHeight: "1.4",
-  boxShadow: "0 4px 8px rgba(0,0,0,0.4)",
-  pointerEvents: "none",
-  maxWidth: "640px",
-});
-// Kutu ayarları (açılır pencereden): konum, boyut, şeffaflık
-const UI_SIZES = { s: "13px", m: "16px", l: "19px" };
-function applyUi(ui) {
-  ui = ui || {};
-  const pos = ["tl", "tr", "bl", "br", "tc", "bc"].includes(ui.pos) ? ui.pos : "tl";
-  const op = Math.min(1, Math.max(0.4, Number(ui.op) || 0.85));
-  const st = overlayBox.style;
-  st.top = st.bottom = st.left = st.right = "auto";
-  st[pos[0] === "t" ? "top" : "bottom"] = pos[0] === "t" ? "28px" : "72px"; // altta video kontrolleri için pay
-  if (pos[1] === "c") { st.left = "50%"; st.transform = "translateX(-50%)"; }
-  else { st.transform = "none"; st[pos[1] === "l" ? "left" : "right"] = "28px"; }
-  st.fontSize = UI_SIZES[ui.size] || UI_SIZES.m;
-  st.backgroundColor = "rgba(0,0,0," + op + ")";
+overlayBox.style.cssText = "all:initial;position:fixed;z-index:2147483647;display:none;pointer-events:none;";
+const ovRoot = overlayBox.attachShadow({ mode: "open" });
+const ovStyle = document.createElement("style");
+ovStyle.textContent = `
+:host { font:16px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+.wrap { position:relative; --s:1; --op:.85; font-family:"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; text-align:left; direction:ltr; }
+.box { position:relative; box-sizing:border-box; width:max-content; max-width:min(calc(640px * var(--s)), 96vw); padding:.7em 1em; border-radius:.8em; font-size:calc(16px * var(--s)); line-height:1.4; color:#f6efdf; background:rgba(6,20,26,var(--op)); border:1px solid rgba(246,239,223,.16); box-shadow:0 6px 24px rgba(0,0,0,.4); pointer-events:auto; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; }
+.locked .box { pointer-events:none; cursor:default; }
+.hot:not(.locked) .box, .drag .box { outline:2px dashed rgba(255,197,107,.85); outline-offset:3px; }
+.drag .box { cursor:grabbing; }
+.ep { font-size:12px; color:#9fb3ae; margin-bottom:4px; }
+.sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(246,239,223,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
+.hint { margin-top:.6em; font-size:12px; font-weight:600; color:#ffc56b; }
+.grip { position:absolute; right:-7px; bottom:-7px; width:22px; height:22px; display:none; pointer-events:auto; cursor:nwse-resize; touch-action:none; }
+.grip::after { content:""; position:absolute; right:4px; bottom:4px; width:10px; height:10px; border-right:3px solid #ffc56b; border-bottom:3px solid #ffc56b; border-radius:0 0 5px 0; }
+.hot:not(.locked) .grip, .drag .grip { display:block; }
+.pill { position:absolute; right:0; bottom:calc(100% + 8px); display:none; gap:2px; padding:4px; border-radius:999px; background:#0f2a31; border:1px solid rgba(246,239,223,.25); box-shadow:0 6px 18px rgba(0,0,0,.5); pointer-events:auto; white-space:nowrap; }
+.below .pill { bottom:auto; top:calc(100% + 8px); }
+.hot .pill, .drag .pill { display:flex; }
+.pill button { all:unset; box-sizing:border-box; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#f6efdf; cursor:pointer; font:700 13px/1 "Segoe UI", system-ui, sans-serif; }
+.pill button:hover { background:rgba(246,239,223,.16); }
+.pill button:focus-visible { outline:2px solid #ffc56b; }
+.pill svg { width:16px; height:16px; }
+.locked .pill button:not(.lock) { display:none; }
+.pill .lock.on { background:#ff8a3d; color:#2a1204; }
+`;
+const ovWrap = document.createElement("div"); ovWrap.className = "wrap";
+const ovPill = document.createElement("div"); ovPill.className = "pill";
+const ovBoxEl = document.createElement("div"); ovBoxEl.className = "box";
+const ovContent = document.createElement("div");
+const ovGrip = document.createElement("i"); ovGrip.className = "grip";
+ovBoxEl.append(ovContent, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
+
+const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false };
+let BOX = { ...BOX_DEF }, boxTip = true, boxBusy = false;
+function normBox(b) {
+  b = b && typeof b === "object" ? b : {};
+  const n = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+  return { h: ["l", "c", "r"].includes(b.h) ? b.h : BOX_DEF.h, hx: n(b.hx, 0, 1, BOX_DEF.hx), v: b.v === "b" ? "b" : "t", vy: n(b.vy, 0, 1, BOX_DEF.vy),
+    s: n(b.s, 0.6, 2.4, 1), op: n(b.op, 0.35, 1, 0.85), locked: !!b.locked };
 }
-try { chrome.storage.local.get("ui", (r) => applyUi(r && r.ui)); } catch (e) {}
-overlayBox.style.display = "none"; // altyazı gelene kadar görünmez
+function placeBox() {
+  const vw = window.innerWidth, vh = window.innerHeight, st = overlayBox.style;
+  st.left = st.right = st.top = st.bottom = "auto";
+  if (BOX.h === "r") st.right = Math.round((1 - BOX.hx) * vw) + "px"; else st.left = Math.round(BOX.hx * vw) + "px";
+  if (BOX.v === "b") st.bottom = Math.round((1 - BOX.vy) * vh) + "px"; else st.top = Math.round(BOX.vy * vh) + "px";
+  st.transform = BOX.h === "c" ? "translateX(-50%)" : "none";
+  ovWrap.style.setProperty("--s", BOX.s); ovWrap.style.setProperty("--op", BOX.op);
+  ovWrap.classList.toggle("locked", BOX.locked);
+  lockBtn.classList.toggle("on", BOX.locked); lockBtn.title = CVL.t(BOX.locked ? "ovUnlock" : "ovLock"); lockBtn.setAttribute("aria-label", lockBtn.title);
+  clampBox();
+}
+// Kutu ekranın dışına taşmasın (pencere küçüldüyse ya da cümle uzunsa)
+function clampBox() {
+  if (overlayBox.style.display === "none" || boxBusy) return;
+  const r = ovBoxEl.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight, st = overlayBox.style;
+  if (!r.width) return;
+  if (r.left < 4 || r.right > vw - 4) { st.right = "auto"; st.transform = "none"; st.left = Math.max(4, Math.min(vw - r.width - 4, r.left)) + "px"; }
+  if (r.top < 4 || r.bottom > vh - 4) { st.bottom = "auto"; st.top = Math.max(4, Math.min(vh - r.height - 4, r.top)) + "px"; }
+  ovWrap.classList.toggle("below", ovBoxEl.getBoundingClientRect().top < 52);
+}
+function saveBox() { try { chrome.storage.local.set({ box: BOX }); } catch (e) {} }
+function showBox(on) {
+  overlayBox.style.display = on ? "block" : "none";
+  if (on) { placeBox(); }
+}
+// Bırakılan yere göre çapa: solda sol kenar, sağda sağ kenar, ortada merkez; üstte üst, altta alt kenar sabit kalır.
+// Böylece cümle uzayınca kutu ekrandan taşmak yerine içeri doğru büyür.
+function anchorFromRect() {
+  const r = ovBoxEl.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight, cx = (r.left + r.right) / 2 / vw;
+  BOX.h = cx < 0.36 ? "l" : cx > 0.64 ? "r" : "c";
+  BOX.hx = BOX.h === "l" ? r.left / vw : BOX.h === "r" ? r.right / vw : cx;
+  BOX.v = (r.top + r.bottom) / 2 / vh < 0.5 ? "t" : "b";
+  BOX.vy = BOX.v === "t" ? r.top / vh : r.bottom / vh;
+  BOX = normBox(BOX);
+}
+function freezeBox() { // sürükleme / boyutlandırma sırasında sol üst köşe piksel olarak sabitlenir
+  const r = ovBoxEl.getBoundingClientRect(), st = overlayBox.style;
+  st.right = st.bottom = "auto"; st.transform = "none"; st.left = r.left + "px"; st.top = r.top + "px";
+  return r;
+}
+function gesture(target, onStart, onMove) {
+  target.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || BOX.locked) return;
+    if (target === ovBoxEl && e.target.closest && e.target.closest(".grip")) return;
+    e.preventDefault(); e.stopPropagation();
+    const r = freezeBox(), x0 = e.clientX, y0 = e.clientY, ctx = onStart(r);
+    boxBusy = true; ovWrap.classList.add("drag"); clearTimeout(hideTimer);
+    try { target.setPointerCapture(e.pointerId); } catch (x) {}
+    const move = (ev) => { ev.preventDefault(); ev.stopPropagation(); onMove(ev.clientX - x0, ev.clientY - y0, r, ctx); };
+    const up = (ev) => {
+      ev.stopPropagation();
+      target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", up); target.removeEventListener("pointercancel", up);
+      try { target.releasePointerCapture(e.pointerId); } catch (x) {}
+      boxBusy = false; ovWrap.classList.remove("drag"); anchorFromRect(); placeBox(); saveBox(); tipDone();
+      hideTimer = setTimeout(() => showBox(false), 12000);
+    };
+    target.addEventListener("pointermove", move); target.addEventListener("pointerup", up); target.addEventListener("pointercancel", up);
+  });
+}
+gesture(ovBoxEl, () => null, (dx, dy, r) => {
+  const st = overlayBox.style;
+  st.left = Math.max(4, Math.min(window.innerWidth - r.width - 4, r.left + dx)) + "px";
+  st.top = Math.max(4, Math.min(window.innerHeight - r.height - 4, r.top + dy)) + "px";
+});
+gesture(ovGrip, () => BOX.s, (dx, dy, r, s0) => {
+  BOX.s = Math.min(2.4, Math.max(0.6, s0 * (r.width + (Math.abs(dx) > Math.abs(dy) ? dx : dy * (r.width / Math.max(40, r.height)))) / r.width));
+  ovWrap.style.setProperty("--s", BOX.s);
+});
+// Kutuya yapılan tıklamalar oynatıcıya gitmesin (video durmasın / tam ekran değişmesin)
+for (const ev of ["click", "dblclick", "mousedown", "mouseup", "pointerup", "touchstart", "contextmenu", "wheel"]) {
+  ovWrap.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
+}
+// Simge DOM ile kurulur (YouTube gibi Trusted Types isteyen sayfalarda innerHTML kullanılamaz)
+function ovIcon(parts) {
+  const NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "stroke-linejoin": "round" })) s.setAttribute(k, v);
+  for (const [tag, attrs] of parts) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); s.append(n); }
+  return s;
+}
+function pillBtn(cls, content, key, fn) {
+  const b = document.createElement("button"); b.className = cls; b.append(content);
+  if (key) { b.title = CVL.t(key); b.setAttribute("aria-label", b.title); }
+  b.addEventListener("pointerdown", (e) => e.stopPropagation());
+  b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); fn(); placeBox(); saveBox(); tipDone(); });
+  ovPill.append(b); return b;
+}
+pillBtn("", "A−", "ovSmaller", () => { BOX.s = Math.max(0.6, Math.round((BOX.s - 0.12) * 100) / 100); });
+pillBtn("", "A+", "ovBigger", () => { BOX.s = Math.min(2.4, Math.round((BOX.s + 0.12) * 100) / 100); });
+pillBtn("", ovIcon([["circle", { cx: 12, cy: 12, r: 8 }], ["path", { d: "M12 4a8 8 0 0 1 0 16z", fill: "currentColor" }]]), "ovOpacity", () => { BOX.op = BOX.op > 0.9 ? 0.55 : BOX.op > 0.7 ? 1 : 0.85; });
+const lockBtn = pillBtn("lock", ovIcon([["rect", { x: 5, y: 11, width: 14, height: 10, rx: 2.5 }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]), "ovLock", () => { BOX.locked = !BOX.locked; });
+
+// Fare kutunun üstündeyken araçlar görünür (kilitliyken kutu tıklamayı geçirdiği için :hover çalışmaz, konum elle ölçülür)
+let hotOff = null;
+document.addEventListener("mousemove", (e) => {
+  if (overlayBox.style.display === "none") return;
+  const r = ovBoxEl.getBoundingClientRect(), below = ovWrap.classList.contains("below");
+  const inside = e.clientX >= r.left - 14 && e.clientX <= r.right + 14 && e.clientY >= r.top - (below ? 14 : 50) && e.clientY <= r.bottom + (below ? 50 : 14);
+  if (inside) { clearTimeout(hotOff); hotOff = null; ovWrap.classList.add("hot"); }
+  else if (!hotOff && ovWrap.classList.contains("hot")) hotOff = setTimeout(() => { ovWrap.classList.remove("hot"); hotOff = null; }, 500);
+}, { passive: true, capture: true });
+window.addEventListener("resize", () => { if (overlayBox.style.display !== "none") placeBox(); });
+
+function tipDone() { if (!boxTip) return; boxTip = false; try { chrome.storage.local.set({ boxTip: 1 }); } catch (e) {} const h = ovContent.querySelector(".hint"); if (h) h.remove(); }
+try {
+  chrome.storage.local.get(["box", "ui", "boxTip"], (r) => {
+    if (!r) return;
+    if (r.box) BOX = normBox(r.box);
+    else if (r.ui) { // eski açılır pencere ayarlarından taşı
+      const u = r.ui, p = String(u.pos || "tl");
+      BOX = normBox({ h: p[1] === "c" ? "c" : p[1] === "r" ? "r" : "l", hx: p[1] === "c" ? 0.5 : p[1] === "r" ? 0.98 : 0.02, v: p[0] === "b" ? "b" : "t", vy: p[0] === "b" ? 0.9 : 0.05, s: { s: 0.82, m: 1, l: 1.2 }[u.size] || 1, op: u.op });
+    }
+    boxTip = !r.boxTip;
+    placeBox();
+  });
+} catch (e) {}
 (document.body || document.documentElement).appendChild(overlayBox);
 let hideTimer = null;
 
 document.addEventListener("fullscreenchange", () => {
   (document.fullscreenElement || document.body || document.documentElement).appendChild(overlayBox);
+  if (overlayBox.style.display !== "none") placeBox();
 });
 
 // ---------- Dizi / bölüm bilgisi ----------
@@ -202,7 +329,7 @@ function makeChip(word) {
 
   const en = document.createElement("div");
   en.textContent = "…";
-  Object.assign(en.style, { fontSize: "0.85em", color: "#7ee0a8" });
+  Object.assign(en.style, { fontSize: "0.85em", color: "#7ee0a8", fontWeight: "600" });
 
   chip.append(tr, en);
   return { chip, en };
@@ -256,31 +383,25 @@ function showSentence(sentence) {
   words = words.filter((_, i) => !fr[i]);
   if (words.length === 0) return;
 
-  overlayBox.style.display = "block";
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => (overlayBox.style.display = "none"), 12000);
-  overlayBox.textContent = "";
+  if (!boxBusy) hideTimer = setTimeout(() => showBox(false), 12000);
+  ovContent.textContent = "";
   const epLabel = document.createElement("div");
-  Object.assign(epLabel.style, { fontSize: "12px", color: "#8b909c", marginBottom: "4px" });
+  epLabel.className = "ep";
   epLabel.textContent = episode
     ? "📺 " + episode
     : CVL.t("epMissing");
-  overlayBox.appendChild(epLabel);
+  ovContent.appendChild(epLabel);
   const row = document.createElement("div");
-  overlayBox.appendChild(row);
+  ovContent.appendChild(row);
 
-  // Cümlenin İngilizcesi (bağlam için sunucudan gelir)
+  // Cümlenin çevirisi (bağlam için sunucudan gelir)
   const transLine = document.createElement("div");
-  Object.assign(transLine.style, {
-    marginTop: "8px",
-    paddingTop: "6px",
-    borderTop: "1px solid rgba(255,255,255,0.15)",
-    fontSize: "0.92em",
-    color: "#ddd",
-    fontStyle: "italic",
-  });
+  transLine.className = "sent";
   transLine.textContent = "…";
-  overlayBox.appendChild(transLine);
+  ovContent.appendChild(transLine);
+  if (boxTip) { const h = document.createElement("div"); h.className = "hint"; h.textContent = CVL.t("ovHint"); ovContent.appendChild(h); }
+  showBox(true);
 
   const uniqueWords = [...new Set(words)];
   const slots = {};
@@ -480,12 +601,12 @@ function report(g) {
 function showMismatch(lang) {
   sentenceId++;
   if (lang) lastBadLang = lang;
-  if (Date.now() - lastNoticeAt < 60000) { overlayBox.style.display = "none"; return; }
+  if (Date.now() - lastNoticeAt < 60000) { showBox(false); return; }
   lastNoticeAt = Date.now();
-  overlayBox.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
-  overlayBox.style.display = "block";
+  ovContent.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
+  showBox(true);
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => (overlayBox.style.display = "none"), 6000);
+  hideTimer = setTimeout(() => showBox(false), 6000);
 }
 
 setInterval(() => {
@@ -535,7 +656,7 @@ try { chrome.runtime.onMessage.addListener((m, _s, send) => { if (m && m.cv === 
 function applyEnabled() {
   if (ENABLED) return;
   sentenceId++;
-  overlayBox.style.display = "none";
+  showBox(false);
   lastSubtitle = ""; ytCandidate = ""; guard.reset();
 }
 function applyEnabledAll() { applyEnabled(); applyHide(); }
@@ -553,6 +674,6 @@ try {
     if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
     if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabledAll(); }
     if (ch.hideOrig) { HIDE_ORIG = ch.hideOrig.newValue !== false; applyHide(); }
-    if (ch.ui) applyUi(ch.ui.newValue);
+    if (ch.box && !boxBusy) { BOX = normBox(ch.box.newValue || BOX_DEF); placeBox(); }
   });
 } catch (e) {}

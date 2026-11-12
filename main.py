@@ -24,6 +24,7 @@ import admin
 import growth
 
 import daily
+import extauth
 import leagues
 import multilang
 import srs
@@ -38,6 +39,7 @@ app.include_router(srs.router)
 app.include_router(leagues.router)
 app.include_router(vocab.router)
 app.include_router(growth.router)
+app.include_router(extauth.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -377,6 +379,7 @@ try:
     srs.init(lambda pairs, src, dst: quality_pairs(pairs, src, dst))
     leagues.init()
     growth.init()
+    extauth.init()
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")

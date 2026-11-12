@@ -163,6 +163,15 @@
   Object.assign(S.pt, {"share": "Compartilhar com um amigo", "shareDone": "Link copiado!", "shareMsg": "Aprendo idiomas com séries usando o CineVocab: cada palavra da legenda é traduzida ao vivo. Grátis: "});
   Object.assign(S.hi, {"share": "दोस्त को बताएँ", "shareDone": "लिंक कॉपी हो गया!", "shareMsg": "मैं CineVocab से शो देखकर भाषा सीखता/सीखती हूँ: सबटाइटल का हर शब्द लाइव अनुवादित होता है। मुफ़्त: "});
   Object.assign(S.id, {"share": "Bagikan ke teman", "shareDone": "Tautan disalin!", "shareMsg": "Aku belajar bahasa dari tontonan dengan CineVocab: setiap kata subtitle diterjemahkan langsung. Gratis: "});
+  Object.assign(S.en, {"ovHint": "Drag me anywhere · pull the corner to resize", "ovLock": "Lock in place", "ovUnlock": "Unlock", "ovSmaller": "Smaller text", "ovBigger": "Bigger text", "ovOpacity": "Background", "noKey": "⚠ Signed out. Click the CineVocab icon and sign in again."});
+  Object.assign(S.tr, {"ovHint": "Beni istediğin yere sürükle · köşeden çekip boyutlandır", "ovLock": "Yerine kilitle", "ovUnlock": "Kilidi aç", "ovSmaller": "Yazıyı küçült", "ovBigger": "Yazıyı büyüt", "ovOpacity": "Arka plan", "noKey": "⚠ Oturum kapanmış. CineVocab simgesine tıklayıp tekrar giriş yap."});
+  Object.assign(S.fr, {"ovHint": "Fais-moi glisser où tu veux · tire le coin pour redimensionner", "ovLock": "Verrouiller", "ovUnlock": "Déverrouiller", "ovSmaller": "Texte plus petit", "ovBigger": "Texte plus grand", "ovOpacity": "Fond", "noKey": "⚠ Déconnecté. Clique sur l'icône CineVocab et reconnecte-toi."});
+  Object.assign(S.it, {"ovHint": "Trascinami dove vuoi · tira l'angolo per ridimensionare", "ovLock": "Blocca", "ovUnlock": "Sblocca", "ovSmaller": "Testo più piccolo", "ovBigger": "Testo più grande", "ovOpacity": "Sfondo", "noKey": "⚠ Sessione chiusa. Clicca l'icona di CineVocab e accedi di nuovo."});
+  Object.assign(S.de, {"ovHint": "Zieh mich an eine beliebige Stelle · an der Ecke die Größe ändern", "ovLock": "Sperren", "ovUnlock": "Entsperren", "ovSmaller": "Text kleiner", "ovBigger": "Text größer", "ovOpacity": "Hintergrund", "noKey": "⚠ Abgemeldet. Klicke auf das CineVocab-Symbol und melde dich erneut an."});
+  Object.assign(S.es, {"ovHint": "Arrástrame adonde quieras · tira de la esquina para cambiar el tamaño", "ovLock": "Bloquear", "ovUnlock": "Desbloquear", "ovSmaller": "Texto más pequeño", "ovBigger": "Texto más grande", "ovOpacity": "Fondo", "noKey": "⚠ Sesión cerrada. Pulsa el icono de CineVocab e inicia sesión de nuevo."});
+  Object.assign(S.pt, {"ovHint": "Arraste para onde quiser · puxe o canto para redimensionar", "ovLock": "Travar", "ovUnlock": "Destravar", "ovSmaller": "Texto menor", "ovBigger": "Texto maior", "ovOpacity": "Fundo", "noKey": "⚠ Sessão encerrada. Clique no ícone do CineVocab e entre de novo."});
+  Object.assign(S.hi, {"ovHint": "मुझे कहीं भी खींचें · आकार बदलने के लिए कोना खींचें", "ovLock": "लॉक करें", "ovUnlock": "अनलॉक करें", "ovSmaller": "टेक्स्ट छोटा", "ovBigger": "टेक्स्ट बड़ा", "ovOpacity": "पृष्ठभूमि", "noKey": "⚠ साइन आउट हो गया। CineVocab आइकन पर क्लिक करके फिर साइन इन करें।"});
+  Object.assign(S.id, {"ovHint": "Seret aku ke mana saja · tarik sudut untuk mengubah ukuran", "ovLock": "Kunci posisi", "ovUnlock": "Buka kunci", "ovSmaller": "Perkecil teks", "ovBigger": "Perbesar teks", "ovOpacity": "Latar", "noKey": "⚠ Sesi berakhir. Klik ikon CineVocab lalu masuk lagi."});
   function ui() {
     try { if (root.location && root.location.protocol === "chrome-extension:") { const o = root.localStorage.getItem("cvUi"); if (o && S[o]) return o; } } catch (e) {}
     const n = ((root.navigator && navigator.language) || "en").slice(0, 2).toLowerCase(); return S[n] ? n : "en"; }
@@ -172,7 +181,8 @@
     return s;
   }
   const langName = (c) => (NAMES[ui()] || NAMES.en)[c] || c;
-  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui };
+  const add = (l, o) => { Object.assign(S[l] || (S[l] = {}), o); };
+  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui, add };
   if (typeof module !== "undefined") module.exports = root.CVL;
   Object.assign(S.en, {"noSub": "No subtitles detected. Turn on subtitles (CC) in the video player."});
   Object.assign(S.tr, {"noSub": "Altyazı algılanmadı. Video oynatıcıda altyazıyı (CC) aç."});
