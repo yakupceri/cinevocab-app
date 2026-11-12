@@ -134,6 +134,10 @@ async function viewStats() {
           : h("p", {}, "Henüz kayıt yok. Sayaç bu sürümden itibaren çalışır."),
         s.pairs.length ? h("table", {}, h("tr", {}, h("th", {}, "Dil çifti (14 gün)"), h("th", {}, "İstek")),
           s.pairs.map((x) => h("tr", {}, h("td", {}, x.pair), h("td", {}, x.calls)))) : ""),
+      h("div", { class: "panel" }, h("h3", {}, "Link tıklamaları (/get?src=...)"),
+        s.clicks.length ? h("table", {}, h("tr", {}, h("th", {}, "Kaynak"), h("th", {}, "Bugün"), h("th", {}, "7 gün"), h("th", {}, "30 gün")),
+          s.clicks.map((x) => h("tr", {}, h("td", {}, x.src), h("td", {}, x.d1), h("td", {}, x.d7), h("td", {}, x.d30))))
+          : h("p", {}, "Henüz tıklama yok. Linki şöyle kullan: /get?src=reddit")),
       botPanel(),
       h("div", { class: "panel" }, h("h3", {}, "En çok kelime toplanan içerikler"),
         h("table", {}, s.top_sources.map((x) => h("tr", {}, h("td", {}, x.episode), h("td", {}, x.n)))))));

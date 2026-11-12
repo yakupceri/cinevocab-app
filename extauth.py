@@ -47,6 +47,8 @@ def init():
       "created_at TIMESTAMP DEFAULT now());")
     q("CREATE TABLE IF NOT EXISTS starred_words (user_id INT NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
       "word TEXT NOT NULL, created_at TIMESTAMP DEFAULT now(), PRIMARY KEY (user_id, src, dst, word));")
+    q("CREATE TABLE IF NOT EXISTS link_clicks (day DATE NOT NULL, src TEXT NOT NULL, n INT NOT NULL DEFAULT 0, "
+      "PRIMARY KEY (day, src));")
     q("CREATE TABLE IF NOT EXISTS ext_tickets (hash TEXT PRIMARY KEY, user_id INT NOT NULL, "
       "created_at TIMESTAMP DEFAULT now());")
 

@@ -1439,13 +1439,22 @@ def play_page():
 
 
 STORE_URL = "https://chromewebstore.google.com/detail/cinevocab/glhogfbfbjifiihgffjpjgijkjplebkl"
+_BOT_UA = re.compile(r"bot|crawl|spider|preview|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|embed|fetch|curl|wget|python", re.I)
 
 
 @app.get("/get")
 @app.get("/install")
-def install_redirect():
-    """Kısa ve okunur kurulum adresi: Chrome Web Mağazası sayfasına yönlendirir."""
-    return RedirectResponse(STORE_URL, status_code=302)
+def install_redirect(request: Request, src: str = ""):
+    """Kisa kurulum adresi: Chrome Web Magazasi'na yonlendirir ve tiklamayi kaynaga gore sayar.
+    Kimlik, IP ya da cerez saklanmaz; yalnizca gun + kaynak etiketi + sayi tutulur. Botlar sayilmaz."""
+    tag = re.sub(r"[^a-z0-9_-]", "", (src or "").lower())[:24] or "direct"
+    if not _BOT_UA.search(request.headers.get("user-agent", "")):
+        try:
+            q("INSERT INTO link_clicks (day, src, n) VALUES (current_date, %s, 1) "
+              "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
+        except Exception:
+            pass  # sayac hatasi yonlendirmeyi bozmasin
+    return RedirectResponse(STORE_URL, status_code=302, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/game", response_class=HTMLResponse)

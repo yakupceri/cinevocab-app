@@ -186,6 +186,10 @@ def stats(request: Request):
         "pairs": [{"pair": r[0] + "→" + r[1], "calls": r[2]} for r in q(
             "SELECT src, dst, sum(calls) FROM usage_pairs WHERE day > current_date - 14 "
             "GROUP BY src, dst ORDER BY sum(calls) DESC LIMIT 12;", (), True)],
+        "clicks": [{"src": r[0], "d1": int(r[1]), "d7": int(r[2]), "d30": int(r[3])} for r in q(
+            "SELECT src, coalesce(sum(n) FILTER (WHERE day = current_date), 0), "
+            "coalesce(sum(n) FILTER (WHERE day > current_date - 7), 0), coalesce(sum(n), 0) "
+            "FROM link_clicks WHERE day > current_date - 30 GROUP BY src ORDER BY 4 DESC LIMIT 20;", (), True)],
         "top_sources": [{"episode": r[0], "n": r[1]} for r in q(
             "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
