@@ -1438,6 +1438,16 @@ def play_page():
     return RedirectResponse("/game")
 
 
+STORE_URL = "https://chromewebstore.google.com/detail/cinevocab/glhogfbfbjifiihgffjpjgijkjplebkl"
+
+
+@app.get("/get")
+@app.get("/install")
+def install_redirect():
+    """Kısa ve okunur kurulum adresi: Chrome Web Mağazası sayfasına yönlendirir."""
+    return RedirectResponse(STORE_URL, status_code=302)
+
+
 @app.get("/game", response_class=HTMLResponse)
 def game_page(request: Request):
     return templates.TemplateResponse(request, "game.html")
