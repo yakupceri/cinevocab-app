@@ -162,6 +162,51 @@ $("boxReset").onclick = () => { chrome.storage.local.set({ box: null }); toast(T
   } catch (e) {}
 })();
 
+// ---------- YouTube videosundan kelime çıkar ----------
+// Altyazıyı sayfadaki içerik betiği (yt-import.js) okur; burada sunucudan "bu kelimelerden hangileri yeni?" diye
+// sorulur, seçilenlerin eklenmesi arka plana verilir (pencere kapansa bile sürer).
+(function ytImport() {
+  const card = $("ytCard"), go = $("ytGo"), msg = $("ytMsg"), sel = $("ytN");
+  $("ytT").textContent = T("ytT"); $("ytS").textContent = T("ytS"); $("lYtN").textContent = T("ytN"); go.textContent = T("ytGo");
+  const say = (cls, text) => { msg.className = "note " + cls; msg.textContent = text; };
+  let tabId = null;
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const t = tabs && tabs[0];
+      if (t && t.id != null && /^https:\/\/www\.youtube\.com\/(watch|shorts)/.test(t.url || "")) { tabId = t.id; card.hidden = false; }
+    });
+  } catch (e) {}
+
+  function show(imp) {
+    if (!imp || !imp.total) return;
+    const fresh = Date.now() - (imp.ts || 0) < (imp.state === "run" ? 120000 : 60000);
+    if (!fresh) return;
+    if (imp.state === "run") { go.disabled = true; say("", T("ytAdding", imp.done, imp.total)); }
+    else if (imp.state === "done") { go.disabled = false; say("ok", T("ytDone", imp.added, imp.familiar || 0)); home = null; if (st.key) loadHome(); }
+    else if (imp.state === "error") { go.disabled = false; say("bad", T("ytFail")); }
+  }
+  chrome.storage.local.get("imp", (r) => show(r && r.imp));
+  chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.imp) show(ch.imp.newValue); });
+
+  go.onclick = async () => {
+    if (go.disabled) return;
+    if (!st.key) return say("bad", T("ytLogin"));
+    if (tabId == null) return;
+    go.disabled = true; say("", T("ytRead"));
+    const tr = await new Promise((res) => chrome.tabs.sendMessage(tabId, { cv: "getTranscript", src: st.src }, (r) => { void chrome.runtime.lastError; res(r); }));
+    if (!tr) { go.disabled = false; return say("bad", T("ytReload")); }
+    if (!tr.ok) { go.disabled = false; return say("bad", T("ytErr_" + (tr.err || "fail"), CVL.langName(st.src))); }
+    let plan;
+    try { plan = await api("/api/import/plan", { body: { src: st.src, dst: st.dst, words: tr.words, n: +sel.value } }); }
+    catch (e) { go.disabled = false; return say("bad", errText(e)); }
+    if (!plan.pick || !plan.pick.length) { go.disabled = false; return say("ok", T("ytNone", plan.total)); }
+    chrome.runtime.sendMessage({ action: "importWords", words: plan.pick, episode: tr.title, thumb: tr.thumb, src: st.src, dst: st.dst, familiar: plan.known + plan.saved }, (r) => {
+      void chrome.runtime.lastError;
+      if (!r || !r.ok) { go.disabled = false; say("bad", T("ytFail")); }
+    });
+  };
+})();
+
 // ---------- sekmeler ----------
 function setTab(name) {
   tab = name; $("auth").hidden = true;

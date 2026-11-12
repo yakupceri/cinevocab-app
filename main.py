@@ -22,6 +22,7 @@ from accounts import (router, init_accounts, count_usage, user_from_request, use
                       record_game, tag_user_words, _throttle_ip)
 import admin
 import growth
+import importer
 
 import daily
 import extauth
@@ -40,6 +41,7 @@ app.include_router(leagues.router)
 app.include_router(vocab.router)
 app.include_router(growth.router)
 app.include_router(extauth.router)
+app.include_router(importer.router)
 
 app.add_middleware(
     CORSMiddleware,

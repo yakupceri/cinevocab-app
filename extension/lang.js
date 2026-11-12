@@ -191,7 +191,10 @@
   }
   const langName = (c) => (NAMES[ui()] || NAMES.en)[c] || c;
   const add = (l, o) => { Object.assign(S[l] || (S[l] = {}), o); };
-  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui, add };
+  // Yaygın (öğrenmeye değmeyen) kelime mi? hasStop: bu dilin listesi var mı?
+  const isStop = (w, l) => !!(SETS[l] && SETS[l].has(w));
+  const hasStop = (l) => !!SETS[l];
+  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui, add, isStop, hasStop };
   if (typeof module !== "undefined") module.exports = root.CVL;
   Object.assign(S.en, {"noSub": "No subtitles detected. Turn on subtitles (CC) in the video player."});
   Object.assign(S.tr, {"noSub": "Altyazı algılanmadı. Video oynatıcıda altyazıyı (CC) aç."});

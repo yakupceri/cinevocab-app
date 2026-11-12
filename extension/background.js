@@ -149,6 +149,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// ---------- Videodan kelime ekleme ----------
+// Açılır pencere kapansa bile sürsün diye burada yürür; ilerleme chrome.storage'daki "imp" kaydına yazılır.
+// Kelimeler mevcut /translate-words ile 30'ar 30'ar çevrilir ve (giriş yapılmışsa) kullanıcının listesine, video başlığıyla eklenir.
+let importing = false;
+async function importWords(job) {
+  const words = (job.words || []).filter((w) => typeof w === "string").slice(0, 150);
+  const episode = String(job.episode || "").slice(0, 80), thumb = String(job.thumb || "").slice(0, 300);
+  const src = String(job.src || "en"), dst = String(job.dst || "tr");
+  const { key } = await chrome.storage.local.get("key");
+  const state = { state: "run", done: 0, total: words.length, added: 0, episode, familiar: Number(job.familiar) || 0 };
+  const save = () => chrome.storage.local.set({ imp: { ...state, ts: Date.now() } });
+  await save();
+  try {
+    for (let i = 0; i < words.length; i += 30) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      try {
+        const r = await fetch(API + "/translate-words", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(key ? { Authorization: "Bearer " + key } : {}) },
+          body: JSON.stringify({ words: words.slice(i, i + 30), src, dst, gen: 0, lookup_only: false, sentence: "", episode, thumb }),
+          signal: ctrl.signal,
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        state.added += Object.keys((d && d.results) || {}).length;
+      } finally { clearTimeout(timer); }
+      state.done = Math.min(i + 30, words.length);
+      await save();
+    }
+    state.state = "done";
+  } catch (e) {
+    console.error("İçe aktarma hatası:", e);
+    state.state = "error";
+  }
+  await save();
+  importing = false;
+}
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action !== "importWords" || sender.id !== chrome.runtime.id || sender.tab) return;
+  if (importing) { sendResponse({ ok: false, busy: true }); return; }
+  importing = true;
+  importWords(request);
+  sendResponse({ ok: true });
+});
+
 // ---------- Yıldızlı kelime: giriş yapılmışsa hesaba da yazılır ----------
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action !== "star" || typeof request.word !== "string") return;

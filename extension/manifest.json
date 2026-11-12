@@ -41,6 +41,15 @@
     },
     {
       "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "yt-import.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
         "https://cinevocab.up.railway.app/*"
       ],
       "js": [
