@@ -1444,7 +1444,7 @@ _BOT_UA = re.compile(r"bot|crawl|spider|preview|slurp|facebookexternalhit|whatsa
 
 @app.get("/get")
 @app.get("/install")
-def install_redirect(request: Request, src: str = ""):
+def install_redirect(request: Request, src: str = "", hl: str = ""):
     """Kisa kurulum adresi: Chrome Web Magazasi'na yonlendirir ve tiklamayi kaynaga gore sayar.
     Kimlik, IP ya da cerez saklanmaz; yalnizca gun + kaynak etiketi + sayi tutulur. Botlar sayilmaz."""
     tag = re.sub(r"[^a-z0-9_-]", "", (src or "").lower())[:24] or "direct"
@@ -1454,7 +1454,9 @@ def install_redirect(request: Request, src: str = ""):
               "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
         except Exception:
             pass  # sayac hatasi yonlendirmeyi bozmasin
-    return RedirectResponse(STORE_URL, status_code=302, headers={"Cache-Control": "no-store"})
+    lang = re.sub(r"[^a-zA-Z-]", "", hl or "")[:8]  # mağaza dili: ?hl=tr gibi
+    url = STORE_URL + ("?hl=" + lang if lang else "")
+    return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/game", response_class=HTMLResponse)
