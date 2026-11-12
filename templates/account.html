@@ -191,6 +191,7 @@ function newPairModal() {
 }
 
 const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["leagues", "league"], ["settings", "settings"]];
+const BAR = [["words", "words", ["words", "videos", "known"]], ["practice", "practice", ["practice"]], ["duel", "duel", ["duel", "leagues"]], ["settings", "settings", ["settings"]]];
 const uniqWords = () => { const m = new Map(); V.words.forEach((w) => { if (!m.has(w.tr)) m.set(w.tr, w); }); return [...m.values()]; };
 const counts = () => ({ words: uniqWords().length, videos: VIDS.length, known: V.known.length });
 
@@ -201,10 +202,24 @@ function render() {
   renderPair();
   const c = counts(), nav = el("nav", "nav"), bar = el("nav", "tabbar");
   TABS.forEach(([k, ic]) => {
-    const mkb = (cls) => { const b = el("button", tab === k ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k))); if (cls && c[k] !== undefined) b.append(el("span", "n", c[k])); b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); }; return b; };
-    nav.append(mkb(true)); bar.append(mkb(false));
+    const b = el("button", tab === k ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k)));
+    if (c[k] !== undefined) b.append(el("span", "n", c[k]));
+    b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); };
+    nav.append(b);
+  });
+  // Telefonda 4 sekmeli alt çubuk; ilgili sekmeler üstte küçük bir seçiciyle birleşir
+  const grp = BAR.find(([, , g]) => g.includes(tab)) || BAR[0];
+  BAR.forEach(([k, ic, g]) => {
+    const b = el("button", g.includes(tab) ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k)));
+    b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); };
+    bar.append(b);
   });
   const main = el("div");
+  if (grp[2].length > 1) {
+    const seg = el("div", "seg");
+    grp[2].forEach((k) => { const b = el("button", tab === k ? "on" : "", t("nav_" + k)); if (c[k] !== undefined) b.append(el("span", "n", c[k])); b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); }; seg.append(b); });
+    main.append(seg);
+  }
   main.append({ words: tWords, videos: tVideos, known: tKnown, practice: tPractice, duel: tDuel, leagues: tLeagues, settings: tSettings }[tab]());
   const lay = el("div", "layout"); lay.append(nav, main);
   app.replaceChildren(lay);
