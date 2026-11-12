@@ -29,7 +29,7 @@ function paint() {
   $("src").value = st.src; $("dst").value = st.dst;
   const hasKey = !!st.key;
   $("guide").hidden = hasKey; $("keyState").hidden = !hasKey; $("open").hidden = !hasKey;
-  if (!paint.howSet) { $("how").open = !hasKey; paint.howSet = true; } // ilk açılışta yeni kullanıcıya açık, anahtarı olana kapalı
+  if (!paint.howSet) { $("how").open = false; paint.howSet = true; } // ilk açılışta yeni kullanıcıya açık, anahtarı olana kapalı
 }
 chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "ui"], (r) => {
   if (r.ui) { ui = { ...ui, ...r.ui }; }

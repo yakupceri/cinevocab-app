@@ -252,7 +252,8 @@ const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjp
 function startGuide() {
   const g = el("div", "card guide"), ol = el("ol", "gsteps");
   g.append(el("h2", "", t("gsTitle")), el("p", "dim", t("gsSub")), ol);
-  const step = (n, extra) => { const li = el("li"), b = el("div", "gbody"); b.append(el("b", "", t("gs" + n + "T")), el("span", "dim small", t("gs" + n))); if (extra) b.append(extra); li.append(b); ol.append(li); return li; };
+  const more = el("details", "gmore"), ol2 = el("ol", "gsteps"); more.append(el("summary", "", t("gsMore")), ol2); ol2.style.counterReset = "gs 1";
+  const step = (n, extra) => { const li = el("li"), b = el("div", "gbody"); b.append(el("b", "", t("gs" + n + "T")), el("span", "dim small", t("gs" + n))); if (extra) b.append(extra); li.append(b); (n === 1 ? ol : ol2).append(li); return li; };
   const b1 = el("button", "primary", t("gs1B")); b1.onclick = () => window.open(STORE_URL, "_blank", "noopener");
   step(1, b1);
   const b2 = el("button", "primary", t("gs2B")), out = el("code", "gkey hide");
@@ -265,7 +266,7 @@ function startGuide() {
     } catch (e) { toast(e.message); }
   };
   step(3); step(4);
-  g.append(el("p", "dim small gtip", t("gsTip")));
+  g.append(more, el("p", "dim small gtip", t("gsTip")));
   return g;
 }
 
@@ -604,7 +605,10 @@ function tPractice() {
   dcard.append(dtx, el("span", "grow"), el("b", "", "→"));
   const srsBox = el("div"); srsBox.style.marginTop = "16px";
   loadSrs(srsBox, area, intro, engs);
-  intro.append(pc, dcard, srsBox, modes, setup);
+  const quick = el("button", "primary go-btn", "▶ " + t("start")); quick.style.cssText = "width:100%;min-height:58px;font-size:18px;margin-bottom:16px";
+  quick.onclick = () => go.click();
+  const opts = el("details", "gmore"); opts.append(el("summary", "", t("opts")), modes, setup);
+  intro.append(quick, pc, dcard, srsBox, opts);
   box.append(intro, area);
   return box;
 }
