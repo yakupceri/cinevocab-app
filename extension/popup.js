@@ -269,13 +269,17 @@ function renderResult(v) {
 }
 
 // ---------- Ben ----------
-function langSelect() {
-  const names = { en: "English", tr: "Türkçe", fr: "Français", it: "Italiano", de: "Deutsch", es: "Español", pt: "Português", hi: "हिन्दी", id: "Bahasa Indonesia" };
-  const wrap = el("div", "card"), sel = el("select"), lab = el("label", "", T("uiLang")); sel.id = "uiLang"; lab.htmlFor = "uiLang";
-  sel.replaceChildren(...Object.keys(names).map((c) => { const o = el("option", "", names[c]); o.value = c; return o; }));
+const UI_NAMES = { en: "English", tr: "Türkçe", fr: "Français", it: "Italiano", de: "Deutsch", es: "Español", pt: "Português", hi: "हिन्दी", id: "Bahasa Indonesia" };
+function fillUiLang(sel) {
+  sel.replaceChildren(...Object.keys(UI_NAMES).map((c) => { const o = el("option", "", UI_NAMES[c]); o.value = c; return o; }));
   sel.value = CVL.ui();
   sel.onchange = () => { try { localStorage.setItem("cvUi", sel.value); } catch (e) {} location.reload(); };
-  wrap.append(lab, sel); return wrap;
+}
+// Üst çubuktaki dil düğmesi: her ekrandan (giriş ekranı dahil) erişilir
+fillUiLang($("lgSel")); $("lgCode").textContent = CVL.ui().toUpperCase(); $("lgSel").setAttribute("aria-label", T("uiLang")); $("lg").title = T("uiLang");
+function langSelect() {
+  const wrap = el("div", "card"), sel = el("select"), lab = el("label", "", T("uiLang")); sel.id = "uiLang"; lab.htmlFor = "uiLang";
+  fillUiLang(sel); wrap.append(lab, sel); return wrap;
 }
 function shareBtn() {
   const b = el("button", "btn", T("share"));
