@@ -183,5 +183,14 @@
   Object.assign(S.pt, {"noSub": "Nenhuma legenda detectada. Ative as legendas (CC) no player."});
   Object.assign(S.hi, {"noSub": "सबटाइटल नहीं मिले। वीडियो प्लेयर में सबटाइटल (CC) चालू करें।"});
   Object.assign(S.id, {"noSub": "Subtitle tidak terdeteksi. Aktifkan subtitle (CC) di pemutar video."});
+  Object.assign(S.en, {"switchTo": "Switch to {0}"});
+  Object.assign(S.tr, {"switchTo": "{0} yap"});
+  Object.assign(S.fr, {"switchTo": "Passer en {0}"});
+  Object.assign(S.it, {"switchTo": "Passa a {0}"});
+  Object.assign(S.de, {"switchTo": "Auf {0} stellen"});
+  Object.assign(S.es, {"switchTo": "Cambiar a {0}"});
+  Object.assign(S.pt, {"switchTo": "Mudar para {0}"});
+  Object.assign(S.hi, {"switchTo": "{0} चुनें"});
+  Object.assign(S.id, {"switchTo": "Ganti ke {0}"});
 })(typeof self !== "undefined" ? self : globalThis);
 

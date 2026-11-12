@@ -40,7 +40,15 @@ chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "ui"], (r) => {
 function showDet(d) {
   const n = $("det"); n.className = "note"; n.textContent = "";
   if (!st.enabled || !d || Date.now() - d.ts > 60000 || !d.lang) return;
-  if (d.ok === false) { n.className = "note bad"; n.textContent = T("mismatchPopup", CVL.langName(d.lang), CVL.langName(st.src)); }
+  if (d.ok === false) {
+    n.className = "note bad"; n.textContent = T("mismatchPopup", CVL.langName(d.lang), CVL.langName(st.src));
+    if (LANGS.includes(d.lang)) {
+      // tek dokunuşla algılanan dile geç
+      const b = document.createElement("button"); b.className = "b"; b.style.marginTop = "6px"; b.textContent = T("switchTo", CVL.langName(d.lang));
+      b.onclick = () => { st.src = d.lang; if (st.dst === st.src) st.dst = LANGS.find((l) => l !== st.src); paint(); chrome.storage.local.set({ src: st.src, dst: st.dst, det: null }); n.textContent = ""; n.className = "note"; };
+      n.append(document.createElement("br"), b);
+    }
+  }
   else { n.className = "note ok"; n.textContent = T("detected", CVL.langName(d.lang)); }
 }
 // Altyazı kapalıysa uyar: etkin sekmedeki içerik betiği son 10 sn içinde altyazı okuyamadıysa

@@ -1069,6 +1069,13 @@
   Object.assign(D.it, {"gsTitle": "Inizia", "gsMore": "Già installata? Collegala a questo account", "opts": "Opzioni"});
   Object.assign(D.de, {"gsTitle": "Los geht's", "gsMore": "Schon installiert? Mit diesem Konto verbinden", "opts": "Optionen"});
   Object.assign(D.es, {"gsTitle": "Empieza", "gsMore": "¿Ya la instalaste? Conéctala a esta cuenta", "opts": "Opciones"});
+  /* v15 */
+  Object.assign(D.en, {"nav_settings": "Me", "setAll": "All settings", "quickRoom": "Quick room", "roomOpts": "Room options"});
+  Object.assign(D.tr, {"nav_settings": "Ben", "setAll": "Tüm ayarlar", "quickRoom": "Hızlı oda kur", "roomOpts": "Oda ayarları"});
+  Object.assign(D.fr, {"nav_settings": "Moi", "setAll": "Tous les réglages", "quickRoom": "Salle rapide", "roomOpts": "Options de la salle"});
+  Object.assign(D.it, {"nav_settings": "Io", "setAll": "Tutte le impostazioni", "quickRoom": "Stanza rapida", "roomOpts": "Opzioni della stanza"});
+  Object.assign(D.de, {"nav_settings": "Ich", "setAll": "Alle Einstellungen", "quickRoom": "Schnellraum", "roomOpts": "Raumoptionen"});
+  Object.assign(D.es, {"nav_settings": "Yo", "setAll": "Todos los ajustes", "quickRoom": "Sala rápida", "roomOpts": "Opciones de la sala"});
   function detect() {
     var s = store("cv-lang");
     if (s && D[s]) return s;

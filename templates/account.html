@@ -300,6 +300,8 @@ function tWords() {
   box.append(st);
   if (!V.words.length) { box.append(startGuide(), packsCard(), empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
 
+  const goP = el("button", "primary", "▶ " + t("nav_practice")); goP.style.cssText = "width:100%;min-height:52px;font-size:17px;margin-bottom:14px";
+  goP.onclick = () => { tab = "practice"; render(); window.scrollTo(0, 0); }; box.append(goP);
   const q = el("input"), ep = el("select"), all = el("button", "", t("selectShown"));
   q.type = "search"; q.placeholder = t("search"); q.value = Q;
   ep.append(new Option(t("allVideos"), ""));
@@ -834,7 +836,16 @@ function tDuel() {
     mode: rm.value === "speak" ? "speak" : "choice", screen: rm.value === "screen", learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
   const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), f(t("roomMode"), rm), noteSay, r2, f(t("roomPwCreateLabel"), cpw), cb);
   c.append(el("h2", "", t("createRoom")), el("p", "dim", cb.disabled ? t("needWordsText") : t("createSub", langName(PAIR.src), langName(PAIR.dst))), cf);
-  g.append(j, c); box.append(g, leaderboard());
+  const qc = el("div", "card"), qb = el("button", "primary", "⚔ " + t("quickRoom")), qr = el("div", "row"), qcode = el("input"), qj = el("button", "", t("join"));
+  qb.style.cssText = "width:100%;min-height:58px;font-size:18px"; qb.disabled = uniqWords().length < 4;
+  qb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: "", n: 10, seconds: 12, password: "", mode: "choice", screen: false, learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
+  qcode.placeholder = "0000"; qcode.inputMode = "numeric"; qcode.maxLength = 4; qcode.style.cssText = "flex:1 1 120px;font:800 22px var(--display);letter-spacing:.3em;text-align:center";
+  qj.onclick = () => { if (!/^\d{4}$/.test(qcode.value.trim())) return toast(t("codeHint")); goDuel({ t: "join", code: qcode.value.trim(), password: "" }); };
+  qcode.onkeydown = (e) => { if (e.key === "Enter") qj.click(); };
+  qr.style.marginTop = "12px"; qr.append(qcode, qj); qc.append(qb, qr);
+  if (qb.disabled) qc.append(el("p", "dim small", t("needWordsText")));
+  const mo = el("details", "gmore"); mo.append(el("summary", "", t("roomOpts")), g); g.style.marginTop = "10px";
+  g.append(j, c); box.append(qc, mo, leaderboard());
   return box;
 }
 function goDuel(msg) { try { sessionStorage.setItem("cv-duel", JSON.stringify(msg)); } catch (e) {} location.href = "/game"; }
@@ -948,7 +959,6 @@ function recoveryModal(code) {
 }
 function tSettings() {
   const box = el("div");
-  box.append(head(t("nav_settings"), me.username));
   const g = el("div", "grid2"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
   // profil
   const p = el("div", "card"), name = el("input"), cc = el("select"), save = el("button", "primary", t("save")), err = el("p", "err");
@@ -1027,7 +1037,18 @@ function tSettings() {
   api("/api/profile-public").then(paintPub).catch(() => {});
   const g3 = el("div", "grid2"); g3.style.marginTop = "16px"; g3.append(iv, pu);
   const g2 = el("div", "grid2"); g2.style.marginTop = "16px"; g2.append(sec, rc);
-  g.append(p, x); vc.style.marginTop = "16px"; box.append(g, vc, g3, g2, a);
+  g.append(p, x); vc.style.marginTop = "16px";
+  // üstte profil özeti ve iki ana eylem; geri kalan her şey "Tüm ayarlar" altında
+  const hero = el("div", "card"), L2 = levelOf(G.xp), st2 = streakNow(), hc = el("div", "chips");
+  hc.append(chip(ICO.flame, st2 ? t("streakDays", st2) : t("streakStart"), st2 ? "fire" : ""), chip(ICO.star, t("lvl", L2)));
+  hero.append(el("h2", "", me.username), hc);
+  const hr = el("div", "row"); hr.style.marginTop = "14px";
+  const hs = el("button", "primary", "📤 " + t("shareProg")); hs.onclick = () => shareProgress();
+  const hi = el("button", "", "🤝 " + t("inviteCopy"));
+  hi.onclick = async () => { try { const d = await api("/api/invite"); try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } } catch (e) { toast(e.message); } };
+  hr.append(hs, hi); hero.append(hr);
+  const all2 = el("details", "gmore"); all2.append(el("summary", "", t("setAll")), g, vc, g3, g2, a);
+  box.append(hero, all2);
   return box;
 }
 
