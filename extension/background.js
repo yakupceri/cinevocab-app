@@ -137,8 +137,9 @@ async function googleLogin() {
     const r = await fetch(API + "/api/ext/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential: tok, nonce }) });
     const d = await r.json().catch(() => null);
     if (!r.ok || !d || !d.key) return { error: "fail", status: r.status, detail: d && d.detail };
-    await chrome.storage.local.set({ key: d.key, noAuto: false, authSkip: true });
-    return { key: d.key };
+    // Yeni hesapsa açılır pencere kullanıcı adını seçtirir (pencere kapanmış olsa bile bir sonraki açılışta)
+    await chrome.storage.local.set({ key: d.key, noAuto: false, authSkip: true, ...(d.new ? { pickName: d.username } : {}) });
+    return { key: d.key, new: !!d.new, username: d.username };
   } catch (e) { return { error: "net", status: 0 }; }
 }
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -146,4 +147,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     googleLogin().then(sendResponse);
     return true;
   }
+});
+
+// ---------- Yıldızlı kelime: giriş yapılmışsa hesaba da yazılır ----------
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action !== "star" || typeof request.word !== "string") return;
+  chrome.storage.local.get(["key", "src", "dst"], ({ key, src, dst }) => {
+    if (!key) { sendResponse({ ok: false }); return; }
+    fetch(API + "/api/star", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({ src: src || "tr", dst: dst || "en", word: request.word.slice(0, 60), on: !!request.on }) })
+      .then((r) => sendResponse({ ok: r.ok })).catch(() => sendResponse({ ok: false }));
+  });
+  return true;
 });

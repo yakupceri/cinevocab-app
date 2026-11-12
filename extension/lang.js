@@ -172,6 +172,15 @@
   Object.assign(S.pt, {"ovHint": "Arraste para onde quiser · puxe o canto para redimensionar", "ovLock": "Travar", "ovUnlock": "Destravar", "ovSmaller": "Texto menor", "ovBigger": "Texto maior", "ovOpacity": "Fundo", "noKey": "⚠ Sessão encerrada. Clique no ícone do CineVocab e entre de novo."});
   Object.assign(S.hi, {"ovHint": "मुझे कहीं भी खींचें · आकार बदलने के लिए कोना खींचें", "ovLock": "लॉक करें", "ovUnlock": "अनलॉक करें", "ovSmaller": "टेक्स्ट छोटा", "ovBigger": "टेक्स्ट बड़ा", "ovOpacity": "पृष्ठभूमि", "noKey": "⚠ साइन आउट हो गया। CineVocab आइकन पर क्लिक करके फिर साइन इन करें।"});
   Object.assign(S.id, {"ovHint": "Seret aku ke mana saja · tarik sudut untuk mengubah ukuran", "ovLock": "Kunci posisi", "ovUnlock": "Buka kunci", "ovSmaller": "Perkecil teks", "ovBigger": "Perbesar teks", "ovOpacity": "Latar", "noKey": "⚠ Sesi berakhir. Klik ikon CineVocab lalu masuk lagi."});
+  Object.assign(S.en, {"ovHint": "Drag to move · pull the edge or corner to resize · click a word to star it", "ovColor": "Translation colour"});
+  Object.assign(S.tr, {"ovHint": "Sürükle: taşı · kenardan ya da köşeden çek: boyutlandır · kelimeye tıkla: yıldızla", "ovColor": "Çeviri rengi"});
+  Object.assign(S.fr, {"ovHint": "Fais glisser pour déplacer · tire le bord ou le coin pour redimensionner · clique un mot pour l'ajouter aux favoris", "ovColor": "Couleur de la traduction"});
+  Object.assign(S.it, {"ovHint": "Trascina per spostare · tira il bordo o l'angolo per ridimensionare · clicca una parola per aggiungerla ai preferiti", "ovColor": "Colore della traduzione"});
+  Object.assign(S.de, {"ovHint": "Ziehen zum Verschieben · am Rand oder an der Ecke die Größe ändern · auf ein Wort klicken, um es zu markieren", "ovColor": "Farbe der Übersetzung"});
+  Object.assign(S.es, {"ovHint": "Arrastra para mover · tira del borde o la esquina para cambiar el tamaño · haz clic en una palabra para marcarla", "ovColor": "Color de la traducción"});
+  Object.assign(S.pt, {"ovHint": "Arraste para mover · puxe a borda ou o canto para redimensionar · clique em uma palavra para favoritar", "ovColor": "Cor da tradução"});
+  Object.assign(S.hi, {"ovHint": "खिसकाने के लिए खींचें · आकार बदलने के लिए किनारा या कोना खींचें · किसी शब्द पर क्लिक करके उसे स्टार करें", "ovColor": "अनुवाद का रंग"});
+  Object.assign(S.id, {"ovHint": "Seret untuk memindahkan · tarik tepi atau sudut untuk mengubah ukuran · klik kata untuk memberi bintang", "ovColor": "Warna terjemahan"});
   function ui() {
     try { if (root.location && root.location.protocol === "chrome-extension:") { const o = root.localStorage.getItem("cvUi"); if (o && S[o]) return o; } } catch (e) {}
     const n = ((root.navigator && navigator.language) || "en").slice(0, 2).toLowerCase(); return S[n] ? n : "en"; }

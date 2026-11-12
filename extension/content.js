@@ -21,10 +21,18 @@ const ovStyle = document.createElement("style");
 ovStyle.textContent = `
 :host { font:16px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
 .wrap { position:relative; --s:1; --op:.85; font-family:"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; text-align:left; direction:ltr; }
-.box { position:relative; box-sizing:border-box; width:max-content; max-width:min(calc(640px * var(--s)), 96vw); padding:.7em 1em; border-radius:.8em; font-size:calc(16px * var(--s)); line-height:1.4; color:#f6efdf; background:rgba(6,20,26,var(--op)); border:1px solid rgba(246,239,223,.16); box-shadow:0 6px 24px rgba(0,0,0,.4); pointer-events:auto; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; }
+.box { position:relative; box-sizing:border-box; width:var(--bw, max-content); max-width:min(var(--mw, calc(640px * var(--s))), 96vw); padding:.7em 1em; border-radius:.8em; font-size:calc(16px * var(--s)); line-height:1.4; color:#f6efdf; background:rgba(6,20,26,var(--op)); border:1px solid rgba(246,239,223,.16); box-shadow:0 6px 24px rgba(0,0,0,.4); pointer-events:auto; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; }
 .locked .box { pointer-events:none; cursor:default; }
 .hot:not(.locked) .box, .drag .box { outline:2px dashed rgba(255,197,107,.85); outline-offset:3px; }
 .drag .box { cursor:grabbing; }
+.chip { display:inline-block; text-align:center; margin:2px 4px 2px 0; padding:1px 4px; border-radius:.45em; vertical-align:top; cursor:pointer; }
+.chip:hover { background:rgba(246,239,223,.16); }
+.chip .w { font-weight:700; } .chip .t { font-size:.85em; font-weight:600; color:var(--tr, #7ee0a8); min-height:1em; }
+.chip.star .w { color:#ffc56b; } .chip.star .w::before { content:"★ "; font-size:.8em; }
+.wgrip { position:absolute; right:-10px; top:50%; width:18px; height:44px; margin-top:-22px; display:none; pointer-events:auto; cursor:ew-resize; touch-action:none; }
+.wgrip::after { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:#ffc56b; }
+.hot:not(.locked) .wgrip, .drag .wgrip { display:block; }
+.pill .dot { width:14px; height:14px; border-radius:50%; background:var(--tr, #7ee0a8); border:2px solid rgba(246,239,223,.6); box-sizing:border-box; }
 .ep { font-size:12px; color:#9fb3ae; margin-bottom:4px; }
 .sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(246,239,223,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
 .hint { margin-top:.6em; font-size:12px; font-weight:600; color:#ffc56b; }
@@ -46,15 +54,18 @@ const ovPill = document.createElement("div"); ovPill.className = "pill";
 const ovBoxEl = document.createElement("div"); ovBoxEl.className = "box";
 const ovContent = document.createElement("div");
 const ovGrip = document.createElement("i"); ovGrip.className = "grip";
-ovBoxEl.append(ovContent, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
+const ovWgrip = document.createElement("i"); ovWgrip.className = "wgrip";
+ovBoxEl.append(ovContent, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
 
-const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false };
+const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false, w: 0, c: 0 };
+const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff"]; // çeviri rengi seçenekleri
 let BOX = { ...BOX_DEF }, boxTip = true, boxBusy = false;
 function normBox(b) {
   b = b && typeof b === "object" ? b : {};
   const n = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
   return { h: ["l", "c", "r"].includes(b.h) ? b.h : BOX_DEF.h, hx: n(b.hx, 0, 1, BOX_DEF.hx), v: b.v === "b" ? "b" : "t", vy: n(b.vy, 0, 1, BOX_DEF.vy),
-    s: n(b.s, 0.6, 2.4, 1), op: n(b.op, 0.35, 1, 0.85), locked: !!b.locked };
+    s: n(b.s, 0.6, 2.4, 1), op: n(b.op, 0.35, 1, 0.85), locked: !!b.locked,
+    w: b.w ? n(b.w, 200, 1600, 0) : 0, c: Math.round(n(b.c, 0, TR_COLORS.length - 1, 0)) };
 }
 function placeBox() {
   const vw = window.innerWidth, vh = window.innerHeight, st = overlayBox.style;
@@ -62,7 +73,8 @@ function placeBox() {
   if (BOX.h === "r") st.right = Math.round((1 - BOX.hx) * vw) + "px"; else st.left = Math.round(BOX.hx * vw) + "px";
   if (BOX.v === "b") st.bottom = Math.round((1 - BOX.vy) * vh) + "px"; else st.top = Math.round(BOX.vy * vh) + "px";
   st.transform = BOX.h === "c" ? "translateX(-50%)" : "none";
-  ovWrap.style.setProperty("--s", BOX.s); ovWrap.style.setProperty("--op", BOX.op);
+  ovWrap.style.setProperty("--s", BOX.s); ovWrap.style.setProperty("--op", BOX.op); ovWrap.style.setProperty("--tr", TR_COLORS[BOX.c] || TR_COLORS[0]);
+  applyWidth();
   ovWrap.classList.toggle("locked", BOX.locked);
   lockBtn.classList.toggle("on", BOX.locked); lockBtn.title = CVL.t(BOX.locked ? "ovUnlock" : "ovLock"); lockBtn.setAttribute("aria-label", lockBtn.title);
   clampBox();
@@ -75,6 +87,11 @@ function clampBox() {
   if (r.left < 4 || r.right > vw - 4) { st.right = "auto"; st.transform = "none"; st.left = Math.max(4, Math.min(vw - r.width - 4, r.left)) + "px"; }
   if (r.top < 4 || r.bottom > vh - 4) { st.bottom = "auto"; st.top = Math.max(4, Math.min(vh - r.height - 4, r.top)) + "px"; }
   ovWrap.classList.toggle("below", ovBoxEl.getBoundingClientRect().top < 52);
+}
+// Genişlik elle ayarlandıysa kutu o genişlikte sabit kalır; ayarlanmadıysa cümleye göre daralır
+function applyWidth() {
+  if (BOX.w) { const px = Math.round(BOX.w * BOX.s) + "px"; ovWrap.style.setProperty("--bw", px); ovWrap.style.setProperty("--mw", px); }
+  else { ovWrap.style.removeProperty("--bw"); ovWrap.style.removeProperty("--mw"); }
 }
 function saveBox() { try { chrome.storage.local.set({ box: BOX }); } catch (e) {} }
 function showBox(on) {
@@ -99,17 +116,28 @@ function freezeBox() { // sürükleme / boyutlandırma sırasında sol üst kö�
 function gesture(target, onStart, onMove) {
   target.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || BOX.locked) return;
-    if (target === ovBoxEl && e.target.closest && e.target.closest(".grip")) return;
+    if (target === ovBoxEl && e.target.closest && e.target.closest(".grip, .wgrip")) return;
     e.preventDefault(); e.stopPropagation();
-    const r = freezeBox(), x0 = e.clientX, y0 = e.clientY, ctx = onStart(r);
-    boxBusy = true; ovWrap.classList.add("drag"); clearTimeout(hideTimer);
+    const x0 = e.clientX, y0 = e.clientY;
+    const chip0 = e.target.closest ? e.target.closest(".chip") : null; // olay bitince hedef gölge kökün dışına çevrilir: şimdi al
+    let moved = false, r = null, ctx = null;
+    boxBusy = true; clearTimeout(hideTimer);
     try { target.setPointerCapture(e.pointerId); } catch (x) {}
-    const move = (ev) => { ev.preventDefault(); ev.stopPropagation(); onMove(ev.clientX - x0, ev.clientY - y0, r, ctx); };
+    const move = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      if (!moved) { if (Math.abs(dx) + Math.abs(dy) < 5) return; moved = true; r = freezeBox(); ctx = onStart(r); ovWrap.classList.add("drag"); }
+      onMove(dx, dy, r, ctx);
+    };
     const up = (ev) => {
       ev.stopPropagation();
       target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", up); target.removeEventListener("pointercancel", up);
       try { target.releasePointerCapture(e.pointerId); } catch (x) {}
-      boxBusy = false; ovWrap.classList.remove("drag"); anchorFromRect(); placeBox(); saveBox(); tipDone();
+      boxBusy = false; ovWrap.classList.remove("drag");
+      if (moved) { anchorFromRect(); placeBox(); saveBox(); tipDone(); }
+      else if (target === ovBoxEl && ev.type === "pointerup") { // sürükleme değil, tıklama: kelimeyse yıldızla
+        if (chip0 && chip0.dataset.w) toggleStar(chip0.dataset.w);
+      }
       hideTimer = setTimeout(() => showBox(false), 12000);
     };
     target.addEventListener("pointermove", move); target.addEventListener("pointerup", up); target.addEventListener("pointercancel", up);
@@ -124,6 +152,26 @@ gesture(ovGrip, () => BOX.s, (dx, dy, r, s0) => {
   BOX.s = Math.min(2.4, Math.max(0.6, s0 * (r.width + (Math.abs(dx) > Math.abs(dy) ? dx : dy * (r.width / Math.max(40, r.height)))) / r.width));
   ovWrap.style.setProperty("--s", BOX.s);
 });
+gesture(ovWgrip, () => null, (dx, dy, r) => {
+  BOX.w = Math.min(1600, Math.max(200, (r.width + dx) / BOX.s));
+  applyWidth();
+});
+
+// ---------- Yıldızlı kelimeler ----------
+// Kutudaki bir kelimeye tıklamak onu yıldızlar. Liste cihazda tutulur; giriş yapılmışsa hesaba da yazılır.
+let starSet = new Set();
+function loadStars() { try { chrome.storage.local.get("stars", (r) => { starSet = new Set(((r && r.stars) || {})[SRC + ">" + DST] || []); paintStars(); }); } catch (e) {} }
+function paintStars() { ovContent.querySelectorAll(".chip").forEach((c) => c.classList.toggle("star", starSet.has(c.dataset.w))); }
+function toggleStar(word) {
+  const on = !starSet.has(word);
+  if (on) starSet.add(word); else starSet.delete(word);
+  paintStars(); tipDone();
+  try {
+    chrome.storage.local.get("stars", (r) => { const all = (r && r.stars) || {}; all[SRC + ">" + DST] = [...starSet].slice(-3000); chrome.storage.local.set({ stars: all }); });
+    chrome.runtime.sendMessage({ action: "star", word, on }, () => void chrome.runtime.lastError);
+  } catch (e) {}
+}
+
 // Kutuya yapılan tıklamalar oynatıcıya gitmesin (video durmasın / tam ekran değişmesin)
 for (const ev of ["click", "dblclick", "mousedown", "mouseup", "pointerup", "touchstart", "contextmenu", "wheel"]) {
   ovWrap.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
@@ -144,6 +192,8 @@ function pillBtn(cls, content, key, fn) {
 }
 pillBtn("", "A−", "ovSmaller", () => { BOX.s = Math.max(0.6, Math.round((BOX.s - 0.12) * 100) / 100); });
 pillBtn("", "A+", "ovBigger", () => { BOX.s = Math.min(2.4, Math.round((BOX.s + 0.12) * 100) / 100); });
+const colorDot = document.createElement("span"); colorDot.className = "dot";
+pillBtn("", colorDot, "ovColor", () => { BOX.c = (BOX.c + 1) % TR_COLORS.length; });
 pillBtn("", ovIcon([["circle", { cx: 12, cy: 12, r: 8 }], ["path", { d: "M12 4a8 8 0 0 1 0 16z", fill: "currentColor" }]]), "ovOpacity", () => { BOX.op = BOX.op > 0.9 ? 0.55 : BOX.op > 0.7 ? 1 : 0.85; });
 const lockBtn = pillBtn("lock", ovIcon([["rect", { x: 5, y: 11, width: 14, height: 10, rx: 2.5 }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]), "ovLock", () => { BOX.locked = !BOX.locked; });
 
@@ -316,21 +366,10 @@ function readYouTubeSubtitle() {
 
 function makeChip(word) {
   const chip = document.createElement("div");
-  Object.assign(chip.style, {
-    display: "inline-block",
-    textAlign: "center",
-    margin: "3px 8px 3px 0",
-    verticalAlign: "top",
-  });
-
-  const tr = document.createElement("div");
-  tr.textContent = word;
-  tr.style.fontWeight = "bold";
-
-  const en = document.createElement("div");
-  en.textContent = "…";
-  Object.assign(en.style, { fontSize: "0.85em", color: "#7ee0a8", fontWeight: "600" });
-
+  chip.className = "chip" + (starSet.has(word) ? " star" : "");
+  chip.dataset.w = word;
+  const tr = document.createElement("div"); tr.className = "w"; tr.textContent = word;
+  const en = document.createElement("div"); en.className = "t"; en.textContent = "…";
   chip.append(tr, en);
   return { chip, en };
 }
@@ -661,19 +700,20 @@ function applyEnabled() {
 }
 function applyEnabledAll() { applyEnabled(); applyHide(); }
 function applyPair() {
-  wordCache.clear(); sentCache.clear(); knownCache.clear();
+  wordCache.clear(); sentCache.clear(); knownCache.clear(); loadStars();
   lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0;
 }
 try {
   chrome.storage.local.get(["enabled", "src", "dst", "hideOrig"], (r) => {
     if (!r) return;
-    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll();
+    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars();
   });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area !== "local") return;
     if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
     if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabledAll(); }
     if (ch.hideOrig) { HIDE_ORIG = ch.hideOrig.newValue !== false; applyHide(); }
+    if (ch.stars) { starSet = new Set((ch.stars.newValue || {})[SRC + ">" + DST] || []); paintStars(); }
     if (ch.box && !boxBusy) { BOX = normBox(ch.box.newValue || BOX_DEF); placeBox(); }
   });
 } catch (e) {}

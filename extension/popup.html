@@ -93,6 +93,9 @@
   .wl .w { flex:1; min-width:0; } .wl .w b { display:block; font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wl .w span { display:block; color:var(--mint); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wl .k { flex:none; width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--dim); display:grid; place-items:center; } .wl .k:hover { color:var(--mint); border-color:var(--mint); } .wl .k svg { width:16px; height:16px; }
+  .wl .k.on { color:var(--sun); border-color:rgba(255,197,107,.5); font-size:16px; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:10px; padding:4px; border-radius:13px; background:var(--panel); border:1px solid var(--line); }
+  .seg button { height:32px; border:0; border-radius:9px; background:none; color:var(--dim); font-weight:600; font-size:13px; } .seg button[aria-pressed="true"] { background:var(--panel2); color:var(--ink); }
   .empty { margin:26px 8px; text-align:center; color:var(--dim); }
 
   /* pratik */

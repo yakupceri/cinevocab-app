@@ -262,6 +262,8 @@ def create_user(name: str, password: str, ref: str = "") -> int:
 @router.post("/api/register")
 def register(c: Cred, request: Request, response: Response):
     _throttle_ip(request)
+    if os.environ.get("BREVO_API_KEY", "").strip() and os.environ.get("MAIL_FROM", "").strip():
+        raise HTTPException(400, "E-posta doğrulaması gerekli. Sayfayı yenile.")
     name = c.username.strip()
     uid = create_user(name, c.password, c.ref)
     out = _login_response(uid, request, response, name)
@@ -409,7 +411,7 @@ def delete_user_data(uid: int):
     except Exception as e:
         print(f"Lig temizleme hatası: {e}")
     for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress", "daily_play",
-              "word_stats", "xp_log"):
+              "word_stats", "xp_log", "starred_words"):
         try:
             q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
         except Exception as e:
@@ -531,7 +533,7 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 12 Kasım 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
-<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (e-posta adresin, adın ve fotoğrafın saklanmaz), oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (Google'dan e-posta adresin, adın ve fotoğrafın alınıp saklanmaz). Kullanıcı adı ve parolayla hesap açarken doğrulama kodu göndermek için e-posta adresin istenir ve hesabınla birlikte saklanır; hesabını silince o da silinir, reklam ya da bülten için kullanılmaz, oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
@@ -552,7 +554,7 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <h1>CineVocab Privacy Policy</h1><p>Last updated: November 12, 2026</p>
 <h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site", and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page.</p>
 <h2>What data we collect</h2><ul>
-<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not stored), your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
+<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not taken from Google or stored). When you create an account with a username and password, your email address is requested to send a verification code and is stored with your account; it is deleted when you delete your account and is never used for ads or newsletters, your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>

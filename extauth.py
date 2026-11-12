@@ -7,6 +7,7 @@
 - Açılır pencere için tek istekte özet (seviye, seri, tekrar bekleyen kelimeler, son kelimeler).
 """
 import datetime as dt
+import hmac
 import os
 import re
 import secrets
@@ -19,11 +20,16 @@ from pydantic import BaseModel
 
 import srs
 import vocab
-from accounts import (COOKIE, NO_PW, Cred, _login_response, _new_recovery, _new_session, _sha, _throttle_ip,
+from accounts import (COOKIE, NO_PW, Cred, _hash, _login_response, _new_recovery, _new_session, _sha, _throttle_ip,
                       ban_guard, check_login, create_user, need_user, q)
 
 router = APIRouter()
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+# E-posta doğrulaması: Brevo anahtarı ve gönderen adresi ayarlıysa yeni hesap için e-posta kodu zorunlu olur.
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
+MAIL_FROM = os.environ.get("MAIL_FROM", "").strip()
+MAIL_ON = bool(BREVO_API_KEY and MAIL_FROM)
+CODE_MINUTES = 15
 TICKET_SECONDS = 60
 XP_LEVEL = 200
 # Bilet yalnızca bu sayfalara götürür (açık yönlendirme olmasın)
@@ -34,6 +40,13 @@ DESTS = {"panel": "/account", "words": "/account#words", "practice": "/account#p
 def init():
     q("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT;")
     q("CREATE UNIQUE INDEX IF NOT EXISTS users_google_idx ON users (google_sub) WHERE google_sub IS NOT NULL;")
+    q("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;")
+    q("CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (lower(email)) WHERE email IS NOT NULL;")
+    q("CREATE TABLE IF NOT EXISTS signups (email TEXT PRIMARY KEY, username TEXT NOT NULL, pw_hash TEXT NOT NULL, "
+      "code_hash TEXT NOT NULL, tries INT NOT NULL DEFAULT 0, ref TEXT NOT NULL DEFAULT '', "
+      "created_at TIMESTAMP DEFAULT now());")
+    q("CREATE TABLE IF NOT EXISTS starred_words (user_id INT NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
+      "word TEXT NOT NULL, created_at TIMESTAMP DEFAULT now(), PRIMARY KEY (user_id, src, dst, word));")
     q("CREATE TABLE IF NOT EXISTS ext_tickets (hash TEXT PRIMARY KEY, user_id INT NOT NULL, "
       "created_at TIMESTAMP DEFAULT now());")
 
@@ -41,7 +54,7 @@ def init():
 # ---------------------------------------------------------------- kullanıcı adı + parola
 @router.get("/api/ext/config")
 def config():
-    return {"google": GOOGLE_CLIENT_ID}
+    return {"google": GOOGLE_CLIENT_ID, "mail": MAIL_ON}
 
 
 @router.post("/api/ext/login")
@@ -54,9 +67,138 @@ def ext_login(c: Cred, request: Request):
 @router.post("/api/ext/register")
 def ext_register(c: Cred, request: Request):
     _throttle_ip(request)
+    if MAIL_ON:
+        raise HTTPException(400, "E-posta doğrulaması gerekli. Eklentiyi güncelle.")
     name = c.username.strip()
     uid = create_user(name, c.password, c.ref)
     return {"key": _new_session(uid), "username": name, "recovery": _new_recovery(uid)}
+
+
+# ---------------------------------------------------------------- e-posta kodu ile kayıt
+def send_mail(to: str, subject: str, text: str):
+    try:
+        r = requests.post("https://api.brevo.com/v3/smtp/email", timeout=10,
+                          headers={"api-key": BREVO_API_KEY, "accept": "application/json"},
+                          json={"sender": {"name": "CineVocab", "email": MAIL_FROM}, "to": [{"email": to}],
+                                "subject": subject, "textContent": text})
+        ok = r.status_code < 300
+        if not ok:
+            print(f"   [mail] {r.status_code} {r.text[:200]}")
+    except Exception as e:
+        print(f"   [mail] {e}")
+        ok = False
+    if not ok:
+        raise HTTPException(502, "E-posta gönderilemedi. Biraz sonra tekrar dene.")
+
+
+_MAIL_TEXT = {
+    "tr": ("CineVocab doğrulama kodun: {c}", "Merhaba {u},\n\nCineVocab hesabını açmak için kodun: {c}\n\n"
+           "Kod {m} dakika geçerlidir. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin."),
+    "en": ("Your CineVocab verification code: {c}", "Hi {u},\n\nYour code to create your CineVocab account is: {c}\n\n"
+           "The code is valid for {m} minutes. If you did not ask for this, you can ignore this email."),
+}
+
+
+class SignupStart(BaseModel):
+    username: str
+    email: str
+    password: str
+    ref: str = ""
+    lang: str = "en"
+
+
+class SignupVerify(BaseModel):
+    email: str
+    code: str
+    ext: bool = False
+
+
+def _email(v: str) -> str:
+    v = (v or "").strip().lower()
+    if len(v) > 254 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]{2,}", v):
+        raise HTTPException(400, "E-posta adresi geçersiz.")
+    return v
+
+
+def _code_hash(email: str, code: str) -> str:
+    return _sha(email + ":" + re.sub(r"\D", "", code or ""))
+
+
+@router.post("/api/signup/start")
+def signup_start(d: SignupStart, request: Request):
+    """Bilgileri denetler, 6 haneli kodu e-postayla yollar. Hesap ancak kod doğrulanınca açılır."""
+    if not MAIL_ON:
+        raise HTTPException(400, "E-posta doğrulaması kapalı.")
+    _throttle_ip(request, 6, 600, "signup")
+    name, email = d.username.strip(), _email(d.email)
+    if not re.fullmatch(r"\w{3,16}", name):
+        raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
+    if len(d.password) < 6:
+        raise HTTPException(400, "Parola en az 6 karakter olmalı.")
+    if q("SELECT 1 FROM users WHERE lower(username) = lower(%s);", (name,), True):
+        raise HTTPException(409, "Bu kullanıcı adı alınmış.")
+    if q("SELECT 1 FROM users WHERE lower(email) = %s;", (email,), True):
+        raise HTTPException(409, "Bu e-posta zaten kayıtlı.")
+    if q("SELECT 1 FROM signups WHERE email = %s AND created_at > now() - interval '45 seconds';", (email,), True):
+        raise HTTPException(429, "Kod az önce gönderildi. Biraz bekle.")
+    code = f"{secrets.randbelow(10 ** 6):06d}"
+    q("DELETE FROM signups WHERE created_at < now() - interval '1 day';")
+    q("INSERT INTO signups (email, username, pw_hash, code_hash, ref) VALUES (%s, %s, %s, %s, %s) "
+      "ON CONFLICT (email) DO UPDATE SET username = EXCLUDED.username, pw_hash = EXCLUDED.pw_hash, "
+      "code_hash = EXCLUDED.code_hash, ref = EXCLUDED.ref, tries = 0, created_at = now();",
+      (email, name, _hash(d.password), _code_hash(email, code), (d.ref or "")[:40]))
+    subj, body = _MAIL_TEXT["tr" if d.lang == "tr" else "en"]
+    send_mail(email, subj.format(c=code), body.format(u=name, c=code, m=CODE_MINUTES))
+    return {"sent": True}
+
+
+@router.post("/api/signup/verify")
+def signup_verify(d: SignupVerify, request: Request, response: Response):
+    _throttle_ip(request, 12, 60, "verify")
+    email = _email(d.email)
+    r = q("SELECT username, pw_hash, code_hash, tries, ref FROM signups WHERE email = %s "
+          "AND created_at > now() - make_interval(mins => %s);", (email, CODE_MINUTES), True)
+    if not r or r[0][3] >= 5:
+        q("DELETE FROM signups WHERE email = %s;", (email,))
+        raise HTTPException(422, "Kodun süresi doldu. Yeni kod iste.")
+    name, pw_hash, code_hash, _tries, ref = r[0]
+    if not hmac.compare_digest(code_hash, _code_hash(email, d.code)):
+        q("UPDATE signups SET tries = tries + 1 WHERE email = %s;", (email,))
+        raise HTTPException(422, "Kod hatalı.")
+    if q("SELECT 1 FROM users WHERE lower(username) = lower(%s) OR lower(email) = %s;", (name, email), True):
+        q("DELETE FROM signups WHERE email = %s;", (email,))
+        raise HTTPException(409, "Bu kullanıcı adı ya da e-posta artık kullanımda.")
+    uid = q("INSERT INTO users (username, pw_hash, email) VALUES (%s, %s, %s) RETURNING id;",
+            (name, pw_hash, email), True)[0][0]
+    q("DELETE FROM signups WHERE email = %s;", (email,))
+    try:
+        from growth import record_ref
+        record_ref(uid, ref)
+    except Exception as e:
+        print(f"   [ref] {e}")
+    if d.ext:
+        return {"key": _new_session(uid), "username": name, "recovery": _new_recovery(uid)}
+    out = _login_response(uid, request, response, name)
+    out["recovery"] = _new_recovery(uid)
+    return out
+
+
+class NameReq(BaseModel):
+    username: str
+
+
+@router.post("/api/ext/username")
+def set_username(d: NameReq, request: Request):
+    """Google ile açılan hesap ilk girişte kullanıcı adını seçer (sonradan Ayarlar'dan da değişir)."""
+    _throttle_ip(request, 20, 60, "settings")
+    u = need_user(request)
+    name = d.username.strip()
+    if not re.fullmatch(r"\w{3,16}", name):
+        raise HTTPException(400, "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).")
+    if q("SELECT 1 FROM users WHERE lower(username) = lower(%s) AND id <> %s;", (name, u["id"]), True):
+        raise HTTPException(409, "Bu kullanıcı adı alınmış.")
+    q("UPDATE users SET username = %s WHERE id = %s;", (name, u["id"]))
+    return {"username": name}
 
 
 def _bearer(request: Request) -> str:
@@ -203,6 +345,41 @@ def go(request: Request, t: str = "", to: str = "panel"):
     return resp
 
 
+# ---------------------------------------------------------------- yıldızlı kelimeler
+class StarReq(BaseModel):
+    src: str
+    dst: str
+    word: str
+    on: bool = True
+
+
+@router.post("/api/star")
+def star(d: StarReq, request: Request):
+    """Video üstünde kelimeye tıklayınca yıldızlar / yıldızı kaldırır."""
+    u = need_user(request)
+    _throttle_ip(request, 120, 60, "star")
+    vocab.check_pair(d.src, d.dst)
+    w = vocab.low(d.word, d.src).strip()[:60]
+    if not w:
+        raise HTTPException(400, "Kelime geçersiz.")
+    if d.on:
+        if q("SELECT count(*) FROM starred_words WHERE user_id = %s;", (u["id"],), True)[0][0] >= 3000:
+            raise HTTPException(400, "Yıldızlı kelime sınırına ulaştın.")
+        q("INSERT INTO starred_words (user_id, src, dst, word) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING;",
+          (u["id"], d.src, d.dst, w))
+    else:
+        q("DELETE FROM starred_words WHERE user_id = %s AND src = %s AND dst = %s AND word = %s;",
+          (u["id"], d.src, d.dst, w))
+    return {"ok": True, "on": d.on}
+
+
+def starred(uid: int, src: str, dst: str) -> list:
+    words = [r[0] for r in q("SELECT word FROM starred_words WHERE user_id = %s AND src = %s AND dst = %s "
+                             "ORDER BY created_at DESC LIMIT 500;", (uid, src, dst), True)]
+    tr = vocab.translation_of(src, dst, words)
+    return [{"w": w, "t": tr.get(w, "")} for w in words]
+
+
 # ---------------------------------------------------------------- açılır pencere özeti
 def _streak(days: set, today: dt.date) -> int:
     d = today if today in days else today - dt.timedelta(days=1)
@@ -250,4 +427,5 @@ def home(request: Request, src: str = "tr", dst: str = "en"):
         "new": sum(1 for w in words if w not in stats),
         "mastered": sum(1 for s in stats.values() if s["box"] >= srs.MASTERED_BOX),
         "recent": recent,
+        "starred": starred(uid, src, dst),
     }

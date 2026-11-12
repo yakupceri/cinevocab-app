@@ -9,7 +9,7 @@ function icon(d) { const s = document.createElementNS("http://www.w3.org/2000/sv
 const IC = { check: "M5 12.5l4.5 4.5L19 7.500", eye: "M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", duel: "M6 3l12 12M14 19l5-5M18 3L6 15M5 14l5 5M3 21l3-3M21 21l-3-3", day: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4" };
 
 let st = { enabled: false, src: "tr", dst: "en", key: "" };
-let home = null, tab = "watch", cfg = { google: "" }, authMode = "login", noAuto = false;
+let home = null, tab = "watch", cfg = { google: "", mail: false }, authMode = "login", noAuto = false;
 
 // ---------- sunucu ----------
 async function api(path, opt = {}) {
@@ -26,7 +26,9 @@ async function api(path, opt = {}) {
 function errText(e) {
   const s = e && e.status;
   if (s === 401) return T("errAuth");
-  if (s === 409) return T("errTaken");
+  if (s === 409) return /e-posta/i.test(String(e.detail || "")) ? T("errEmailTaken") : T("errTaken");
+  if (s === 422) return T("errCode");
+  if (s === 502) return T("errMail");
   if (s === 400) return T("errInput");
   if (s === 429) return T("errMany");
   if (s === 403 && e.detail) return String(e.detail);
@@ -184,33 +186,51 @@ function guestCard(view, title) {
 function loading(view) { view.replaceChildren(el("p", "empty", "…")); }
 
 // ---------- Kelimeler ----------
-let wq = "";
+let wq = "", wMode = "recent";
 function renderWords() {
   const v = $("v-words");
   if (!st.key) return guestCard(v, T("guestWords"));
   if (!home) return loading(v);
   const stats = el("div", "stats");
   for (const [k, n, hot] of [["due", home.due, true], ["newW", home.new], ["mastered", home.mastered]]) { const s = el("div", "stat" + (hot && n ? " hot" : "")); s.append(el("b", "", n), el("span", "", T(k))); stats.append(s); }
+  const stars = home.starred || [], seg = el("div", "seg");
+  for (const [m, label] of [["recent", T("recentTab")], ["star", "★ " + T("starTab") + (stars.length ? " · " + stars.length : "")]]) { const b = el("button", "", label); b.setAttribute("aria-pressed", String(wMode === m)); b.onclick = () => { wMode = m; renderWords(); }; seg.append(b); }
   const list = el("ul", "wl"), search = el("input"); search.type = "search"; search.placeholder = T("search"); search.value = wq; search.style.marginTop = "10px";
+  const src = () => (wMode === "star" ? stars : home.recent);
   const draw = () => {
     const f = wq.trim().toLocaleLowerCase();
-    const rows = home.recent.filter((r) => !f || r.w.toLocaleLowerCase().includes(f) || String(r.t).toLocaleLowerCase().includes(f));
+    const rows = src().filter((r) => !f || r.w.toLocaleLowerCase().includes(f) || String(r.t).toLocaleLowerCase().includes(f));
     list.replaceChildren(...rows.map((r) => {
-      const li = el("li"), w = el("div", "w"), k = el("button", "k"); w.append(el("b", "", r.w), el("span", "", r.t)); k.title = T("known"); k.setAttribute("aria-label", T("known")); k.append(icon(IC.check));
-      k.onclick = async () => {
-        const i = home.recent.indexOf(r); if (i < 0) return;
-        home.recent.splice(i, 1); draw();
-        try { await api("/api/known", { body: { src: st.src, words: [r.w], known: true } }); } catch (e) { home.recent.splice(i, 0, r); draw(); return toast(errText(e)); }
-        toast(T("knownDone"), T("undo"), async () => { try { await api("/api/known", { body: { src: st.src, words: [r.w], known: false } }); home.recent.splice(Math.min(i, home.recent.length), 0, r); draw(); } catch (e) { toast(errText(e)); } });
-      };
+      const li = el("li"), w = el("div", "w"), k = el("button", "k"); w.append(el("b", "", r.w), el("span", "", r.t));
+      if (wMode === "star") {
+        k.textContent = "★"; k.classList.add("on"); k.title = T("unstar"); k.setAttribute("aria-label", T("unstar"));
+        k.onclick = async () => {
+          const i = stars.indexOf(r); if (i < 0) return;
+          stars.splice(i, 1); renderWords();
+          try { await api("/api/star", { body: { src: st.src, dst: st.dst, word: r.w, on: false } }); syncStars(); } catch (e) { stars.splice(i, 0, r); renderWords(); toast(errText(e)); }
+        };
+      } else {
+        k.title = T("known"); k.setAttribute("aria-label", T("known")); k.append(icon(IC.check));
+        k.onclick = async () => {
+          const i = home.recent.indexOf(r); if (i < 0) return;
+          home.recent.splice(i, 1); draw();
+          try { await api("/api/known", { body: { src: st.src, words: [r.w], known: true } }); } catch (e) { home.recent.splice(i, 0, r); draw(); return toast(errText(e)); }
+          toast(T("knownDone"), T("undo"), async () => { try { await api("/api/known", { body: { src: st.src, words: [r.w], known: false } }); home.recent.splice(Math.min(i, home.recent.length), 0, r); draw(); } catch (e) { toast(errText(e)); } });
+        };
+      }
       li.append(w, k); return li;
     }));
-    if (!rows.length) list.append(el("p", "empty", home.recent.length ? "—" : T("noWords")));
+    if (!rows.length) list.append(el("p", "empty", src().length ? "—" : T(wMode === "star" ? "noStars" : "noWords")));
   };
   search.oninput = () => { wq = search.value; draw(); };
   const all = el("button", "btn", T("allWords", home.pair_words)); all.style.marginTop = "12px"; all.onclick = () => openSite("words");
-  v.replaceChildren(stats, search, list, all); if (!home.recent.length) { search.hidden = true; all.hidden = true; }
+  v.replaceChildren(stats, seg, search, list, all); if (!src().length) search.hidden = true; if (!home.recent.length || wMode === "star") all.hidden = true;
   draw();
+}
+// Video üstündeki kutu yıldızları cihazdaki listeden boyar: hesaptaki listeyle eşitle
+function syncStars() {
+  if (!home || !home.starred) return;
+  chrome.storage.local.get("stars", (r) => { const all = (r && r.stars) || {}; all[st.src + ">" + st.dst] = home.starred.map((x) => x.w); chrome.storage.local.set({ stars: all }); });
 }
 
 // ---------- Pratik (açılır pencerenin içinde hızlı tur) ----------
@@ -315,7 +335,7 @@ async function loadHome() {
   try {
     const d = await api("/api/ext/home?src=" + st.src + "&dst=" + st.dst);
     if (pairKey !== st.src + ">" + st.dst) return;
-    home = d; chrome.storage.local.set({ home: { pair: pairKey, d } }); render();
+    home = d; chrome.storage.local.set({ home: { pair: pairKey, d } }); syncStars(); render();
   } catch (e) {
     if (e.status === 401) { st.key = ""; home = null; chrome.storage.local.remove(["key", "home"]); render(); }
   }
@@ -339,13 +359,14 @@ function showAuth(recovery) {
     done.onclick = () => { v.hidden = true; render(); };
     return v.replaceChildren(el("h1", "", T("recTitle")), el("p", "sub", T("recSub")), el("code", "code", recovery), cp, done);
   }
-  const reg = authMode === "register", err = el("p", "note bad"), kids = [el("h1", "", T("authTitle")), el("p", "sub", T("authSub"))];
+  const reg = authMode === "register", err = el("p", "note bad"), kids = [el("h1", "", T("authTitle"))];
+  if (!reg) kids.push(el("p", "sub", T("authSub"))); else kids[0].style.marginBottom = "12px"; // kayıt formu kaydırmadan sığsın
   const busy = (b, on) => { b.disabled = on; };
   if (cfg.google) {
     const g = el("button", "btn p", T("google"));
     g.onclick = () => {
       busy(g, true); err.textContent = "";
-      chrome.runtime.sendMessage({ action: "googleLogin" }, (r) => { void chrome.runtime.lastError; busy(g, false); if (r && r.key) setKey(r.key); else if (r && r.error && r.error !== "cancel") err.textContent = r.status ? errText(r) : T("errGoogle"); });
+      chrome.runtime.sendMessage({ action: "googleLogin" }, (r) => { void chrome.runtime.lastError; busy(g, false); if (r && r.key) { setKey(r.key); if (r.new) showName(r.username); } else if (r && r.error && r.error !== "cancel") err.textContent = r.status ? errText(r) : T("errGoogle"); });
     };
     kids.push(g);
   }
@@ -357,35 +378,78 @@ function showAuth(recovery) {
     cont.onclick = async () => { busy(cont, true); try { setKey((await api("/api/ext-key", { post: true, cookie: true, auth: false })).key); } catch (e) { busy(cont, false); err.textContent = errText(e); } };
   }).catch(() => {});
   if (cfg.google) kids.push(el("div", "or", T("or")));
-  const user = el("input"), pw = el("input"), f1 = el("div", "field"), f2 = el("div", "field"), eye = el("button", "eye"), go = el("button", "btn" + (cfg.google ? "" : " p"), T(reg ? "signUp" : "signIn"));
+  const user = el("input"), pw = el("input"), pw2 = el("input"), mail = el("input"), f1 = el("div", "field"), f2 = el("div", "field"), f3 = el("div", "field"), f4 = el("div", "field"), eye = el("button", "eye"), go = el("button", "btn" + (cfg.google ? "" : " p"), T(reg ? "signUp" : "signIn"));
+  const needMail = reg && cfg.mail;
   user.type = "text"; user.placeholder = T("user"); user.autocomplete = "username"; user.spellcheck = false; user.maxLength = 16; user.setAttribute("aria-label", T("user"));
+  mail.type = "text"; mail.inputMode = "email"; mail.placeholder = T("email"); mail.autocomplete = "email"; mail.spellcheck = false; mail.setAttribute("aria-label", T("email"));
   pw.type = "password"; pw.placeholder = T(reg ? "passNew" : "pass"); pw.autocomplete = reg ? "new-password" : "current-password"; pw.setAttribute("aria-label", T("pass")); pw.style.paddingRight = "40px";
-  eye.type = "button"; eye.append(icon(IC.eye)); eye.setAttribute("aria-label", T("showPw")); eye.onclick = () => { pw.type = pw.type === "password" ? "text" : "password"; };
-  f1.append(user); f2.append(pw, eye); go.style.marginTop = "10px";
+  pw2.type = "password"; pw2.placeholder = T("pass2"); pw2.autocomplete = "new-password"; pw2.setAttribute("aria-label", T("pass2"));
+  eye.type = "button"; eye.append(icon(IC.eye)); eye.setAttribute("aria-label", T("showPw")); eye.onclick = () => { pw.type = pw2.type = pw.type === "password" ? "text" : "password"; };
+  f1.append(user); f2.append(pw, eye); f3.append(pw2); f4.append(mail); go.style.marginTop = "10px";
   go.onclick = async () => {
     err.textContent = "";
     if (!/^[\p{L}\p{N}_]{3,16}$/u.test(user.value.trim()) || pw.value.length < 6) { err.textContent = T("errInput"); return; }
+    if (reg && pw.value !== pw2.value) { err.textContent = T("errMatch"); return; }
+    if (needMail && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(mail.value.trim())) { err.textContent = T("errEmail"); return; }
     busy(go, true);
     try {
-      const r = await api(reg ? "/api/ext/register" : "/api/ext/login", { body: { username: user.value.trim(), password: pw.value }, auth: false });
+      const body = { username: user.value.trim(), password: pw.value };
+      if (needMail) {
+        const email = mail.value.trim(), start = () => api("/api/signup/start", { body: { ...body, email, lang: CVL.ui() }, auth: false });
+        await start(); return showCode(email, start);
+      }
+      const r = await api(reg ? "/api/ext/register" : "/api/ext/login", { body, auth: false });
       setKey(r.key); if (r.recovery) showAuth(r.recovery);
     } catch (e) { busy(go, false); err.textContent = errText(e); }
   };
-  [user, pw].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
+  [user, mail, pw, pw2].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
   const sw = el("button", "link", T(reg ? "toSignIn" : "toSignUp")); sw.onclick = () => { authMode = reg ? "login" : "register"; showAuth(); };
   const skip = el("button", "link", T("skip")); skip.style.marginTop = "2px"; skip.onclick = () => { chrome.storage.local.set({ authSkip: true }); v.hidden = true; };
-  kids.push(f1, f2, go, err, sw, skip);
+  kids.push(f1, ...(needMail ? [f4] : []), f2, ...(reg ? [f3] : []), go, err, sw, skip);
   v.replaceChildren(...kids);
 }
 
+// E-postaya gelen 6 haneli kod: hesap ancak doğrulanınca açılır
+function showCode(email, again) {
+  const v = $("auth"); v.hidden = false;
+  const code = el("input"), go = el("button", "btn p", T("codeGo")), err = el("p", "note bad"), re = el("button", "link", T("codeResend")), back = el("button", "link", T("pBack")), f = el("div", "field");
+  code.type = "text"; code.inputMode = "numeric"; code.autocomplete = "one-time-code"; code.maxLength = 6; code.placeholder = T("codePh"); code.setAttribute("aria-label", T("codePh")); code.style.cssText = "text-align:center;letter-spacing:.3em;font-size:19px;height:48px";
+  f.append(code); go.style.marginTop = "10px";
+  go.onclick = async () => {
+    err.textContent = ""; go.disabled = true;
+    try { const r = await api("/api/signup/verify", { body: { email, code: code.value.trim(), ext: true }, auth: false }); setKey(r.key); if (r.recovery) showAuth(r.recovery); }
+    catch (e) { go.disabled = false; err.textContent = errText(e); }
+  };
+  re.onclick = async () => { err.textContent = ""; try { await again(); toast(T("codeSent")); } catch (e) { err.textContent = errText(e); } };
+  back.style.marginTop = "2px"; back.onclick = () => showAuth();
+  code.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  v.replaceChildren(el("h1", "", T("codeTitle")), el("p", "sub", T("codeSub", email)), f, go, err, re, back); code.focus();
+}
+// Google ile açılan hesap ilk girişte kullanıcı adını seçer
+function showName(suggest) {
+  const v = $("auth"); v.hidden = false;
+  const name = el("input"), go = el("button", "btn p", T("nameGo")), err = el("p", "note bad"), f = el("div", "field");
+  name.type = "text"; name.value = suggest || ""; name.maxLength = 16; name.spellcheck = false; name.autocomplete = "off"; name.setAttribute("aria-label", T("user"));
+  f.append(name); go.style.marginTop = "10px";
+  const done = () => { chrome.storage.local.remove("pickName"); v.hidden = true; home = null; render(); loadHome(); };
+  go.onclick = async () => {
+    err.textContent = "";
+    if (!/^[\p{L}\p{N}_]{3,16}$/u.test(name.value.trim())) { err.textContent = T("errName"); return; }
+    go.disabled = true;
+    try { await api("/api/ext/username", { body: { username: name.value.trim() } }); done(); } catch (e) { go.disabled = false; err.textContent = errText(e); }
+  };
+  name.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  v.replaceChildren(el("h1", "", T("nameTitle")), el("p", "sub", T("nameSub")), f, go, err); name.focus(); name.select();
+}
+
 // ---------- açılış ----------
-chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "home", "gcid", "noAuto", "authSkip"], async (r) => {
+chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "home", "gcid", "gmail", "noAuto", "authSkip", "pickName"], async (r) => {
   st = { enabled: !!r.enabled, src: r.src || "tr", dst: r.dst || "en", key: r.key || "" };
-  noAuto = !!r.noAuto; cfg.google = r.gcid || "";
+  noAuto = !!r.noAuto; cfg.google = r.gcid || ""; cfg.mail = !!r.gmail;
   if (r.home && r.home.pair === st.src + ">" + st.dst && st.key) home = r.home.d;
   paint(); showDet(r.det); setTab("watch");
-  api("/api/ext/config", { auth: false }).then((c) => { const g = (c && c.google) || ""; if (g !== cfg.google) { cfg.google = g; chrome.storage.local.set({ gcid: g }); if (!$("auth").hidden && !st.key) showAuth(); } }).catch(() => {});
-  if (st.key) return loadHome();
+  api("/api/ext/config", { auth: false }).then((c) => { const g = (c && c.google) || "", m = !!(c && c.mail); if (g !== cfg.google || m !== cfg.mail) { cfg.google = g; cfg.mail = m; chrome.storage.local.set({ gcid: g, gmail: m }); if (!$("auth").hidden && !st.key) showAuth(); } }).catch(() => {});
+  if (st.key) { if (r.pickName) showName(r.pickName); return loadHome(); }
   // Sitede zaten giriş yapılmışsa sessizce bağlan (kullanıcı eklentiden çıkış yapmadıysa)
   if (!noAuto) { try { const k = await api("/api/ext-key", { post: true, cookie: true, auth: false }); if (k && k.key && !st.key) return setKey(k.key); } catch (e) {} }
   if (!r.authSkip && !st.key) showAuth();

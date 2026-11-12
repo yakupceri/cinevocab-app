@@ -83,7 +83,34 @@ function recoveryView(code) {
   card.firstChild.style.marginBottom = "10px";
   const w = el("div", "auth"); w.append(card); app.replaceChildren(w);
 }
+// Sunucu ayarı: Google ile giriş ve e-posta doğrulaması açık mı
+let CFG = null;
+async function loadCfg() { if (!CFG) { try { CFG = await (await fetch("/api/ext/config")).json(); } catch (e) { CFG = { google: "", mail: false }; } } return CFG; }
+function simpleCard(title, sub, ...kids) {
+  const card = el("div", "card"), form = el("div"); form.style.cssText = "display:grid;gap:12px;margin-top:16px"; form.append(...kids);
+  card.append(el("h1", "", title), el("p", "dim", sub), form); card.firstChild.style.marginBottom = "10px";
+  const w = el("div", "auth"); w.append(card); app.replaceChildren(w);
+}
+// E-postaya gelen 6 haneli kod: hesap ancak doğrulanınca açılır
+function codeView(email, again) {
+  const code = el("input"), go = el("button", "primary", t("verify")), err = el("p", "err"), re = el("button", "link", t("resend")), back = el("button", "link", t("backToLogin"));
+  code.placeholder = t("codePh"); code.inputMode = "numeric"; code.autocomplete = "one-time-code"; code.maxLength = 6; code.style.cssText = "letter-spacing:.3em;text-align:center;font-size:20px";
+  go.onclick = async () => { go.disabled = true; err.textContent = ""; try { const r = await api("/api/signup/verify", { email, code: code.value.trim() }); recoveryView(r.recovery); } catch (e) { err.textContent = e.message; go.disabled = false; } };
+  re.onclick = async () => { err.textContent = ""; try { await again(); toast(t("codeSent")); } catch (e) { err.textContent = e.message; } };
+  back.onclick = () => { authMode = "login"; authView(); };
+  code.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  simpleCard(t("codeTitle"), t("codeSub", email), code, go, err, re, back); code.focus();
+}
+// Google ile açılan hesap ilk girişte kullanıcı adını seçer
+function nameView(suggest) {
+  const name = el("input"), go = el("button", "primary", t("continue2")), err = el("p", "err");
+  name.value = suggest || ""; name.maxLength = 16; name.autocomplete = "off"; name.setAttribute("aria-label", t("username"));
+  go.onclick = async () => { go.disabled = true; err.textContent = ""; try { await api("/api/ext/username", { username: name.value.trim() }); await boot(); } catch (e) { err.textContent = e.message; go.disabled = false; } };
+  name.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  simpleCard(t("nameTitle"), t("nameSub"), name, el("p", "hint", t("userHint")), go, err); name.focus(); name.select();
+}
 function authView() {
+  if (!CFG) { loadCfg().then(() => { if (!me) authView(); }); }
   document.getElementById("pairbox").replaceChildren();
   document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
   if (PENDING_REC) return recoveryView(PENDING_REC);
@@ -120,16 +147,22 @@ function authView() {
       [user, pw.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
     } else {
       const pw2 = pwField(t("password2"), "new-password"), uh = el("p", "hint", t("userHint"));
+      const mail = el("input"), needMail = !!(CFG && CFG.mail); mail.type = "email"; mail.placeholder = t("email"); mail.autocomplete = "email"; mail.setAttribute("aria-label", t("email"));
       go.textContent = t("createAccount");
       go.onclick = () => guard(async () => {
         if (pw.inp.value !== pw2.inp.value) throw new Error(t("pwMismatch"));
-        const r = await api("/api/register", { username: user.value.trim(), password: pw.inp.value, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() });
+        const body = { username: user.value.trim(), password: pw.inp.value, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() };
+        if (needMail) {
+          const start = () => api("/api/signup/start", { ...body, email: mail.value.trim(), lang: document.documentElement.lang || "en" });
+          await start(); return codeView(mail.value.trim(), start);
+        }
+        const r = await api("/api/register", body);
         recoveryView(r.recovery);
       });
       const ub = el("div"); ub.append(user, uh);
-      form.append(ub, pw.wrap, meterFor(pw.inp), pw2.wrap, go, err);
+      form.append(ub, ...(needMail ? [mail] : []), pw.wrap, meterFor(pw.inp), pw2.wrap, go, err);
       card.append(el("h1", "", t("regTitle")), el("p", "dim", t("regSub")), seg, form);
-      [user, pw.inp, pw2.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
+      [user, mail, pw.inp, pw2.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
     }
   }
   const demo = el("div", "subs"), ws = el("div", "ws");
@@ -146,12 +179,12 @@ function authView() {
 let GCID = null;
 async function googleButton(card) {
   try {
-    if (GCID === null) GCID = (await (await fetch("/api/ext/config")).json()).google || "";
+    if (GCID === null) GCID = (await loadCfg()).google || "";
     if (!GCID || !card.isConnected) return;
     if (!window.google || !google.accounts) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = ok; sc.onerror = no; document.head.append(sc); });
     if (!card.isConnected) return;
     google.accounts.id.initialize({ client_id: GCID, callback: async (r) => {
-      try { await api("/api/google", { credential: r.credential, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() }); await boot(); } catch (e) { toast(e.message); }
+      try { const g = await api("/api/google", { credential: r.credential, ref: (() => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } })() }); if (g.new) nameView(g.username); else await boot(); } catch (e) { toast(e.message); }
     } });
     const or = el("p", "dim small", t("or2")), box = el("div"); or.style.cssText = "text-align:center;margin:16px 0 10px"; box.style.cssText = "display:flex;justify-content:center";
     card.append(or, box);
