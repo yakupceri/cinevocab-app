@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
-                      record_game, tag_user_words, _throttle_ip)
+                      record_game, tag_user_words, _throttle_ip, q)
 import admin
 import growth
 import importer
@@ -1454,8 +1454,8 @@ def install_redirect(request: Request, src: str = "", hl: str = ""):
         try:
             q("INSERT INTO link_clicks (day, src, n) VALUES (current_date, %s, 1) "
               "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
-        except Exception:
-            pass  # sayac hatasi yonlendirmeyi bozmasin
+        except Exception as e:
+            print(f"Link sayaci hatasi: {e!r}")  # yonlendirmeyi bozmasin, ama loga yazilsin
     lang = re.sub(r"[^a-zA-Z-]", "", hl or "")[:8]  # mağaza dili: ?hl=tr gibi
     url = STORE_URL + ("?hl=" + lang if lang else "")
     return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
