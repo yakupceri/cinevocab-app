@@ -1315,7 +1315,8 @@ async def ws_endpoint(ws: WebSocket):
             name = ""
 
             if t in ("create", "join") and room is None:
-                user = user_from_token(ws.cookies.get("cv"))
+                # Sitede oturum çerezle gelir; mobil uygulamada çerez yoktur, oturum anahtarı mesajın içinde gelir.
+                user = user_from_token(ws.cookies.get("cv") or str(msg.get("key") or "")[:200])
                 if not user:
                     await ws.send_json({"t": "error", "msg": "Önce giriş yapmalısın."})
                     continue
