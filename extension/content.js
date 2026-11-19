@@ -33,7 +33,12 @@ ovStyle.textContent = `
 .wgrip::after { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:#ffc56b; }
 .hot:not(.locked) .wgrip, .drag .wgrip { display:block; }
 .pill .dot { width:14px; height:14px; border-radius:50%; background:var(--tr, #7ee0a8); border:2px solid rgba(246,239,223,.6); box-sizing:border-box; }
+.chip .w .p, .gap { font-weight:600; color:rgba(246,239,223,.72); }
+.gap { display:inline-block; vertical-align:top; margin:2px 4px 2px 0; padding:1px 4px; }
 .ep { font-size:12px; color:#9fb3ae; margin-bottom:4px; }
+.msg { max-width:24em; font-weight:600; white-space:normal; }
+.fix { all:unset; box-sizing:border-box; display:inline-block; margin-top:.7em; padding:.5em 1em; border-radius:.7em; background:linear-gradient(180deg,#ffc56b,#ff8a3d); color:#2a1204; font-weight:800; cursor:pointer; pointer-events:auto; }
+.fix:hover { filter:brightness(1.07); } .fix:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(246,239,223,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
 .hint { margin-top:.6em; font-size:12px; font-weight:600; color:#ffc56b; }
 .grip { position:absolute; right:-7px; bottom:-7px; width:22px; height:22px; display:none; pointer-events:auto; cursor:nwse-resize; touch-action:none; }
@@ -300,15 +305,17 @@ function readGenericTitle() {
 }
 
 // Netflix: oynatıcının başlık alanı ("Dizi", "S1:E3", "Bölüm adı"); yoksa sayfa başlığı
+// Çubuk gizlenince başlık sayfadan kalkar: son okunan başlık aynı video boyunca hatırlanır.
+let nfTitle = "", nfPath = "", nfFromBox = false;
 function readNetflixTitle() {
+  if (location.pathname !== nfPath) { nfPath = location.pathname; nfTitle = ""; nfFromBox = false; }
   const box = document.querySelector("[data-uia='video-title']");
   const parts = box ? [...box.children].map((c) => (c.textContent || "").trim()).filter(Boolean) : [];
-  const raw =
-    parts.join(" ") ||
-    firstText("[data-uia='video-title']") ||
-    document.title.replace(/\s*[-–|]\s*Netflix.*$/i, "");
+  const fromBox = parts.join(" ") || firstText("[data-uia='video-title']");
+  const raw = fromBox || document.title.replace(/\s*[-–|]\s*Netflix.*$/i, "");
   const title = raw.replace(/\s+/g, " ").trim().slice(0, 60);
-  return title && !/^Netflix$/i.test(title) ? "Netflix · " + title : "";
+  if (title && !/^Netflix$/i.test(title) && (fromBox || !nfFromBox)) { nfTitle = "Netflix · " + title; nfFromBox = !!fromBox; }
+  return nfTitle;
 }
 
 // Udemy: kurs adı (sınıf adları sık değiştiği için birkaç yedek seçici + sayfa başlığı)
@@ -364,11 +371,13 @@ function readYouTubeSubtitle() {
     .join(" ");
 }
 
-function makeChip(word) {
+function makeChip(word, shown, lead, trail) {
   const chip = document.createElement("div");
   chip.className = "chip" + (starSet.has(word) ? " star" : "");
   chip.dataset.w = word;
-  const tr = document.createElement("div"); tr.className = "w"; tr.textContent = word;
+  const tr = document.createElement("div"); tr.className = "w";
+  const punct = (t) => { if (!t) return; const p = document.createElement("span"); p.className = "p"; p.textContent = t; tr.append(p); };
+  punct(lead); tr.append(shown || word); punct(trail);
   const en = document.createElement("div"); en.className = "t"; en.textContent = "…";
   chip.append(tr, en);
   return { chip, en };
@@ -396,12 +405,38 @@ function splitJa(text) {
 }
 
 function splitWords(sentence) {
+  sentence = sentence.replace(/[’‘`´]/g, "'");
+  // İngilizce: "don't" tek başına kelime değildir (eskiden "don" diye kaydediliyordu); "she's / we'll / they've" -> she / we / they
+  if (SRC === "en") sentence = sentence.replace(/[A-Za-z]+n't(?![A-Za-z])/gi, " ").replace(/'(?:s|re|ve|ll|d|m)(?![A-Za-z])/gi, " ");
+  // Fransızca / İtalyanca: "l'amour", "dell'acqua" -> amour, acqua (baştaki kısaltılmış tanımlık atılır)
+  else if (SRC === "fr" || SRC === "it") sentence = sentence.replace(/(?:aujourd'hui|quelqu'une?)(?![A-Za-zÀ-ÿ])/gi, " ").replace(/[A-Za-zÀ-ÿ]+'(?=[A-Za-zÀ-ÿ])/g, " ");
   const cleaned = sentence.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…♪\[\]。、！？「」『』（）［］【】・〜～，．：；।॥؟،¿¡«»„“”‘’]/g, " ");
   if (SRC === "ja") return splitJa(cleaned);
   return cleaned
     .split(/\s+/)
     .map((w) => w.trim().toLocaleLowerCase(SRC))
     .filter((w) => w.length >= 2 && !/\d/.test(w));
+}
+
+// Cümleyi altyazıda okunduğu gibi diz: çevrilen kelimeler kutucuk; kısa kelimeler ("I", "a"), kısaltmalar ve
+// noktalama düz yazı. Sitenin altyazısı gizliyken de cümlenin tamamı okunabilsin diye.
+// Dönen: [{ w, shown, lead, trail } | { gap }] ya da null (o zaman yalnızca kelimeler gösterilir).
+function layoutSentence(sentence, all, fr) {
+  if (SRC === "ja") return null;
+  const items = [];
+  let i = 0;
+  for (const tok of sentence.split(/\s+/).filter(Boolean)) {
+    const ks = splitWords(tok);
+    for (let j = 0; j < ks.length; j++) if (all[i + j] !== ks[j]) return null;
+    if (ks.length === 1 && !fr[i]) {
+      const m = /^([^\p{L}\p{N}]*)([\s\S]*?)([^\p{L}\p{N}]*)$/u.exec(tok);
+      items.push(m && m[2] ? { w: ks[0], shown: m[2], lead: m[1], trail: m[3] } : { w: ks[0], shown: ks[0] });
+    } else if (ks.length > 1) {
+      ks.forEach((k, j) => items.push(fr[i + j] ? { gap: k } : { w: k, shown: k }));
+    } else items.push({ gap: tok });
+    i += ks.length;
+  }
+  return i === all.length ? items : null;
 }
 
 let sentenceId = 0;
@@ -417,20 +452,22 @@ function showSentence(sentence) {
   const episode = readEpisode();
   let thumb = "";
   if (episode && !thumbSent.has(episode)) { thumb = readThumb(); if (thumb) thumbSent.add(episode); }
-  let words = splitWords(sentence);
-  const fr = CVL.foreign(words, SRC);
-  words = words.filter((_, i) => !fr[i]);
+  const all = splitWords(sentence);
+  const fr = CVL.foreign(all, SRC);
+  const words = all.filter((_, i) => !fr[i]);
   if (words.length === 0) return;
+  noticeUntil = 0;
 
   clearTimeout(hideTimer);
   if (!boxBusy) hideTimer = setTimeout(() => showBox(false), 12000);
   ovContent.textContent = "";
-  const epLabel = document.createElement("div");
-  epLabel.className = "ep";
-  epLabel.textContent = episode
-    ? "📺 " + episode
-    : CVL.t("epMissing");
-  ovContent.appendChild(epLabel);
+  // Bölüm adı okunamadıysa uyarı gösterilmez (izleyeni ilgilendirmez; kelimeler yine kaydedilir)
+  if (episode) {
+    const epLabel = document.createElement("div");
+    epLabel.className = "ep";
+    epLabel.textContent = "📺 " + episode;
+    ovContent.appendChild(epLabel);
+  }
   const row = document.createElement("div");
   ovContent.appendChild(row);
 
@@ -444,10 +481,12 @@ function showSentence(sentence) {
 
   const uniqueWords = [...new Set(words)];
   const slots = {};
-  words.forEach((word) => {
-    const { chip, en } = makeChip(word);
+  const items = layoutSentence(sentence, all, fr) || words.map((w) => ({ w, shown: w }));
+  items.forEach((it) => {
+    if (it.gap !== undefined) { const g = document.createElement("span"); g.className = "gap"; g.textContent = it.gap; row.appendChild(g); return; }
+    const { chip, en } = makeChip(it.w, it.shown, it.lead, it.trail);
     row.appendChild(chip);
-    (slots[word] = slots[word] || []).push(en);
+    (slots[it.w] = slots[it.w] || []).push(en);
   });
 
   const setText = (w, text) => (slots[w] || []).forEach((el) => (el.textContent = text));
@@ -458,7 +497,7 @@ function showSentence(sentence) {
     transLine.textContent = sentCache.get(sentence);
     transLine.dataset.ok = "1";
   }
-  const markFailed = (list) => list.forEach((w) => setText(w, "?"));
+  const markFailed = (list) => list.forEach((w) => setText(w, ""));
   // Hata/durum mesajını cümle çevirisi satırında göster (cümle çevirisi gelene kadar)
   const status = (msg) => { if (!transLine.dataset.ok) transLine.textContent = msg; };
   const giveUpSentence = () => {
@@ -625,7 +664,7 @@ function readSubtitle() {
     .join(" ");
 }
 
-let lastNoticeAt = 0, lastReport = { lang: "", ok: true, ts: 0 }, lastBadLang = "";
+let lastNoticeAt = 0, noticeUntil = 0, lastReport = { lang: "", ok: true, ts: 0 }, lastBadLang = "";
 
 function report(g) {
   const lang = g.v === "match" ? SRC : g.lang;
@@ -636,16 +675,38 @@ function report(g) {
   try { chrome.storage.local.set({ det: { lang, ok: g.ok, ts: now } }); } catch (e) {}
 }
 
-// Yanlış dilde altyazı: çeviri yok. Bilgi kutusu dakikada bir kez gösterilir, sonra sessiz kalır.
+// Yanlış dilde altyazı: çeviri yok. Bilgi kutusu tek tıkla düzeltme düğmesiyle 12 sn gösterilir,
+// sonra bir dakika sessiz kalır. (Eskiden bir sonraki altyazı satırı gelince hemen kayboluyordu.)
+const SUB_LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja", "hi", "id", "pl", "nl", "ko"];
+const NOTICE_MS = 12000;
 function showMismatch(lang) {
   sentenceId++;
   if (lang) lastBadLang = lang;
-  if (Date.now() - lastNoticeAt < 60000) { showBox(false); return; }
-  lastNoticeAt = Date.now();
-  ovContent.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
+  const now = Date.now();
+  if (now < noticeUntil) return; // bilgi kutusu ekranda
+  if (now - lastNoticeAt < 60000) { showBox(false); return; }
+  lastNoticeAt = now; noticeUntil = now + NOTICE_MS;
+  ovContent.textContent = "";
+  const msg = document.createElement("div"); msg.className = "msg";
+  msg.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
+  ovContent.appendChild(msg);
+  const src = lastBadLang;
+  if (SUB_LANGS.includes(src) && src !== SRC) {
+    // Altyazı zaten çeviri dilindeyse iki dil yer değiştirir; değilse yalnızca altyazı dili değişir
+    const dst = DST === src ? SRC : DST;
+    const b = document.createElement("button"); b.className = "fix";
+    b.textContent = CVL.t("switchTo", CVL.langName(src) + " → " + CVL.langName(dst));
+    b.addEventListener("pointerdown", (e) => e.stopPropagation());
+    b.addEventListener("click", (e) => {
+      e.stopPropagation(); e.preventDefault();
+      noticeUntil = 0; showBox(false);
+      try { chrome.storage.local.set({ src, dst, det: null }); } catch (x) {}
+    });
+    ovContent.appendChild(b);
+  }
   showBox(true);
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => showBox(false), 6000);
+  hideTimer = setTimeout(() => { noticeUntil = 0; showBox(false); }, NOTICE_MS);
 }
 
 setInterval(() => {
@@ -701,7 +762,7 @@ function applyEnabled() {
 function applyEnabledAll() { applyEnabled(); applyHide(); }
 function applyPair() {
   wordCache.clear(); sentCache.clear(); knownCache.clear(); loadStars();
-  lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0;
+  lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0; noticeUntil = 0;
 }
 try {
   chrome.storage.local.get(["enabled", "src", "dst", "hideOrig"], (r) => {

@@ -3,19 +3,19 @@
   const STOP = {
     tr: "ve bir bu da için ne ama çok daha gibi var yok ben sen biz siz ki mi mı mu mü değil evet hayır şey ile her şu kadar sonra ya şimdi nasıl neden bana sana onu bunu olarak çünkü hiç bile artık tamam lütfen",
     en: "let the and you that is it to of in not this for are was with have be what he she we they do but your me my on at so if can will just don't i'm it's that's there here know no yes about like get go out up how why when who all one",
-    fr: "le la les des est une un et en que qui pas pour dans ce je tu il elle nous vous ils sur avec ne se mais au du plus suis très oui non c'est qu'il est-ce pourquoi comment quoi bien tout fait être avoir ça cette sont fais",
-    it: "il lo la gli che non di un una per sono con è ma come più questo questa anche mi ti ci se perché cosa dove quando tutto sei hai ho ha siamo molto bene già solo niente",
-    es: "el la los las que de no un una es en por con para se lo me mi tu yo pero muy sí como más está estoy eres soy qué cómo porque cuando todo hay esto esta bien ya aquí nada",
-    de: "der die das und ist nicht ich du er sie es wir ihr ein eine zu mit auf für den dem ja nein aber was auch wie bin hast habe wird sind mir dir mich dich warum wo wenn noch schon nur hier",
+    fr: "le la les des est une un et en que qui pas pour dans ce je tu il elle nous vous ils sur avec ne se mais au du plus suis très oui non c'est qu'il est-ce pourquoi comment quoi bien tout fait être avoir ça cette sont fais de me te on si moi toi lui mon ton",
+    it: "il lo la gli che non di un una per sono con è ma come più questo questa anche mi ti ci se perché cosa dove quando tutto sei hai ho ha siamo molto bene già solo niente in no me te le da del",
+    es: "el la los las que de no un una es en por con para se lo me mi tu yo pero muy sí como más está estoy eres soy qué cómo porque cuando todo hay esto esta bien ya aquí nada he ha te le del",
+    de: "der die das und ist nicht ich du er sie es wir ihr ein eine zu mit auf für den dem ja nein aber was auch wie bin hast habe wird sind mir dir mich dich warum wo wenn noch schon nur hier will war so in an man im am um da",
     ro: "și sau nu da este sunt eu tu el ea noi voi ei ele un o de la cu pe în pentru că ce cum dar mai foarte bine acum aici acolo nimic totul mulțumesc te rog sunt ești suntem aveți",
     id: "yang dan di ke dari ini itu dengan untuk tidak ada saya kamu dia kami kita mereka adalah akan sudah bisa apa siapa kenapa bagaimana ya tidak bukan juga atau tetapi sangat lebih sudah belum hanya sini sana terima kasih",
     pl: "i w nie na to jest się że z do jak co ale czy tak ja ty on ona my wy oni jestem jesteś są był dla po tylko już jeszcze bardzo proszę dziękuję tutaj tam nic wszystko",
-    nl: "de het een en van ik je jij hij zij wij jullie ze dat dit is zijn niet maar ook voor met op aan er wat hoe waarom ja nee heel nog al hier daar niets alles alsjeblieft dank",
-    pt: "o os as que de não um uma é em por com para se eu você mas muito sim como mais está estou são foi tem isso esta bem já aqui nada ele ela nós eles obrigado",
+    nl: "de het een en van ik je jij hij zij wij jullie ze dat dit is zijn niet maar ook voor met op aan er wat hoe waarom ja nee heel nog al hier daar niets alles alsjeblieft dank in was me die of te",
+    pt: "o os as que de não um uma é em por com para se eu você mas muito sim como mais está estou são foi tem isso esta bem já aqui nada ele ela nós eles obrigado quando todo tudo te me do da no na ao",
   };
   const SETS = {};
   for (const k in STOP) SETS[k] = new Set(STOP[k].split(/\s+/));
-  const HINTS = { pl: /[ąęłńśźż]/g, nl: /ij/g, tr: /[ğışİı]/g, es: /[ñ¿¡]/g, de: /[ßä]/g, pt: /[ãõ]/g, ro: /[ășțşţ]/g, fr: /[êëèùûœ]/g, it: /[ìò]/g };
+  const HINTS = { pl: /[ąęłńśźż]/g, nl: /ij/g, tr: /[ğışİı]/g, es: /[ñ¿¡]/g, de: /[ßä]/g, pt: /[ãõ]/g, ro: /[ășțşţ]/g, fr: /[êëûœ]/g, it: /[ìò]/g };
 
   function scripts(text) {
     let lat = 0, cyr = 0, ar = 0, ja = 0, dev = 0, ko = 0;
@@ -39,19 +39,30 @@
     if (sc.ja / sc.all > 0.5) return { best: "ja", bestScore: 10, scores: { ja: 10 } };
     if (sc.dev / sc.all > 0.5) return { best: "hi", bestScore: 10, scores: { hi: 10 } };
     if (sc.ko / sc.all > 0.5) return { best: "ko", bestScore: 10, scores: { ko: 10 } };
-    const lower = text.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase();
-    const tokens = lower.split(/[^a-zçğıöşüàâäèéêëìîïòôöùûüñãõœßăîșțţ']+/).filter(Boolean);
+    // Büyük "I" yalnızca Türkçede "ı" olur. Eskiden her dilde "ı" yapılıyordu: BÜYÜK HARFLİ İngilizce altyazı
+    // ("THIS", "WITH") Türkçe sayılıyor, dil koruması devreye girmiyordu. Artık Türkçe ayrı, diğer diller ayrı sayılır.
+    const plain = text.replace(/İ/g, "i").toLowerCase();
+    const trLow = text.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase();
+    const SPLIT = /[^a-zçğıöşüàâäèéêëìîïòôöùûüñãõœßăîșțţ']+/;
     const scores = {};
     for (const k in SETS) scores[k] = 0;
-    for (const tk of tokens) {
-      for (const part of tk.split("'")) {
-        const w = part.length >= 2 ? part : "";
-        if (!w) continue;
-        for (const k in SETS) if (SETS[k].has(w)) scores[k]++;
+    const count = (low, want) => {
+      for (const tk of low.split(SPLIT).filter(Boolean)) {
+        tk.split("'").forEach((part, i) => {
+          if (part.length < 2) return;
+          // İngilizce "I've / should've" içindeki "ve" Türkçe "ve" sayılmasın
+          for (const k in SETS) if (want(k) && SETS[k].has(part) && !(k === "tr" && i > 0 && part === "ve")) scores[k]++;
+        });
+        if (tk.includes("'")) for (const k in SETS) if (want(k) && SETS[k].has(tk)) scores[k]++;
       }
-      if (tk.includes("'")) for (const k in SETS) if (SETS[k].has(tk)) scores[k]++;
+    };
+    count(plain, (k) => k !== "tr");
+    count(trLow, (k) => k === "tr");
+    for (const k in HINTS) {
+      // Türkçe ipucu özgün metinden sayılır (büyük "I" belirsizdir, sayılmaz)
+      const m = k === "tr" ? text.match(/[ğşıİĞŞ]/g) : plain.match(HINTS[k]);
+      if (m) scores[k] += Math.min(3, m.length) * 1.5;
     }
-    for (const k in HINTS) { const m = lower.match(HINTS[k]); if (m) scores[k] += Math.min(3, m.length) * 1.5; }
     let best = "", bestScore = 0;
     for (const k in scores) if (scores[k] > bestScore) { best = k; bestScore = scores[k]; }
     return { best, bestScore, scores, scripts: sc };
@@ -62,12 +73,19 @@
   // words: küçük harfli kelime listesi, src: beklenen dil. Dönen: aynı uzunlukta boolean dizisi.
   function foreign(words, src) {
     const own = SETS[src] || new Set(), h = HINTS[src];
-    const f = words.map((w) => {
-      if (own.has(w) || (h && w.match(h))) return false;
-      if (/[qwx]/.test(w) && src !== "en") return true;
-      for (const k in SETS) if (k !== src && SETS[k].has(w)) return true;
-      return false;
+    // sure: kesin yabancı. q, w, x yalnızca Türkçede yoktur (eskiden her dilde sayılıyordu: Almanca "Wasser",
+    // İspanyolca "quiero", İtalyanca "acqua" çevrilmeden atılıyordu).
+    // cand: başka bir dilin yaygın kelimesi. Tek başına yabancı sayılmaz (Türkçe "on", Almanca "will" gibi eş yazımlılar);
+    // yanında AYNI dilden bir kelime daha varsa yabancıdır ("let get on with the dialogue").
+    const sure = words.map((w) => src === "tr" && !own.has(w) && !(h && w.match(h)) && /[qwx]/.test(w));
+    const cand = words.map((w) => {
+      const ks = [];
+      if (own.has(w) || (h && w.match(h))) return ks;
+      for (const k in SETS) if (k !== src && SETS[k].has(w)) ks.push(k);
+      return ks;
     });
+    const near = (i, j) => j >= 0 && j < words.length && (sure[j] || cand[j].some((k) => cand[i].includes(k)));
+    const f = words.map((_, i) => sure[i] || (cand[i].length > 0 && (near(i, i - 1) || near(i, i + 1))));
     // en az 2 yabancı kelimelik bir öbeğin hemen ardındaki, kendi dilinin izi olmayan kelime de yabancı sayılır
     let run = 0;
     for (let i = 0; i < words.length; i++) {
@@ -92,15 +110,19 @@
   }
 
   // Son birkaç hükmü hatırlar: belirsiz cümlede, geçmiş yanlış dil diyorsa çalıştırmaz.
-  function Guard() { this.h = []; }
+  // Kısa satırlar ("Oh my God", "Hi Monica") tek başına karar verdirmez: son KESİN hüküm "yanlış dil" ise
+  // doğru dilde bir satır görülene kadar belirsiz satırlar da çevrilmez (yanlış dil artık araya sızmaz).
+  function Guard() { this.h = []; this.last = ""; this.bad = ""; }
   Guard.prototype.check = function (text, src) {
     const r = verdict(text, src);
     this.h.push(r.v); if (this.h.length > 5) this.h.shift();
-    let v = r.v;
-    if (v === "unknown" && this.h.filter((x) => x === "mismatch").length >= 2) v = "mismatch";
-    return { ok: v !== "mismatch", v, lang: r.lang };
+    let v = r.v, lang = r.lang;
+    if (v === "match") this.last = "match";
+    else if (v === "mismatch") { this.last = "mismatch"; if (lang) this.bad = lang; }
+    else if (this.last === "mismatch" || this.h.filter((x) => x === "mismatch").length >= 2) { v = "mismatch"; lang = this.bad || lang; }
+    return { ok: v !== "mismatch", v, lang };
   };
-  Guard.prototype.reset = function () { this.h = []; };
+  Guard.prototype.reset = function () { this.h = []; this.last = ""; this.bad = ""; };
 
   const NAMES = {
     tr: { tr: "Türkçe", en: "İngilizce", fr: "Fransızca", it: "İtalyanca", de: "Almanca", es: "İspanyolca", pt: "Portekizce", ru: "Rusça", ar: "Arapça", ro: "Rumence", ja: "Japonca", hi: "Hintçe", id: "Endonezce", pl: "Lehçe", nl: "Felemenkçe", ko: "Korece" },

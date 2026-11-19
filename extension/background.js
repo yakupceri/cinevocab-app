@@ -67,8 +67,34 @@ chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.
 
 // İlk kurulumda karşılama sayfasını aç (güncellemede açılmaz)
 chrome.runtime.onInstalled.addListener((d) => {
-  if (d.reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+  if (d.reason !== "install") return;
+  // Başlangıç dilleri tarayıcı diline göre seçilir (eskiden herkes için "Türkçe altyazı -> İngilizce" idi):
+  // çeviriler kullanıcının kendi dilinde, altyazı dili İngilizce (kendi dili İngilizce ise İspanyolca).
+  // Yanlışsa kutudaki tek tıklık düğme ya da açılır pencere düzeltir. Güncellemede dokunulmaz.
+  chrome.storage.local.get(["src", "dst"], (r) => {
+    if (r && (r.src || r.dst)) return;
+    const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja", "hi", "id", "pl", "nl", "ko"];
+    let ui = "en";
+    try { ui = String((chrome.i18n && chrome.i18n.getUILanguage && chrome.i18n.getUILanguage()) || self.navigator.language || "en").slice(0, 2).toLowerCase(); } catch (e) {}
+    const dst = LANGS.includes(ui) ? ui : "en";
+    chrome.storage.local.set({ src: dst === "en" ? "es" : "en", dst });
+  });
+  chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+  pickUpInvite();
 });
+
+// Arkadaş daveti: kişi sitemizdeki davet bağlantısına (/?ref=ad) tıklayıp eklentiyi kurduysa, açık duran site
+// sekmesinden davet edenin kullanıcı adı okunur. Yalnızca kendi sitemizin sekmesine bakılır (başka siteye izin yok).
+async function pickUpInvite() {
+  try {
+    const tabs = await chrome.tabs.query({ url: API + "/*" });
+    for (const t of tabs) {
+      const [r] = await chrome.scripting.executeScript({ target: { tabId: t.id }, func: () => { try { return localStorage.getItem("cv-ref") || ""; } catch (e) { return ""; } } });
+      if (r && /^[\p{L}\p{N}_]{3,16}$/u.test(r.result || "")) { await chrome.storage.local.set({ ref: r.result }); return; }
+    }
+  } catch (e) {}
+}
+function inviteRef() { return new Promise((res) => chrome.storage.local.get("ref", (r) => res(r && /^[\p{L}\p{N}_]{3,16}$/u.test(r.ref || "") ? r.ref : ""))); }
 
 
 // ---------- Diğer sitelerde çalıştırma ("Bu sitede aç") ----------
@@ -134,7 +160,7 @@ async function googleLogin() {
     if (body.nonce !== nonce) return { error: "fail" };
   } catch (e) { return { error: "fail" }; }
   try {
-    const r = await fetch(API + "/api/ext/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential: tok, nonce }) });
+    const r = await fetch(API + "/api/ext/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential: tok, nonce, ref: await inviteRef() }) });
     const d = await r.json().catch(() => null);
     if (!r.ok || !d || !d.key) return { error: "fail", status: r.status, detail: d && d.detail };
     // Yeni hesapsa açılır pencere kullanıcı adını seçtirir (pencere kapanmış olsa bile bir sonraki açılışta)

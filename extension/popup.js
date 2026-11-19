@@ -68,7 +68,7 @@ function showDet(d) {
     n.className = "note bad"; n.textContent = T("mismatchPopup", CVL.langName(d.lang), CVL.langName(st.src));
     if (LANGS.includes(d.lang)) {
       const b = el("button", "btn sm", T("switchTo", CVL.langName(d.lang)));
-      b.onclick = () => { st.src = d.lang; if (st.dst === st.src) st.dst = LANGS.find((l) => l !== st.src); paint(); chrome.storage.local.set({ src: st.src, dst: st.dst, det: null }); n.textContent = ""; n.className = "note"; pairChanged(); };
+      b.onclick = () => { const was = st.src; st.src = d.lang; if (st.dst === st.src) st.dst = was !== st.src ? was : LANGS.find((l) => l !== st.src); paint(); chrome.storage.local.set({ src: st.src, dst: st.dst, det: null }); n.textContent = ""; n.className = "note"; pairChanged(); };
       n.append(el("br"), b);
     }
   } else { n.className = "note ok"; n.textContent = T("detected", CVL.langName(d.lang)); }
@@ -346,10 +346,13 @@ function langSelect() {
   const wrap = el("div", "card"), sel = el("select"), lab = el("label", "", T("uiLang")); sel.id = "uiLang"; lab.htmlFor = "uiLang";
   fillUiLang(sel); wrap.append(lab, sel); return wrap;
 }
+// Davet bağlantısıyla gelen kişide davet edenin kullanıcı adı (site.js ya da kurulum anında kaydedilir)
+function inviteRef() { return new Promise((res) => chrome.storage.local.get("ref", (r) => res(r && /^[\p{L}\p{N}_]{3,16}$/u.test(r.ref || "") ? r.ref : ""))); }
 function shareBtn() {
   const b = el("button", "btn", T("share"));
   b.onclick = async () => {
-    const text = T("shareMsg") + STORE_URL;
+    // Giriş yapılmışsa kişisel davet bağlantısı: arkadaş bununla kayıt olunca davet eden olarak görünürsün
+    const text = T("shareMsg") + (st.key && home && home.username ? SERVER + "/?ref=" + encodeURIComponent(home.username) : STORE_URL);
     try { await navigator.clipboard.writeText(text); }
     catch (e) { const a = el("textarea"); a.value = text; document.body.appendChild(a); a.select(); try { document.execCommand("copy"); } catch (_) {} a.remove(); }
     toast(T("shareDone"));
@@ -439,6 +442,7 @@ function showAuth(recovery) {
     busy(go, true);
     try {
       const body = { username: user.value.trim(), password: pw.value };
+      if (reg) { const ref = await inviteRef(); if (ref) body.ref = ref; } // arkadaş davetiyle geldiyse davet edenin adı
       if (needMail) {
         const email = mail.value.trim(), start = () => api("/api/signup/start", { body: { ...body, email, lang: CVL.ui() }, auth: false });
         await start(); return showCode(email, start);

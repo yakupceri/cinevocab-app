@@ -4,6 +4,11 @@
 (() => {
   if (window.top !== window) return;
   try { document.documentElement.dataset.cvExt = chrome.runtime.getManifest().version; } catch (e) {}
+  // Davet bağlantısıyla gelindiyse (/?ref=ad) davet edenin adını eklentiye aktar; hesap zaten varsa gerekmez
+  try {
+    const ref = localStorage.getItem("cv-ref") || "";
+    if (/^[\p{L}\p{N}_]{3,16}$/u.test(ref)) chrome.storage.local.get(["key", "ref"], (r) => { if (r && !r.key && !r.ref) chrome.storage.local.set({ ref }); });
+  } catch (e) {}
   let busy = false;
   async function connect() {
     if (busy) return; busy = true;
