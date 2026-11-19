@@ -41,6 +41,13 @@
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:760px){ .grid2{grid-template-columns:1fr;} }
   .spark { display:flex; align-items:flex-end; gap:4px; height:60px; margin-top:8px; }
   .spark i { flex:1; max-width:28px; background:var(--ember); border-radius:3px 3px 0 0; min-height:2px; }
+  .fun { display:grid; grid-template-columns:minmax(120px,190px) 1fr 90px; gap:6px 12px; align-items:center; margin-top:10px; }
+  .fun i { display:block; height:18px; border-radius:4px; background:var(--ember); min-width:2px; }
+  .fun b { text-align:right; font-variant-numeric:tabular-nums; } .fun small { color:var(--dim); font-weight:400; }
+  .note { padding:10px 12px; border-radius:10px; border:1px solid var(--line); margin-bottom:8px; }
+  .note.bad { border-color:var(--bad); } .note.warn { border-color:var(--gold); } .note.ok { border-color:var(--ok); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  a { color:var(--gold); }
   #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#000; border:1px solid var(--gold); padding:10px 16px; border-radius:10px; z-index:9; }
 </style>
 </head>
@@ -77,9 +84,11 @@ function h(tag, attrs, ...kids) {
     else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
     else e.setAttribute(k, v);
   }
-  for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  put(e, kids);
   return e;
 }
+// İç içe diziler ve boş (null) değerler güvenle eklenir
+function put(e, ...kids) { for (const c of kids.flat(Infinity)) if (c != null && c !== "") e.append(c.nodeType ? c : document.createTextNode(String(c))); }
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.remove("hide"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add("hide"), 2800); }
 async function api(path, method = "GET", body) {
   const r = await fetch("/admin/api" + path, { method, credentials: "same-origin",
@@ -103,7 +112,8 @@ $("lf").addEventListener("submit", async (e) => {
 $("out").onclick = async () => { await api("/logout", "POST").catch(() => {}); showLogin(); };
 
 // ---------- sekmeler ----------
-const TABS = { "Özet": viewStats, "Kullanıcılar": viewUsers, "Odalar": viewRooms, "Kelimeler": viewWords, "Sistem": viewSystem, "Günlük": viewLog };
+const TABS = { "Özet": viewStats, "Sağlık": viewHealth, "Huni": viewFunnel, "Davetler": viewRefs, "Kullanıcılar": viewUsers, "Odalar": viewRooms, "Kelimeler": viewWords, "Veri talepleri": viewData, "Sistem": viewSystem, "Günlük": viewLog };
+const go = (name) => open(name, [...document.querySelectorAll("#nav button")].find((b) => b.textContent === name));
 function start() {
   $("login").classList.add("hide"); $("app").classList.remove("hide");
   const nav = $("nav"); nav.textContent = "";
@@ -171,17 +181,22 @@ async function viewUsers() {
     const list = await api("/users?q_=" + encodeURIComponent(search.value));
     box.textContent = "";
     box.append(h("div", { class: "wrap" }, h("table", {},
-      h("tr", {}, ["#", "Kullanıcı", "Kayıt", "Son görülme", "Kelime", "Oyun", "Puan", "Durum"].map((t) => h("th", {}, t))),
+      h("tr", {}, ["#", "Kullanıcı", "Giriş", "Nereden", "Kayıt", "Son görülme", "Kelime", "Oyun", "Puan", "Durum"].map((t) => h("th", {}, t))),
       list.map((u) => h("tr", { class: "click", onclick: () => userDetail(u.id) },
-        h("td", {}, u.id), h("td", {}, u.username), h("td", { class: "dim" }, u.created), h("td", { class: "dim" }, u.last_seen || "—"),
+        h("td", {}, u.id), h("td", {}, u.username), h("td", {}, u.method || "—"), h("td", {}, origin(u)),
+        h("td", { class: "dim" }, u.created), h("td", { class: "dim" }, u.last_seen || "—"),
         h("td", {}, u.words), h("td", {}, u.games), h("td", {}, u.score), h("td", {}, status(u)))))));
   };
   search.addEventListener("input", () => { clearTimeout(load.t); load.t = setTimeout(() => load().catch(() => {}), 300); });
   $("view").append(h("div", { class: "bar" }, search), box); await load();
 }
 
+// Hesap nereden açıldı: arkadaş daveti varsa o, yoksa kayıt yeri (web / eklenti / mobil). Eski hesaplarda bilinmez.
+const origin = (u) => u.invited_by ? "davet: " + u.invited_by : (u.via || "—");
+
 async function userDetail(id) {
   const u = await api("/users/" + id);
+  const invited = u.origin && u.origin.invited ? await api("/users/" + id + "/invited").catch(() => []) : [];
   const v = $("view"); v.textContent = "";
   const dur = h("select", {}, [["1", "1 saat"], ["24", "1 gün"], ["168", "7 gün"], ["720", "30 gün"], ["", "Süresiz"]].map(([a, b]) => h("option", { value: a }, b)));
   dur.value = "24";
@@ -196,12 +211,18 @@ async function userDetail(id) {
   const nn = h("input", { placeholder: "Yeni kullanıcı adı (3-16, harf/rakam/_)", type: "text", maxlength: 16 });
 
   v.append(
-    h("button", { onclick: () => open("Kullanıcılar", [...document.querySelectorAll("#nav button")][1]) }, "← Listeye dön"),
+    h("button", { onclick: () => go("Kullanıcılar") }, "← Listeye dön"),
     h("div", { class: "panel", style: "margin-top:12px" },
       h("h2", {}, u.username, " ", status(u)),
       h("p", { class: "dim" }, `#${u.id} · kayıt ${u.created} · son görülme ${u.last_seen || "—"} · açık oturum/anahtar: ${u.sessions}`),
+      u.origin ? h("p", {}, "Giriş: ", h("b", {}, u.origin.method || "—"), " · kayıt yeri: ", h("b", {}, u.origin.via || "bilinmiyor"),
+        u.origin.invited_by ? " · davet eden: " + u.origin.invited_by : "", " · davet ettiği kişi: " + u.origin.invited,
+        " · e-posta kayıtlı: " + (u.origin.has_email ? "evet" : "hayır")) : null,
       u.ban_reason ? h("p", {}, "Ban sebebi: ", u.ban_reason) : null,
       u.game_ban_reason ? h("p", {}, "Oyun yasağı sebebi: ", u.game_ban_reason) : null),
+
+    invited.length ? h("div", { class: "panel" }, h("h3", {}, "Davetiyle kayıt olanlar (" + invited.length + ")"),
+      h("table", {}, invited.map((x) => h("tr", { class: "click", onclick: () => userDetail(x.id) }, h("td", {}, x.username), h("td", { class: "dim" }, x.at))))) : null,
 
     h("div", { class: "panel" }, h("h3", {}, "Ceza"),
       h("div", { class: "row" }, dur, reason),
@@ -225,7 +246,7 @@ async function userDetail(id) {
           const n = prompt("Hesabı KALICI silmek için kullanıcı adını yaz: " + u.username);
           if (n == null) return;
           await act(() => api("/users/" + id + "/delete", "POST", { username: n }), "Hesap silindi");
-          open("Kullanıcılar", [...document.querySelectorAll("#nav button")][1]);
+          go("Kullanıcılar");
         } }, "Hesabı kalıcı sil"))),
 
     h("div", { class: "grid2" },
@@ -234,7 +255,135 @@ async function userDetail(id) {
       h("div", { class: "panel" }, h("h3", {}, "İzlediği içerikler"),
         h("table", {}, u.episodes.map((e) => h("tr", {}, h("td", {}, e.episode), h("td", {}, e.n + " kelime"), h("td", { class: "dim" }, e.at)))))),
     h("div", { class: "panel" }, h("h3", {}, "Son kelimeleri"),
-      h("div", { class: "wrap" }, h("table", {}, u.words.map((w) => h("tr", {}, h("td", {}, w.tr), h("td", {}, w.eng), h("td", { class: "dim" }, w.episode), h("td", { class: "dim" }, w.at)))))));
+      h("div", { class: "wrap" }, h("table", {}, u.words.map((w) => h("tr", {}, h("td", {}, w.tr), h("td", {}, w.eng), h("td", { class: "dim" }, w.pair || ""), h("td", { class: "dim" }, w.episode), h("td", { class: "dim" }, w.at)))))));
+}
+
+// ---------- ortak: tablo, dönem seçici ----------
+const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+function tbl(heads, rows) {
+  return h("div", { class: "wrap" }, h("table", {},
+    h("tr", {}, heads.map((t, i) => h("th", i ? { class: "num" } : {}, t))),
+    rows.map((r) => h("tr", {}, r.map((c, i) => h("td", i ? { class: "num" } : {}, c))))));
+}
+function period(name, value, options) {
+  const sel = h("select", {}, options.map((d) => h("option", { value: d }, "Son " + d + " gün")));
+  sel.value = value;
+  sel.addEventListener("change", () => { period[name] = Number(sel.value); go(name); });
+  return sel;
+}
+const errBox = (list) => (list && list.length ? h("div", { class: "note bad" }, "Bazı sayılar okunamadı: ", list.join(" | ")) : null);
+
+// ---------- Sağlık: eklenti düzgün çalışıyor mu (toplu sayılar; kimsenin kelimesi gösterilmez) ----------
+async function viewHealth() {
+  const d = await api("/health?days=" + (period["Sağlık"] || 14)), t = d.total, v = $("view");
+  put(v,
+    h("div", { class: "bar" }, period("Sağlık", d.days, [7, 14, 30, 90]),
+      h("span", { class: "dim" }, "Kaydedilen kelimelerin toplu sayıları. Bu sayfa kimsenin kelimesini ya da izlediğini göstermez.")),
+    errBox(d.errors),
+    d.notes.map((n) => h("div", { class: "note " + n.level }, n.text)),
+    h("div", { class: "cards" }, [["Kelime kaydı", t.rows], ["Çevirisi boş", "%" + t.no_trans_pct], ["Bölüm adı yok", "%" + t.untagged_pct], ["Çeviri = kelime", "%" + t.same_pct]]
+      .map(([k, n]) => h("div", { class: "card" }, h("b", {}, n), h("span", {}, k)))),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Dil çiftine göre"),
+        tbl(["Çift", "Kayıt", "Kişi", "Çevirisiz", "Çeviri = kelime"], d.pairs.map((p) => [p.pair, p.rows, p.users, p.no_trans + " (%" + pct(p.no_trans, p.rows) + ")", p.same + " (%" + pct(p.same, p.rows) + ")"])),
+        h("p", { class: "dim" }, "\"Çeviri = kelime\" yüksekse altyazı büyük ihtimalle seçilen dilde değildir.")),
+      h("div", { class: "panel" }, h("h3", {}, "Platforma göre"),
+        tbl(["Platform", "Kayıt", "Kişi", "Çevirisiz"], d.platforms.map((p) => [p.platform, p.rows, p.users, p.no_trans + " (%" + pct(p.no_trans, p.rows) + ")"])),
+        h("p", { class: "dim" }, "\"(etiketsiz)\": eklenti o an dizinin ya da videonun adını okuyamamış."))),
+    h("div", { class: "panel" }, h("h3", {}, "Gün gün"),
+      tbl(["Gün", "Kayıt", "Kişi", "Çevirisiz", "Bölümsüz", "Çeviri = kelime"], d.daily.map((x) => [x.day, x.rows, x.users, x.no_trans, x.untagged, x.same]))));
+}
+
+// ---------- Huni: tıklama → kayıt → kelime → geri gelme (kişi adı yok) ----------
+async function viewFunnel() {
+  const d = await api("/funnel?days=" + (period["Huni"] || 30)), s = d.steps || {}, v = $("view");
+  const steps = [["Link tıklaması", d.clicks, null], ["Kayıt olan", s.signups, null], ["İlk kelimesini kaydeden", s.word1, s.signups],
+    ["20+ kelime kaydeden", s.word20, s.signups], ["Pratik yapan", s.practiced, s.signups], ["Başka bir gün geri gelen", s.returned, s.signups]];
+  const max = Math.max(1, ...steps.map((x) => x[1] || 0));
+  const small = (name, list) => h("div", { class: "panel" }, h("h3", {}, name), tbl(["", "Kişi"], list.map((x) => [x.name, x.n])));
+  const dmax = Math.max(1, ...d.dau.map((x) => x.n));
+  put(v,
+    h("div", { class: "bar" }, period("Huni", d.days, [7, 30, 90, 365]),
+      h("span", { class: "dim" }, "Bu dönemde kayıt olanların ne kadar ilerlediği. Yalnızca sayılar.")),
+    errBox(d.errors),
+    h("div", { class: "panel" }, h("h3", {}, "Huni"),
+      h("div", { class: "fun" }, steps.map(([k, n, base]) => [h("span", {}, k), h("i", { style: "width:" + ((n || 0) / max) * 100 + "%" }),
+        h("b", {}, n || 0, base ? h("small", {}, " %" + pct(n, base)) : "")])),
+      h("p", { class: "dim" }, "Tıklamalar mağazaya gider; tıklayanla kayıt olan aynı kişi olarak eşleştirilemez, o yüzden ilk iki satır yalnızca yan yana durur."),
+      h("p", {}, "7 gün sonra hâlâ aktif: ", h("b", {}, (s.kept7 || 0) + " / " + (s.old7 || 0)), h("span", { class: "dim" }, " (en az 7 gün önce kayıt olanlar içinde)"))),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Günlük aktif hesap (14 gün)"),
+        h("div", { class: "spark" }, d.dau.map((x) => h("i", { title: x.day + ": " + x.n, style: "height:" + (x.n / dmax) * 100 + "%" }))),
+        h("p", { class: "dim" }, "Kelime kaydeden ya da pratik yapan hesaplar. Hesapsız kullanım Özet'teki istek sayacında.")),
+      small("Giriş yöntemi", d.methods),
+      small("Hesap nerede açıldı", d.via),
+      h("div", { class: "panel" }, h("h3", {}, "Arkadaş davetiyle gelen"), h("div", { class: "cards" }, h("div", { class: "card" }, h("b", {}, d.invited), h("span", {}, "kişi (bu dönem)"))),
+        h("p", { class: "dim" }, "Hangi linkten geldiği kişi bazında bilinemez: mağaza bu bilgiyi aktarmaz. Link sayıları Özet sekmesinde.")),
+      small("Ülke (kullanıcının profilde seçtiği, tüm hesaplar)", d.countries)),
+    h("div", { class: "panel" }, h("h3", {}, "Hafta hafta"),
+      tbl(["Kayıt haftası", "Kayıt", "İlk kelime", "20+ kelime", "Pratik", "Geri geldi", "7 gün sonra aktif"],
+        d.cohorts.map((c) => [c.week, c.signups, c.word1, c.word20, c.practiced, c.returned, c.old7 ? c.kept7 + " / " + c.old7 : "—"]))));
+}
+
+// ---------- Davetler: kim kaç kişi getirdi ----------
+async function viewRefs() {
+  const d = await api("/referrals"), v = $("view");
+  const link = (id, name) => h("a", { href: "#", onclick: (e) => { e.preventDefault(); userDetail(id); } }, name);
+  put(v,
+    h("p", { class: "dim" }, "Bir kullanıcının davet bağlantısıyla (sitede \"bağlantıyı kopyala\", eklentide \"Arkadaşına öner\") kayıt olanlar. \"Kullanan\": davetle gelip en az bir kelime kaydetmiş kişi."),
+    errBox(d.errors),
+    h("div", { class: "cards" }, h("div", { class: "card" }, h("b", {}, d.total), h("span", {}, "Davetle kayıt olan")),
+      h("div", { class: "card" }, h("b", {}, d.top.length), h("span", {}, "Davet eden kişi"))),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "En çok davet edenler"),
+        d.top.length ? tbl(["Kullanıcı", "Getirdiği", "Kullanan", "Son davet"], d.top.map((x) => [link(x.id, x.username), x.n, x.active, x.last])) : h("p", { class: "dim" }, "Henüz davetle gelen yok.")),
+      h("div", { class: "panel" }, h("h3", {}, "Son davetler"),
+        d.recent.length ? tbl(["Yeni kullanıcı", "Davet eden", "Kullandı mı", "Tarih"], d.recent.map((x) => [link(x.id, x.username), link(x.inviter_id, x.inviter), x.active ? "evet" : "hayır", x.at])) : h("p", { class: "dim" }, "Henüz davetle gelen yok."))));
+}
+
+// ---------- Veri talepleri: "verimi ver" / "verimi sil" ----------
+function download(name, obj) {
+  const a = h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" })), download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function viewData() {
+  const v = $("view"), inp = h("input", { placeholder: "Talep sahibinin kullanıcı adı ya da e-posta adresi (tam)", autocomplete: "off" }), res = h("div"), fp = h("div");
+  const footprint = async (id) => {
+    const f = await api("/users/" + id + "/footprint");
+    fp.textContent = "";
+    fp.append(h("h3", {}, "#" + id + (f.exists ? " için elimizdeki kayıtlar" : ": hesap yok")),
+      tbl(["Tablo", "Satır"], f.tables.filter((t) => t.n).map((t) => [t.table, t.n])),
+      h("p", {}, f.total ? "Toplam " + f.total + " kayıt." : "Bu kimlik için hiçbir tabloda kayıt kalmamış."));
+  };
+  const find = async () => {
+    res.textContent = ""; fp.textContent = "";
+    let list;
+    try { list = await api("/data/find", "POST", { query: inp.value }); } catch (e) { res.append(h("p", { class: "err" }, e.message)); return; }
+    if (!list.length) { res.append(h("p", { class: "dim" }, "Tam eşleşen hesap yok.")); return; }
+    list.forEach((u) => res.append(h("div", { class: "row" }, h("b", {}, u.username), h("span", { class: "dim" }, "#" + u.id + " · kayıt " + u.created + (u.google ? " · Google" : "") + (u.has_email ? " · e-posta kayıtlı" : "")),
+      h("button", { onclick: () => footprint(u.id).catch((e) => toast("⚠ " + e.message)) }, "Elimizde ne var"),
+      h("button", { onclick: () => act(async () => download("cinevocab-veri-" + u.username + ".json", await api("/users/" + u.id + "/export")), "Dosya indirildi") }, "Verisini indir"),
+      h("button", { onclick: () => userDetail(u.id) }, "Hesap sayfası (silme orada)"))));
+  };
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") find(); });
+  const hy = h("div"), loadHy = async () => {
+    const x = await api("/hygiene"); hy.textContent = "";
+    hy.append(tbl(["Kayıt", "Adet"], [["Doğrulanmamış kayıt denemesi (1 günden eski)", x.signups_old ?? "—"], ["Süresi geçmiş tek kullanımlık giriş bileti", x.tickets_old ?? "—"],
+        ["180 günden eski yönetim kaydı (IP içerir)", x.log_old ?? "—"], ...x.orphans.map((o) => ["Silinmiş hesaptan kalan: " + o.table, o.n])]),
+      h("p", { class: "dim" }, "12 aydır girmeyen hesap: " + (x.inactive_12m ?? "—") + " (bunlara dokunulmaz; silmek istersen tek tek karar ver)."),
+      h("div", { class: "row" }, h("button", { onclick: async () => { if (!confirm("Listedeki süresi geçmiş ve sahipsiz kayıtlar silinsin mi? Hesaplara dokunulmaz.")) return; await act(() => api("/hygiene/clean", "POST"), "Temizlendi"); loadHy(); } }, "Bunları temizle")));
+  };
+  put(v,
+    h("div", { class: "panel" }, h("h3", {}, "Hesabı bul"),
+      h("p", { class: "dim" }, "Biri \"verimi gönder\" ya da \"sil\" derse yazdığı kullanıcı adını ya da e-postayı buraya gir. Yalnızca tam eşleşme bulunur; e-posta adresleri panelde gösterilmez ve aranıp listelenemez."),
+      h("div", { class: "bar" }, inp, h("button", { class: "primary", onclick: find }, "Bul")), res, fp),
+    h("div", { class: "panel" }, h("h3", {}, "Gereksiz kalan kayıtlar"), hy),
+    h("div", { class: "panel" }, h("h3", {}, "Talep gelince"),
+      h("p", {}, "1. Talebin hesabın sahibinden geldiğinden emin ol (kayıtlı e-postasından yazmış olmalı ya da hesabına girebiliyor olmalı)."),
+      h("p", {}, "2. \"Verisini indir\" dosyasını yalnızca o kişiye gönder. Dosyada parola ve oturum bilgisi yoktur."),
+      h("p", {}, "3. Silme isteğinde hesap sayfasından \"Hesabı kalıcı sil\"; sonra burada \"Elimizde ne var\" ile sıfır kaldığını doğrula."),
+      h("p", { class: "dim" }, "İndirme, arama ve temizlik işlemleri Günlük sekmesine yazılır.")));
+  await loadHy();
 }
 
 // ---------- Odalar ----------
@@ -246,8 +395,8 @@ async function viewRooms() {
     h("h3", {}, "Oda " + r.code, " ", h("span", { class: "tag" }, r.state)), h("p", { class: "dim" }, r.episode),
     h("table", {}, r.players.map((p) => h("tr", {}, h("td", {}, p.name), h("td", {}, p.score + " puan"),
       h("td", {}, h("button", { onclick: () => userDetail(p.uid) }, "Kullanıcıya git"))))),
-    h("div", { class: "row" }, h("button", { class: "danger", onclick: async () => { await act(() => api("/rooms/" + r.code + "/close", "POST"), "Oda kapatıldı"); open("Odalar", [...document.querySelectorAll("#nav button")][2]); } }, "Odayı kapat")))));
-  v.append(h("button", { onclick: () => open("Odalar", [...document.querySelectorAll("#nav button")][2]) }, "Yenile"));
+    h("div", { class: "row" }, h("button", { class: "danger", onclick: async () => { await act(() => api("/rooms/" + r.code + "/close", "POST"), "Oda kapatıldı"); go("Odalar"); } }, "Odayı kapat")))));
+  v.append(h("button", { onclick: () => go("Odalar") }, "Yenile"));
 }
 
 // ---------- Kelimeler ----------
@@ -283,7 +432,7 @@ async function viewSystem() {
       h("td", {}, p.blocked_for_s > 0 ? h("span", { class: "tag bad" }, "engelli · " + Math.ceil(p.blocked_for_s / 60) + " dk") : h("span", { class: "tag ok" }, "açık")),
       h("td", { class: "dim" }, "ardışık hata: " + p.fails)))),
     h("p", { class: "dim" }, `Kök bulucu (zeyrek): ${s.lemma_ready ? "hazır" : "yok"} · çevrilemeyen önbellek: ${s.negative_cache} · bekleyen: ${s.deferred}`),
-    h("div", { class: "row" }, h("button", { onclick: async () => { await act(() => api("/providers/reset", "POST"), "Engeller sıfırlandı"); open("Sistem", [...document.querySelectorAll("#nav button")][4]); } }, "Engelleri sıfırla"))));
+    h("div", { class: "row" }, h("button", { onclick: async () => { await act(() => api("/providers/reset", "POST"), "Engeller sıfırlandı"); go("Sistem"); } }, "Engelleri sıfırla"))));
 }
 const this_ok = (s) => (s.gcloud_key ? "tag ok" : "err");
 

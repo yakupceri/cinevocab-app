@@ -160,6 +160,21 @@ def _user_exists(uid: int):
     return r[0][0]
 
 
+# Kullanıcı kelime kayıtları tek görünümde: eski tablo (tr>en) + çok dilli tablo, çevirisiyle birlikte.
+_UW = ("SELECT uw.user_id, 'tr'::text AS src, 'en'::text AS dst, uw.tr AS word, uw.episode, uw.created_at, "
+       "(SELECT max(w.eng) FROM words w WHERE w.tr = uw.tr) AS trans FROM user_words uw "
+       "UNION ALL "
+       "SELECT m.user_id, m.src, m.dst, m.word, m.episode, m.created_at, x.trans FROM user_words_ml m "
+       "LEFT JOIN words_ml x ON x.src = m.src AND x.dst = m.dst AND x.word = m.word")
+# Kelimenin geldiği yer, bölüm adının başından anlaşılır ("Netflix · Friends ...").
+_PLATFORM = ("CASE WHEN episode = '' THEN '(etiketsiz)' "
+             "WHEN split_part(episode, ' · ', 1) IN ('YouTube', 'Netflix', 'Udemy') THEN split_part(episode, ' · ', 1) "
+             "WHEN episode ~ ' S[0-9]+ E[0-9]+$' THEN 'Prime Video' ELSE 'Diğer' END")
+# Giriş yöntemi: e-posta adresi ya da Google kimliği gösterilmez, yalnızca hangisiyle girdiği.
+_METHOD = ("CASE WHEN u.google_sub IS NOT NULL THEN 'Google' WHEN u.email IS NOT NULL THEN 'E-posta' "
+           "ELSE 'Kullanıcı adı' END")
+
+
 # ---------- İstatistik ----------
 
 @router.get("/admin/api/stats")
@@ -203,15 +218,26 @@ def users(request: Request, q_: str = "", limit: int = 100):
     need_admin(request)
     limit = max(1, min(limit, 300))
     like = "%" + q_.strip().replace("%", "").replace("_", r"\_") + "%"
-    rows = q(
-        "SELECT u.id, u.username, u.created_at, u.last_seen, u.banned_until, u.game_banned_until, "
-        "(SELECT count(DISTINCT tr) FROM user_words w WHERE w.user_id = u.id), "
-        "(SELECT count(*) FROM game_results g WHERE g.user_id = u.id), "
-        "(SELECT coalesce(sum(score), 0) FROM game_results g WHERE g.user_id = u.id) "
-        "FROM users u WHERE u.username ILIKE %s ORDER BY u.id DESC LIMIT %s;", (like, limit), True)
+    base = ("SELECT u.id, u.username, u.created_at, u.last_seen, u.banned_until, u.game_banned_until, "
+            "{words}, "
+            "(SELECT count(*) FROM game_results g WHERE g.user_id = u.id), "
+            "(SELECT coalesce(sum(score), 0) FROM game_results g WHERE g.user_id = u.id){extra} "
+            "FROM users u WHERE u.username ILIKE %s ORDER BY u.id DESC LIMIT %s;")
+    try:
+        # Eskiden yalnızca tr>en tablosu sayılıyordu: başka dil çiftiyle izleyenler "0 kelime" görünüyordu.
+        rows = q(base.format(
+            words="(SELECT count(DISTINCT tr) FROM user_words w WHERE w.user_id = u.id) + "
+                  "(SELECT count(DISTINCT (src, dst, word)) FROM user_words_ml m WHERE m.user_id = u.id)",
+            extra=", " + _METHOD + ", coalesce(u.signup_via, ''), "
+                  "coalesce((SELECT i.username FROM referrals r JOIN users i ON i.id = r.inviter "
+                  "WHERE r.new_user = u.id), '')"), (like, limit), True)
+    except Exception as e:
+        print(f"[admin] kullanıcı listesi (yeni sorgu) hatası, eskiye dönüldü: {e}")
+        rows = [tuple(r) + ("", "", "") for r in q(base.format(
+            words="(SELECT count(DISTINCT tr) FROM user_words w WHERE w.user_id = u.id)", extra=""), (like, limit), True)]
     return [{"id": r[0], "username": r[1], "created": _iso(r[2]), "last_seen": _iso(r[3]),
-             "ban": _until(r[4]), "game_ban": _until(r[5]), "words": r[6], "games": r[7],
-             "score": int(r[8])} for r in rows]
+             "ban": _until(r[4]), "game_ban": _until(r[5]), "words": int(r[6]), "games": r[7],
+             "score": int(r[8]), "method": r[9], "via": r[10], "invited_by": r[11]} for r in rows]
 
 
 @router.get("/admin/api/users/{uid}")
@@ -222,11 +248,28 @@ def user_detail(uid: int, request: Request):
     if not r:
         raise HTTPException(404, "Kullanıcı yok.")
     r = r[0]
-    words = q("SELECT uw.tr, coalesce(w.eng, ''), uw.episode, uw.created_at FROM user_words uw "
-              "LEFT JOIN words w ON w.tr = uw.tr WHERE uw.user_id = %s "
-              "ORDER BY uw.created_at DESC LIMIT 60;", (uid,), True)
-    eps = q("SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*), max(created_at) FROM user_words "
-            "WHERE user_id = %s GROUP BY e ORDER BY max(created_at) DESC LIMIT 15;", (uid,), True)
+    try:
+        words = q(f"WITH uw AS ({_UW}) SELECT word, coalesce(trans, ''), episode, created_at, src || '→' || dst FROM uw "
+                  "WHERE user_id = %s ORDER BY created_at DESC LIMIT 60;", (uid,), True)
+        eps = q(f"WITH uw AS ({_UW}) SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*), max(created_at) FROM uw "
+                "WHERE user_id = %s GROUP BY e ORDER BY max(created_at) DESC LIMIT 15;", (uid,), True)
+    except Exception as e:
+        print(f"[admin] kullanıcı ayrıntısı (yeni sorgu) hatası, eskiye dönüldü: {e}")
+        words = [tuple(w) + ("tr→en",) for w in q(
+            "SELECT uw.tr, coalesce(w.eng, ''), uw.episode, uw.created_at FROM user_words uw "
+            "LEFT JOIN words w ON w.tr = uw.tr WHERE uw.user_id = %s "
+            "ORDER BY uw.created_at DESC LIMIT 60;", (uid,), True)]
+        eps = q("SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*), max(created_at) FROM user_words "
+                "WHERE user_id = %s GROUP BY e ORDER BY max(created_at) DESC LIMIT 15;", (uid,), True)
+    origin = {"method": "", "via": "", "invited_by": "", "invited": 0, "has_email": False}
+    try:
+        o = q("SELECT " + _METHOD + ", coalesce(u.signup_via, ''), u.email IS NOT NULL, "
+              "coalesce((SELECT i.username FROM referrals r JOIN users i ON i.id = r.inviter WHERE r.new_user = u.id), ''), "
+              "(SELECT count(*) FROM referrals r WHERE r.inviter = u.id) FROM users u WHERE u.id = %s;", (uid,), True)[0]
+        # E-posta adresi panelde gösterilmez; yalnızca kayıtlı olup olmadığı görünür.
+        origin = {"method": o[0], "via": o[1], "has_email": bool(o[2]), "invited_by": o[3], "invited": int(o[4])}
+    except Exception as e:
+        print(f"[admin] kullanıcı kaynağı okunamadı: {e}")
     games = q("SELECT episode, score, place, players, created_at FROM game_results WHERE user_id = %s "
               "ORDER BY created_at DESC LIMIT 15;", (uid,), True)
     sessions = q("SELECT count(*) FROM sessions WHERE user_id = %s;", (uid,), True)[0][0]
@@ -234,8 +277,8 @@ def user_detail(uid: int, request: Request):
         "id": r[0], "username": r[1], "created": _iso(r[2]), "last_seen": _iso(r[3]),
         "ban": _until(r[4]), "ban_reason": r[5] if _until(r[4]) else None,
         "game_ban": _until(r[6]), "game_ban_reason": r[7] if _until(r[6]) else None,
-        "sessions": sessions,
-        "words": [{"tr": w[0], "eng": w[1], "episode": w[2], "at": _iso(w[3])} for w in words],
+        "sessions": sessions, "origin": origin,
+        "words": [{"tr": w[0], "eng": w[1], "episode": w[2], "at": _iso(w[3]), "pair": w[4]} for w in words],
         "episodes": [{"episode": e[0], "n": e[1], "at": _iso(e[2])} for e in eps],
         "games": [{"episode": g[0], "score": g[1], "place": g[2], "players": g[3], "at": _iso(g[4])}
                   for g in games],
@@ -588,3 +631,285 @@ def admin_log(request: Request):
     need_admin(request)
     rows = q("SELECT at, action, target, detail, ip FROM admin_log ORDER BY id DESC LIMIT 100;", (), True)
     return [{"at": _iso(r[0]), "action": r[1], "target": r[2], "detail": r[3], "ip": r[4]} for r in rows]
+
+# ====================================================================================
+# Sağlık · Huni · Veri talepleri
+# Sağlık ve Huni'deki her sayı TOPLUDUR: tek tek kişilerin kelimesini ya da izlediğini göstermez.
+# ====================================================================================
+
+def _block(out: dict, key: str, fn, default=None):
+    """Bir sorgu bozulursa sekmenin tamamı düşmesin: sonuç boş kalır, hata listeye yazılır."""
+    try:
+        out[key] = fn()
+    except Exception as e:
+        out[key] = [] if default is None else default
+        out.setdefault("errors", []).append(f"{key}: {e}"[:200])
+
+
+def _pct(a, b):
+    return round(100 * a / b) if b else 0
+
+
+@router.get("/admin/api/health")
+def health(request: Request, days: int = 14):
+    """Eklenti düzgün çalışıyor mu? Çevirisi boş kalan, bölümü okunamayan ve çevirisi kelimenin aynısı olan
+    kayıtların oranı (sonuncusu çoğunlukla yanlış dil çiftinin işaretidir)."""
+    need_admin(request)
+    days = max(1, min(int(days), 90))
+    out = {"days": days}
+    where = "WHERE created_at > now() - make_interval(days => %s)"
+    _block(out, "daily", lambda: [
+        {"day": r[0], "rows": int(r[1]), "untagged": int(r[2]), "no_trans": int(r[3]), "same": int(r[4]), "users": int(r[5])}
+        for r in q(f"WITH uw AS ({_UW}) SELECT to_char(created_at::date, 'YYYY-MM-DD'), count(*), "
+                   "count(*) FILTER (WHERE episode = ''), count(*) FILTER (WHERE coalesce(trans, '') = ''), "
+                   "count(*) FILTER (WHERE lower(coalesce(trans, '')) = lower(word)), count(DISTINCT user_id) "
+                   f"FROM uw {where} GROUP BY 1 ORDER BY 1 DESC;", (days,), True)])
+    _block(out, "pairs", lambda: [
+        {"pair": r[0] + "→" + r[1], "rows": int(r[2]), "users": int(r[3]), "no_trans": int(r[4]), "same": int(r[5])}
+        for r in q(f"WITH uw AS ({_UW}) SELECT src, dst, count(*), count(DISTINCT user_id), "
+                   "count(*) FILTER (WHERE coalesce(trans, '') = ''), "
+                   "count(*) FILTER (WHERE lower(coalesce(trans, '')) = lower(word)) "
+                   f"FROM uw {where} GROUP BY src, dst ORDER BY 3 DESC LIMIT 20;", (days,), True)])
+    _block(out, "platforms", lambda: [
+        {"platform": r[0], "rows": int(r[1]), "users": int(r[2]), "no_trans": int(r[3])}
+        for r in q(f"WITH uw AS ({_UW}) SELECT {_PLATFORM} AS p, count(*), count(DISTINCT user_id), "
+                   "count(*) FILTER (WHERE coalesce(trans, '') = '') "
+                   f"FROM uw {where} GROUP BY 1 ORDER BY 2 DESC;", (days,), True)])
+    rows = sum(d["rows"] for d in out["daily"])
+    tot = {k: sum(d[k] for d in out["daily"]) for k in ("untagged", "no_trans", "same")}
+    out["total"] = {"rows": rows, **tot, **{k + "_pct": _pct(v, rows) for k, v in tot.items()}}
+    notes = []
+    if rows < 30:
+        notes.append({"level": "info", "text": f"Son {days} günde {rows} kelime kaydı var: oranlar için veri az."})
+    else:
+        if _pct(tot["no_trans"], rows) >= 10:
+            notes.append({"level": "bad", "text": f"Kelimelerin %{_pct(tot['no_trans'], rows)}'i çevirisiz kaydedilmiş. "
+                          "Çeviri servisi engelli olabilir (Sistem sekmesi) ya da kullanıcılar yanlış dil çiftiyle izliyor."})
+        if _pct(tot["untagged"], rows) >= 25:
+            notes.append({"level": "warn", "text": f"Kelimelerin %{_pct(tot['untagged'], rows)}'i bölüm adı olmadan kaydedilmiş: "
+                          "eklenti o sitede başlığı okuyamıyor. Aşağıda hangi platformda olduğuna bak."})
+        for p in out["pairs"]:
+            if p["rows"] >= 20 and _pct(p["same"], p["rows"]) >= 15:
+                notes.append({"level": "warn", "text": f"{p['pair']}: kelimelerin %{_pct(p['same'], p['rows'])}'inde çeviri kelimenin "
+                              "aynısı. Bu çoğunlukla altyazının seçilen dilde olmadığını gösterir."})
+        if not notes:
+            notes.append({"level": "ok", "text": "Belirgin bir sorun görünmüyor."})
+    out["notes"] = notes
+    return out
+
+
+_FUNNEL_CTE = (
+    "WITH nu AS (SELECT id, created_at::date AS d0, last_seen::date AS seen FROM users "
+    "            WHERE created_at > now() - make_interval(days => %s)), "
+    "uw AS (SELECT user_id, created_at::date AS d FROM user_words UNION ALL "
+    "       SELECT user_id, created_at::date FROM user_words_ml), "
+    "wc AS (SELECT user_id, count(*) AS n, max(d) AS last_d FROM uw GROUP BY user_id), "
+    "xp AS (SELECT user_id, max(day) AS last_d FROM xp_log WHERE xp > 0 GROUP BY user_id), "
+    "j AS (SELECT nu.id, nu.d0, coalesce(wc.n, 0) AS n, xp.user_id IS NOT NULL AS practiced, "
+    "      greatest(nu.d0, coalesce(nu.seen, nu.d0), coalesce(wc.last_d, nu.d0), coalesce(xp.last_d, nu.d0)) AS last_act "
+    "      FROM nu LEFT JOIN wc ON wc.user_id = nu.id LEFT JOIN xp ON xp.user_id = nu.id) ")
+_FUNNEL_COLS = (
+    "count(*), count(*) FILTER (WHERE n >= 1), count(*) FILTER (WHERE n >= 20), count(*) FILTER (WHERE practiced), "
+    "count(*) FILTER (WHERE last_act > d0), count(*) FILTER (WHERE d0 <= current_date - 7), "
+    "count(*) FILTER (WHERE d0 <= current_date - 7 AND last_act >= d0 + 7)")
+
+
+def _funnel_row(r):
+    return {"signups": int(r[0]), "word1": int(r[1]), "word20": int(r[2]), "practiced": int(r[3]),
+            "returned": int(r[4]), "old7": int(r[5]), "kept7": int(r[6])}
+
+
+@router.get("/admin/api/funnel")
+def funnel(request: Request, days: int = 30):
+    """Tıklama → kayıt → ilk kelime → 20 kelime → geri gelme. Kişi adı yok, yalnızca sayılar."""
+    need_admin(request)
+    days = max(1, min(int(days), 365))
+    out = {"days": days}
+    _block(out, "clicks", lambda: int(q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE day > current_date - %s;",
+                                        (days,), True)[0][0]), 0)
+    _block(out, "steps", lambda: _funnel_row(q(_FUNNEL_CTE + "SELECT " + _FUNNEL_COLS + " FROM j;", (days,), True)[0]), {})
+    _block(out, "cohorts", lambda: [
+        {"week": r[0], **_funnel_row(r[1:])} for r in q(
+            _FUNNEL_CTE + "SELECT to_char(date_trunc('week', d0), 'YYYY-MM-DD'), " + _FUNNEL_COLS +
+            " FROM j GROUP BY 1 ORDER BY 1 DESC LIMIT 12;", (max(days, 56),), True)])
+    period = "WHERE u.created_at > now() - make_interval(days => %s)"
+    _block(out, "methods", lambda: [{"name": r[0], "n": int(r[1])} for r in q(
+        f"SELECT {_METHOD} AS m, count(*) FROM users u {period} GROUP BY 1 ORDER BY 2 DESC;", (days,), True)])
+    _block(out, "via", lambda: [{"name": r[0], "n": int(r[1])} for r in q(
+        f"SELECT coalesce(u.signup_via, 'bilinmiyor'), count(*) FROM users u {period} GROUP BY 1 ORDER BY 2 DESC;", (days,), True)])
+    _block(out, "invited", lambda: int(q(
+        f"SELECT count(*) FROM referrals r JOIN users u ON u.id = r.new_user {period};", (days,), True)[0][0]), 0)
+    _block(out, "countries", lambda: [{"name": r[0], "n": int(r[1])} for r in q(
+        "SELECT coalesce(nullif(u.country, ''), '(seçmemiş)'), count(*) FROM users u GROUP BY 1 ORDER BY 2 DESC LIMIT 10;", (), True)])
+    _block(out, "dau", lambda: [{"day": r[0], "n": int(r[1])} for r in q(
+        "WITH a AS (SELECT user_id, created_at::date AS d FROM user_words WHERE created_at > now() - interval '14 days' "
+        "UNION SELECT user_id, created_at::date FROM user_words_ml WHERE created_at > now() - interval '14 days' "
+        "UNION SELECT user_id, day FROM xp_log WHERE day > current_date - 14 AND xp > 0) "
+        "SELECT to_char(g::date, 'YYYY-MM-DD'), (SELECT count(DISTINCT user_id) FROM a WHERE a.d = g::date) "
+        "FROM generate_series(current_date - 13, current_date, interval '1 day') g ORDER BY 1;", (), True)])
+    return out
+
+
+# ---------- Veri talepleri (KVKK / GDPR): bul, dışa aktar, sil, temizlik ----------
+
+# Kullanıcıya bağlı satır tutan tablolar (hesap silinince hepsi boşalmalı)
+_USER_TABLES = ("sessions", "user_words", "user_words_ml", "known_words", "starred_words", "word_stats", "xp_log",
+                "game_results", "daily_play", "puzzle_play", "progress", "ext_tickets", "league_members")
+
+
+class Find(BaseModel):
+    query: str
+
+
+@router.post("/admin/api/data/find")
+def data_find(c: Find, request: Request):
+    """Talep sahibinin verdiği kullanıcı adı ya da e-posta ile hesabı bulur. Yalnızca TAM eşleşme: e-postalar
+    aranıp listelenemez, adres de geri gösterilmez."""
+    need_admin(request)
+    s = c.query.strip().lower()
+    if len(s) < 3 or len(s) > 120:
+        raise HTTPException(400, "Kullanıcı adını ya da e-posta adresini tam yaz.")
+    rows = q("SELECT id, username, to_char(created_at, 'YYYY-MM-DD'), email IS NOT NULL, google_sub IS NOT NULL "
+             "FROM users WHERE lower(username) = %s OR lower(email) = %s ORDER BY id LIMIT 5;", (s, s), True)
+    log(request, "data_find", "", f"eşleşme: {len(rows)}")  # aranan adres kayda yazılmaz
+    return [{"id": r[0], "username": r[1], "created": r[2], "has_email": bool(r[3]), "google": bool(r[4])} for r in rows]
+
+
+def _count(sql, params=()):
+    try:
+        return int(q(sql, params, True)[0][0])
+    except Exception:
+        return None  # tablo henüz yok
+
+
+@router.get("/admin/api/users/{uid}/footprint")
+def footprint(uid: int, request: Request):
+    """Bu kimlik için hangi tabloda kaç satır var (içerik değil, sayı). Silmeden sonra hepsi 0 olmalı."""
+    need_admin(request)
+    tables = [{"table": t, "n": _count(f"SELECT count(*) FROM {t} WHERE user_id = %s;", (uid,))} for t in _USER_TABLES]
+    tables.append({"table": "referrals", "n": _count("SELECT count(*) FROM referrals WHERE inviter = %s OR new_user = %s;", (uid, uid))})
+    tables.append({"table": "leagues (sahibi)", "n": _count("SELECT count(*) FROM leagues WHERE owner = %s;", (uid,))})
+    exists = bool(q("SELECT 1 FROM users WHERE id = %s;", (uid,), True))
+    return {"id": uid, "exists": exists, "tables": tables, "total": sum(t["n"] or 0 for t in tables) + (1 if exists else 0)}
+
+
+@router.get("/admin/api/users/{uid}/export")
+def export_user(uid: int, request: Request):
+    """Erişim talebi: kullanıcının bizde duran bütün verisi tek dosyada. Parola özeti, oturum anahtarları ve
+    kurtarma kodu DAHİL DEĞİLDİR. İşlem kayda geçer."""
+    need_admin(request)
+    name = _user_exists(uid)
+    ts = "'YYYY-MM-DD HH24:MI'"
+
+    def rows(sql, cols):
+        try:
+            return [dict(zip(cols, r)) for r in q(sql, (uid,), True)]
+        except Exception as e:
+            return [{"error": str(e)[:120]}]
+
+    acc = q("SELECT id, username, coalesce(email, ''), coalesce(country, ''), "
+            f"to_char(created_at, {ts}), coalesce(to_char(last_seen, {ts}), ''), google_sub IS NOT NULL "
+            "FROM users WHERE id = %s;", (uid,), True)[0]
+    data = {
+        "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "account": {"id": acc[0], "username": acc[1], "email": acc[2], "country": acc[3], "created": acc[4],
+                    "last_seen": acc[5], "google_linked": bool(acc[6])},
+        "words_tr_en": rows(f"SELECT tr, episode, to_char(created_at, {ts}) FROM user_words WHERE user_id = %s "
+                            "ORDER BY created_at;", ("word", "source", "added")),
+        "words": rows(f"SELECT src, dst, word, episode, to_char(created_at, {ts}) FROM user_words_ml WHERE user_id = %s "
+                      "ORDER BY created_at;", ("from", "to", "word", "source", "added")),
+        "known_words": rows(f"SELECT src, word, to_char(created_at, {ts}) FROM known_words WHERE user_id = %s "
+                            "ORDER BY created_at;", ("language", "word", "added")),
+        "starred_words": rows(f"SELECT src, dst, word, to_char(created_at, {ts}) FROM starred_words WHERE user_id = %s "
+                              "ORDER BY created_at;", ("from", "to", "word", "added")),
+        "review_progress": rows("SELECT src, dst, word, box, to_char(due, 'YYYY-MM-DD'), right_n, wrong_n FROM word_stats "
+                                "WHERE user_id = %s ORDER BY src, dst, word;", ("from", "to", "word", "box", "due", "right", "wrong")),
+        "daily_xp": rows("SELECT to_char(day, 'YYYY-MM-DD'), xp FROM xp_log WHERE user_id = %s ORDER BY day;", ("day", "xp")),
+        "games": rows(f"SELECT coalesce(episode, ''), score, place, players, to_char(created_at, {ts}) FROM game_results "
+                      "WHERE user_id = %s ORDER BY created_at;", ("source", "score", "place", "players", "at")),
+        "daily_challenge": rows("SELECT to_char(day, 'YYYY-MM-DD'), src, dst, score, correct, done FROM daily_play "
+                                "WHERE user_id = %s ORDER BY day;", ("day", "from", "to", "score", "correct", "done")),
+        "puzzles": rows("SELECT to_char(day, 'YYYY-MM-DD'), src, dst, secs, score FROM puzzle_play WHERE user_id = %s "
+                        "ORDER BY day;", ("day", "from", "to", "seconds", "score")),
+        "leagues": rows("SELECT l.name, to_char(m.joined_at, 'YYYY-MM-DD') FROM league_members m JOIN leagues l "
+                        "ON l.id = m.league_id WHERE m.user_id = %s ORDER BY m.joined_at;", ("league", "joined")),
+        "site_progress": rows("SELECT data::text FROM progress WHERE user_id = %s;", ("data",)),
+        "invites": {"friends_invited": _count("SELECT count(*) FROM referrals WHERE inviter = %s;", (uid,)),
+                    "was_invited": bool(_count("SELECT count(*) FROM referrals WHERE new_user = %s;", (uid,)))},
+    }
+    log(request, "export_user", name)
+    return data
+
+
+@router.get("/admin/api/hygiene")
+def hygiene(request: Request):
+    """Gereğinden uzun tutulan ya da sahipsiz kalmış kayıtlar (sayı olarak)."""
+    need_admin(request)
+    orphans = []
+    for t in _USER_TABLES:
+        n = _count(f"SELECT count(*) FROM {t} x WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.id = x.user_id);")
+        if n:
+            orphans.append({"table": t, "n": n})
+    return {
+        "signups_old": _count("SELECT count(*) FROM signups WHERE created_at < now() - interval '1 day';"),
+        "signups_pending": _count("SELECT count(*) FROM signups;"),
+        "tickets_old": _count("SELECT count(*) FROM ext_tickets WHERE created_at < now() - interval '10 minutes';"),
+        "log_old": _count("SELECT count(*) FROM admin_log WHERE at < now() - interval '180 days';"),
+        "inactive_12m": _count("SELECT count(*) FROM users WHERE coalesce(last_seen, created_at) < now() - interval '12 months';"),
+        "orphans": orphans,
+    }
+
+
+@router.post("/admin/api/hygiene/clean")
+def hygiene_clean(request: Request):
+    """Süresi geçmiş doğrulama kayıtlarını, eski tek kullanımlık biletleri, 180 günden eski yönetim kayıtlarını ve
+    silinmiş hesaplardan kalan sahipsiz satırları siler. Hesaplara dokunmaz."""
+    need_admin(request)
+    done = {}
+
+    def run(key, sql):
+        try:
+            done[key] = len(q(sql + " RETURNING 1;", (), True))
+        except Exception as e:
+            done[key] = f"hata: {e}"[:80]
+
+    run("signups", "DELETE FROM signups WHERE created_at < now() - interval '1 day'")
+    run("tickets", "DELETE FROM ext_tickets WHERE created_at < now() - interval '10 minutes'")
+    run("admin_log", "DELETE FROM admin_log WHERE at < now() - interval '180 days'")
+    for t in _USER_TABLES:
+        run("sahipsiz:" + t, f"DELETE FROM {t} x WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.id = x.user_id)")
+    done = {k: v for k, v in done.items() if v}
+    log(request, "hygiene_clean", "", ", ".join(f"{k}={v}" for k, v in done.items())[:300])
+    return {"deleted": done}
+
+
+# ---------- Davetler: kim kimi getirdi ----------
+
+@router.get("/admin/api/referrals")
+def referrals(request: Request):
+    """Davet bağlantısıyla (/?ref=kullanıcıadı) kayıt olanlar: en çok davet edenler ve son davetler."""
+    need_admin(request)
+    used = ("(EXISTS (SELECT 1 FROM user_words w WHERE w.user_id = r.new_user) "
+            "OR EXISTS (SELECT 1 FROM user_words_ml m WHERE m.user_id = r.new_user))")
+    out = {}
+    _block(out, "total", lambda: int(q("SELECT count(*) FROM referrals r JOIN users n ON n.id = r.new_user;", (), True)[0][0]), 0)
+    _block(out, "top", lambda: [
+        {"id": r[0], "username": r[1], "n": int(r[2]), "last": r[3], "active": int(r[4])} for r in q(
+            "SELECT i.id, i.username, count(*), to_char(max(r.created_at), 'YYYY-MM-DD'), "
+            f"count(*) FILTER (WHERE {used}) FROM referrals r JOIN users i ON i.id = r.inviter "
+            "JOIN users n ON n.id = r.new_user GROUP BY i.id, i.username ORDER BY 3 DESC, 4 DESC LIMIT 50;", (), True)])
+    _block(out, "recent", lambda: [
+        {"id": r[0], "username": r[1], "inviter_id": r[2], "inviter": r[3], "at": r[4], "active": bool(r[5])} for r in q(
+            "SELECT n.id, n.username, i.id, i.username, to_char(r.created_at, 'YYYY-MM-DD HH24:MI'), "
+            f"{used} FROM referrals r JOIN users n ON n.id = r.new_user JOIN users i ON i.id = r.inviter "
+            "ORDER BY r.created_at DESC LIMIT 50;", (), True)])
+    return out
+
+
+@router.get("/admin/api/users/{uid}/invited")
+def invited_by_user(uid: int, request: Request):
+    """Bu kullanıcının davetiyle kayıt olanlar."""
+    need_admin(request)
+    return [{"id": r[0], "username": r[1], "at": r[2]} for r in q(
+        "SELECT n.id, n.username, to_char(r.created_at, 'YYYY-MM-DD') FROM referrals r JOIN users n ON n.id = r.new_user "
+        "WHERE r.inviter = %s ORDER BY r.created_at DESC LIMIT 100;", (uid,), True)]
