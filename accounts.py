@@ -52,6 +52,8 @@ def init_accounts(db_config: dict):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash TEXT;",
+        # hesabın nereden açıldığı: web / eklenti / mobil (yönetim panelindeki toplu sayılar için)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_via TEXT;",
         "CREATE TABLE IF NOT EXISTS episode_meta (episode TEXT PRIMARY KEY, thumb TEXT NOT NULL DEFAULT '');",
         "CREATE TABLE IF NOT EXISTS admin_log (id SERIAL PRIMARY KEY, at TIMESTAMP DEFAULT now(), "
         "action TEXT NOT NULL, target TEXT, detail TEXT, ip TEXT);",
@@ -259,6 +261,22 @@ def create_user(name: str, password: str, ref: str = "") -> int:
     return uid
 
 
+def note_origin(uid: int, request: Request, ext: bool = False):
+    """Yeni hesabın nereden açıldığını yazar: web / eklenti / mobil. İsteğin Origin başlığından anlaşılır;
+    IP, cihaz ya da tarayıcı bilgisi saklanmaz. Hata olursa kayıt etkilenmez."""
+    try:
+        o = (request.headers.get("origin") or "").lower()
+        if o.startswith("chrome-extension://"):
+            via = "eklenti"
+        elif "://localhost" in o:  # Capacitor (Android: https://localhost, iOS: capacitor://localhost)
+            via = "mobil"
+        else:
+            via = "eklenti" if ext else "web"
+        q("UPDATE users SET signup_via = %s WHERE id = %s AND signup_via IS NULL;", (via, uid))
+    except Exception as e:
+        print(f"   [origin] {e}")
+
+
 @router.post("/api/register")
 def register(c: Cred, request: Request, response: Response):
     _throttle_ip(request)
@@ -266,6 +284,7 @@ def register(c: Cred, request: Request, response: Response):
         raise HTTPException(400, "E-posta doğrulaması gerekli. Sayfayı yenile.")
     name = c.username.strip()
     uid = create_user(name, c.password, c.ref)
+    note_origin(uid, request)
     out = _login_response(uid, request, response, name)
     out["recovery"] = _new_recovery(uid)
     return out
@@ -411,11 +430,15 @@ def delete_user_data(uid: int):
     except Exception as e:
         print(f"Lig temizleme hatası: {e}")
     for t in ("sessions", "user_words", "game_results", "user_words_ml", "known_words", "progress", "daily_play",
-              "word_stats", "xp_log", "starred_words"):
+              "word_stats", "xp_log", "starred_words", "puzzle_play", "ext_tickets"):
         try:
             q(f"DELETE FROM {t} WHERE user_id = %s;", (uid,))
         except Exception as e:
             print(f"Silme hatası ({t}): {e}")
+    try:
+        q("DELETE FROM referrals WHERE inviter = %s OR new_user = %s;", (uid, uid))
+    except Exception as e:
+        print(f"Silme hatası (referrals): {e}")
     q("DELETE FROM users WHERE id = %s;", (uid,))
 
 
@@ -530,19 +553,20 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 12 Kasım 2026</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 14 Kasım 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
-<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (Google'dan e-posta adresin, adın ve fotoğrafın alınıp saklanmaz). Kullanıcı adı ve parolayla hesap açarken doğrulama kodu göndermek için e-posta adresin istenir ve hesabınla birlikte saklanır; hesabını silince o da silinir, reklam ya da bülten için kullanılmaz, oturum anahtarların ve son görülme zamanın. Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
+<li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (Google'dan e-posta adresin, adın ve fotoğrafın alınıp saklanmaz). Kullanıcı adı ve parolayla hesap açarken doğrulama kodu göndermek için e-posta adresin istenir ve hesabınla birlikte saklanır; hesabını silince o da silinir, reklam ya da bülten için kullanılmaz, oturum anahtarların, son görülme zamanın ve hesabını nerede açtığın (site, eklenti ya da mobil uygulama). Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
 <li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li></ul>
 <h2>Sesli okuma ve mikrofon (isteğe bağlı)</h2><p>Kelimeleri seslendirme özelliği cihazının kendi sesini kullanır; sunucuya hiçbir şey gönderilmez. Konuşma düellosunda mikrofonu yalnızca sen düğmeye dokununca kullanabilirsin. Konuşmayı yazıya çevirme işini tarayıcın yapar (Chrome, sesi bu iş için Google'ın konuşma tanıma hizmetine gönderebilir). Sunucumuz yalnızca tanınan <b>metni</b> alır; ses kaydı almaz, saklamaz. İstersen mikrofon yerine cevabı yazabilirsin.</p>
-<h2>Günlük meydan okuma</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür.</p>
+<h2>Günlük meydan okuma ve bulmaca</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür. Günün bulmacasında çözme süren ve sonucun saklanır.</p>
+<h2>Android uygulaması</h2><p>CineVocab Android uygulaması aynı hesabı ve yukarıdaki aynı verileri kullanır. Uygulama oturum anahtarını ve ayarlarını (dil, günlük hedef) yalnızca telefonunda saklar. Uygulamaya bir metin yapıştırdığında ya da bir altyazı dosyası seçtiğinde metin yalnızca telefonunda okunur; sunucumuza yalnızca metindeki kelimelerin listesi ve senin verdiğin ad gönderilir. Uygulama hiçbir siteden içerik çekmez. Uygulama konumunu, rehberini, fotoğraflarını ya da mikrofonunu kullanmaz; reklam ve izleme (analitik) aracı içermez. Hatırlatma bildirimleri telefonunda oluşturulur ve yalnızca sen izin verirsen gösterilir. Sonucunu ya da davet bağlantını paylaşmak tamamen senin seçimindir.</p>
 <h2>Üçüncü taraflar</h2><p>Altyazı cümleleri ve kelimeler çeviri için Google Çeviri hizmetine (translate.googleapis.com) gönderilir. Sunucu Railway üzerinde barındırılır. Verilerini satmayız, reklam için kullanmayız ve amaç dışında paylaşmayız.</p>
 <h2>Çerezler ve yerel depolama</h2><p>Web sitesinde oturumunu açık tutmak için bir oturum çerezi, eklentide ise eklenti anahtarını saklamak için tarayıcı depolaması kullanılır.</p>
-<h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, hesap sayfandaki <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin.</p>
+<h2>Verilerini silme</h2><p>Hesabını ve tüm verilerini, sitedeki hesap sayfandan ya da Android uygulamasındaki "Ben" sekmesinden <b>Hesabımı sil</b> düğmesiyle anında silebilirsin. İstersen aşağıdaki adrese yazarak da silinmesini isteyebilirsin. Adımlar: <a href="/delete-account">hesap silme sayfası</a>.</p>
 <h2>İletişim</h2><p>__CONTACT__</p>
 <p>CineVocab, Amazon, Prime Video, Google, YouTube, Netflix ve Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.</p></body></html>"""
 
@@ -551,19 +575,20 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <title>CineVocab Privacy Policy</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <p><a href="/privacy?lang=tr">Türkçe</a></p>
-<h1>CineVocab Privacy Policy</h1><p>Last updated: November 12, 2026</p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: November 14, 2026</p>
 <h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site", and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page.</p>
 <h2>What data we collect</h2><ul>
-<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not taken from Google or stored). When you create an account with a username and password, your email address is requested to send a verification code and is stored with your account; it is deleted when you delete your account and is never used for ads or newsletters, your session keys and your last-seen time. If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
+<li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not taken from Google or stored). When you create an account with a username and password, your email address is requested to send a verification code and is stored with your account; it is deleted when you delete your account and is never used for ads or newsletters, your session keys, your last-seen time and where you created the account (website, extension or mobile app). If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>
 <li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li></ul>
 <h2>Read-aloud and microphone (optional)</h2><p>The read-aloud feature uses your device's own voices; nothing is sent to our server. In the speaking duel the microphone is used only when you tap the button. Your browser converts speech to text (Chrome may send the audio to Google's speech-recognition service for this). Our server receives only the recognised <b>text</b>; we do not receive, record or store audio. You can type your answer instead of using the microphone.</p>
-<h2>Daily challenge</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard.</p>
+<h2>Daily challenge and puzzle</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard. In the daily puzzle, your solving time and result are stored.</p>
+<h2>Android app</h2><p>The CineVocab Android app uses the same account and the same data described above. The app keeps your session key and settings (language, daily goal) only on your phone. When you paste a text or pick a subtitle file, it is read only on your phone; only the list of words in it and the name you give it are sent to our server. The app does not fetch content from any site. The app does not use your location, contacts, photos or microphone, and contains no advertising or tracking (analytics) tools. Reminder notifications are created on your phone and shown only if you allow them. Sharing your result or your invite link is entirely your choice.</p>
 <h2>Third parties</h2><p>Subtitle sentences and words are sent to the Google Translate service (translate.googleapis.com) to be translated. The server is hosted on Railway. We do not sell your data, use it for advertising, or share it for any other purpose.</p>
 <h2>Cookies and local storage</h2><p>The website uses a session cookie to keep you logged in. The extension uses browser storage to keep your extension key and settings.</p>
-<h2>Deleting your data</h2><p>You can delete your account and all of your data at any time with the <b>Delete my account</b> button on your account page. You can also ask us to delete it by writing to the address below.</p>
+<h2>Deleting your data</h2><p>You can delete your account and all of your data at any time with the <b>Delete my account</b> button on your account page on the website or in the "Me" tab of the Android app. You can also ask us to delete it by writing to the address below. Steps: <a href="/delete-account">account deletion page</a>.</p>
 <h2>Contact</h2><p>__CONTACT__</p>
 <p>CineVocab is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube, Netflix or Udemy.</p></body></html>"""
 
@@ -578,3 +603,38 @@ def privacy(request: Request):
     if lang == "tr":
         return PRIVACY.replace("__CONTACT__", mail).replace("<h1>", '<p><a href="/privacy?lang=en">English</a></p><h1>', 1)
     return PRIVACY_EN.replace("__CONTACT__", mail)
+
+
+# Hesap silme sayfası: Google Play, uygulamanın dışında da ulaşılabilen bir silme adresi ister.
+DELETE_PAGE = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delete your CineVocab account</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}
+a.btn{display:inline-block;background:#c0392b;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600}</style></head><body>
+<h1>Delete your CineVocab account</h1>
+<p>This page is for the CineVocab app (Android), the CineVocab Chrome extension and the CineVocab website. They all share one account.</p>
+<h2>Delete it yourself (takes effect immediately)</h2>
+<ol><li>Open your account page and log in.</li><li>Go to <b>Settings</b> and press <b>Delete my account</b>.</li><li>Confirm with your password (or your username, if you signed in with Google).</li></ol>
+<p><a class="btn" href="/account#settings">Open my account page</a></p>
+<p>In the Android app: <b>Me</b> tab, then <b>Delete my account</b>.</p>
+<h2>Or ask us to delete it</h2>
+<p>Write to __CONTACT__ from the email address of your account, or tell us your username. We delete the account within 7 days.</p>
+<h2>What is deleted</h2>
+<p>Your account (username, password hash, email address, Google account ID), your word lists and known words, your practice history and XP, your duel, daily challenge and puzzle results, your league memberships, your invites and all of your sessions. Nothing is kept afterwards. The anonymous daily usage counter is not linked to any account.</p>
+<hr>
+<h1 lang="tr">CineVocab hesabını sil</h1>
+<p lang="tr">Bu sayfa CineVocab Android uygulaması, Chrome eklentisi ve sitesi içindir. Hepsi aynı hesabı kullanır.</p>
+<h2 lang="tr">Kendin sil (anında geçerli olur)</h2>
+<ol lang="tr"><li>Hesap sayfanı aç ve giriş yap.</li><li><b>Ayarlar</b> bölümünde <b>Hesabımı sil</b> düğmesine bas.</li><li>Parolanla (Google ile giriş yaptıysan kullanıcı adınla) onayla.</li></ol>
+<p lang="tr"><a class="btn" href="/account#settings">Hesap sayfamı aç</a></p>
+<p lang="tr">Android uygulamasında: <b>Ben</b> sekmesi, sonra <b>Hesabımı sil</b>.</p>
+<h2 lang="tr">Ya da bizden silmemizi iste</h2>
+<p lang="tr">Hesabının e-posta adresinden __CONTACT__ adresine yaz ya da kullanıcı adını bildir. Hesabı 7 gün içinde sileriz.</p>
+<h2 lang="tr">Neler silinir?</h2>
+<p lang="tr">Hesabın (kullanıcı adı, şifrelenmiş parola, e-posta adresi, Google hesap kimliği), kelime listelerin ve "biliyorum" dediklerin, pratik geçmişin ve XP'n, düello, günlük meydan okuma ve bulmaca sonuçların, lig üyeliklerin, davetlerin ve bütün oturumların. Sonrasında hiçbir şey saklanmaz. Anonim günlük kullanım sayacı hiçbir hesapla ilişkili değildir.</p>
+<p><a href="/privacy">Privacy policy / Gizlilik politikası</a></p></body></html>"""
+
+
+@router.get("/delete-account", response_class=HTMLResponse)
+def delete_account_page():
+    mail = os.environ.get("CONTACT_EMAIL", "").strip() or "[set the CONTACT_EMAIL environment variable]"
+    return DELETE_PAGE.replace("__CONTACT__", mail)

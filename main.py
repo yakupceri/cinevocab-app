@@ -28,6 +28,7 @@ import daily
 import extauth
 import leagues
 import multilang
+import puzzle
 import srs
 import vocab
 from fastapi.staticfiles import StaticFiles
@@ -42,6 +43,7 @@ app.include_router(vocab.router)
 app.include_router(growth.router)
 app.include_router(extauth.router)
 app.include_router(importer.router)
+app.include_router(puzzle.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -385,6 +387,10 @@ try:
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")
+try:
+    puzzle.init(lambda src, dst: global_pairs(src, dst))
+except Exception as e:
+    print(f"Bulmaca tabloları oluşturulamadı: {e}")
 
 
 def tag_episode(episode: str, words: list):

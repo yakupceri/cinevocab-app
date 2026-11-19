@@ -53,10 +53,20 @@ def init():
       "created_at TIMESTAMP DEFAULT now());")
 
 
+def _origin(uid, request, ext=False):
+    """Hesabın nereden açıldığını yazar (web / eklenti / mobil). Hiçbir durumda kaydı engellemez."""
+    try:
+        from accounts import note_origin
+        note_origin(uid, request, ext)
+    except Exception as e:
+        print(f"   [origin] {e}")
+
+
 # ---------------------------------------------------------------- kullanıcı adı + parola
 @router.get("/api/ext/config")
 def config():
-    return {"google": GOOGLE_CLIENT_ID, "mail": MAIL_ON}
+    # contact: gizlilik sayfasında zaten herkese açık olan iletişim adresi (mobil uygulamadaki "bildir" bağlantısı için)
+    return {"google": GOOGLE_CLIENT_ID, "mail": MAIL_ON, "contact": os.environ.get("CONTACT_EMAIL", "").strip()}
 
 
 @router.post("/api/ext/login")
@@ -73,6 +83,7 @@ def ext_register(c: Cred, request: Request):
         raise HTTPException(400, "E-posta doğrulaması gerekli. Eklentiyi güncelle.")
     name = c.username.strip()
     uid = create_user(name, c.password, c.ref)
+    _origin(uid, request, True)
     return {"key": _new_session(uid), "username": name, "recovery": _new_recovery(uid)}
 
 
@@ -173,6 +184,7 @@ def signup_verify(d: SignupVerify, request: Request, response: Response):
     uid = q("INSERT INTO users (username, pw_hash, email) VALUES (%s, %s, %s) RETURNING id;",
             (name, pw_hash, email), True)[0][0]
     q("DELETE FROM signups WHERE email = %s;", (email,))
+    _origin(uid, request, bool(d.ext))
     try:
         from growth import record_ref
         record_ref(uid, ref)
@@ -293,6 +305,8 @@ def site_google(d: GoogleReq, request: Request, response: Response):
     """Sitede Google ile giriş (çerez oturumu)."""
     _throttle_ip(request)
     uid, name, new = google_user(google_claims(d.credential), d.ref)
+    if new:
+        _origin(uid, request)
     out = _login_response(uid, request, response, name)
     out["new"] = new
     return out
@@ -305,6 +319,8 @@ def ext_google(d: GoogleReq, request: Request):
     if len(d.nonce) < 16:
         raise HTTPException(400, "Geçersiz istek.")
     uid, name, new = google_user(google_claims(d.credential, d.nonce), d.ref)
+    if new:
+        _origin(uid, request, True)
     return {"key": _new_session(uid), "username": name, "new": new}
 
 
