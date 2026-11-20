@@ -134,7 +134,7 @@ function authView() {
     card.append(el("h1", "", t("forgotTitle")), el("p", "dim", t("forgotSub")), form);
     [user, code, np.inp, np2.inp].forEach((i) => (i.onkeydown = (e) => { if (e.key === "Enter") go.click(); }));
   } else {
-    const seg = el("div", "seg"), bl = el("button", authMode === "login" ? "on" : "", t("login")), br = el("button", authMode === "register" ? "on" : "", t("register"));
+    const seg = el("div", "seg authseg"), bl = el("button", authMode === "login" ? "on" : "", t("login")), br = el("button", authMode === "register" ? "on" : "", t("register"));
     bl.onclick = () => { authMode = "login"; authView(); }; br.onclick = () => { authMode = "register"; authView(); };
     seg.append(bl, br); seg.style.marginTop = "18px";
     const pw = pwField(authMode === "login" ? t("password") : t("pwHint"), authMode === "login" ? "current-password" : "new-password");

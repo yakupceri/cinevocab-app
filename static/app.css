@@ -310,6 +310,10 @@ button.icon { padding:0; width:40px; display:grid; place-items:center; }
   .seg button.on { background:var(--accent-soft); color:var(--ink); box-shadow:inset 0 0 0 1px var(--accent); }
   .seg .n { font-size:11px; color:var(--faint); }
 }
+/* giriş / kayıt sekmeleri her ekranda görünsün */
+.seg.authseg { display:flex; gap:6px; margin-bottom:14px; padding:4px; background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+.seg.authseg button { flex:1; min-height:40px; padding:0 8px; font-size:14px; font-weight:600; background:transparent; border:0; border-radius:9px; color:var(--dim); cursor:pointer; }
+.seg.authseg button.on { background:var(--accent-soft); color:var(--ink); box-shadow:inset 0 0 0 1px var(--accent); }
 
 /* açılır bölümler: ikincil seçenekleri gizler */
 .gmore { margin-top:12px; } .gmore > summary { cursor:pointer; color:var(--accent); font-weight:600; padding:8px 0; min-height:40px; display:flex; align-items:center; }
