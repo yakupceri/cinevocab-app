@@ -49,6 +49,11 @@ def init():
       "word TEXT NOT NULL, created_at TIMESTAMP DEFAULT now(), PRIMARY KEY (user_id, src, dst, word));")
     q("CREATE TABLE IF NOT EXISTS link_clicks (day DATE NOT NULL, src TEXT NOT NULL, n INT NOT NULL DEFAULT 0, "
       "PRIMARY KEY (day, src));")
+    # Her tıklamanın saati + cihaz türü + ülke tahmini. IP, çerez ya da kimlik YOK. 120 günden eskisi silinir.
+    q("CREATE TABLE IF NOT EXISTS link_hits (at TIMESTAMPTZ NOT NULL DEFAULT now(), src TEXT NOT NULL, "
+      "device TEXT NOT NULL DEFAULT '', os TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '');")
+    q("CREATE INDEX IF NOT EXISTS link_hits_at_idx ON link_hits (at);")
+    q("DELETE FROM link_hits WHERE at < now() - interval '120 days';")
     q("CREATE TABLE IF NOT EXISTS ext_tickets (hash TEXT PRIMARY KEY, user_id INT NOT NULL, "
       "created_at TIMESTAMP DEFAULT now());")
 

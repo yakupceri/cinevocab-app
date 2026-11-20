@@ -48,6 +48,44 @@
   .note.bad { border-color:var(--bad); } .note.warn { border-color:var(--gold); } .note.ok { border-color:var(--ok); }
   td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
   a { color:var(--gold); }
+
+  /* ---- grafikler ---- */
+  header { position:sticky; top:0; z-index:5; background:rgba(12,11,10,.94); backdrop-filter:blur(6px); }
+  #clock { font-size:12px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:4px 10px; white-space:nowrap; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
+  .kpi { background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--c,var(--ember)); border-radius:12px; padding:12px 14px; }
+  .kpi b { display:block; font:700 30px/1.1 Georgia,serif; } .kpi span { color:var(--dim); font-size:12px; } .kpi small { display:block; color:var(--dim); font-size:11px; margin-top:2px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .seg button { border:0; border-radius:0; background:transparent; padding:7px 14px; } .seg button.on { background:var(--ember); color:#fff; font-weight:700; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--dim); margin:6px 0 2px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .cols { display:flex; gap:3px; align-items:flex-end; height:150px; padding-top:18px; margin-top:6px; }
+  .col { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; height:100%; }
+  .stack { flex:1; width:100%; display:flex; gap:2px; align-items:flex-end; justify-content:center; }
+  .stack .b { position:relative; flex:1; max-width:18px; min-height:2px; border-radius:3px 3px 0 0; }
+  .stack .b em { position:absolute; left:50%; top:-15px; transform:translateX(-50%); font:normal 10px/1 system-ui; color:var(--dim); }
+  .col small { color:var(--dim); font-size:10px; margin-top:4px; white-space:nowrap; }
+  @media (max-width:640px){ .stack .b em { display:none; } .col small:not(:nth-last-child(1)) { font-size:9px; } .col:nth-child(even) small { visibility:hidden; } }
+  .donut { display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:8px; }
+  .donut svg { width:130px; height:130px; flex:none; } .donut text { fill:var(--ink); font:700 22px Georgia,serif; text-anchor:middle; }
+  .donut ul { list-style:none; margin:0; padding:0; flex:1; min-width:150px; } .donut li { display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .donut li i { width:11px; height:11px; border-radius:3px; flex:none; } .donut li b { margin-left:auto; font-variant-numeric:tabular-nums; }
+  .hb { display:grid; grid-template-columns:minmax(90px,170px) 1fr 52px; gap:6px 10px; align-items:center; margin-top:10px; }
+  .hb .lab { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .hb .lab small { display:block; color:var(--dim); font-size:11px; }
+  .hb .track { height:16px; background:rgba(255,255,255,.05); border-radius:5px; overflow:hidden; display:flex; } .hb .track i { display:block; height:100%; }
+  .hb b { text-align:right; font-variant-numeric:tabular-nums; }
+  .hours { display:flex; gap:2px; align-items:flex-end; height:110px; margin-top:8px; }
+  .hours div { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; }
+  .hours i { width:100%; background:var(--ember); border-radius:3px 3px 0 0; min-height:2px; opacity:.85; } .hours div.now i { background:var(--gold); opacity:1; }
+  .hours small { font-size:9px; color:var(--dim); margin-top:3px; height:11px; }
+  .big { font:700 15px Georgia,serif; }
+  .empty { color:var(--dim); padding:10px 0; }
+  .dev { white-space:nowrap; }
+  .tag { white-space:nowrap; }
+  @media (max-width:640px){
+    nav { flex-wrap:nowrap; overflow-x:auto; flex-basis:100%; order:3; padding-bottom:4px; } nav button { white-space:nowrap; flex:none; }
+    main { padding:12px; } th,td { padding:7px 6px; font-size:13px; } header { padding:10px 12px; }
+  }
   #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#000; border:1px solid var(--gold); padding:10px 16px; border-radius:10px; z-index:9; }
 </style>
 </head>
@@ -67,6 +105,7 @@
   <header>
     <h1>CineVocab · Yönetim</h1>
     <nav id="nav"></nav>
+    <span id="clock" title="Panelde tüm saatler İstanbul saatidir"></span>
     <button id="out">Çıkış</button>
   </header>
   <main id="view"></main>
@@ -112,10 +151,10 @@ $("lf").addEventListener("submit", async (e) => {
 $("out").onclick = async () => { await api("/logout", "POST").catch(() => {}); showLogin(); };
 
 // ---------- sekmeler ----------
-const TABS = { "Özet": viewStats, "Sağlık": viewHealth, "Huni": viewFunnel, "Davetler": viewRefs, "Kullanıcılar": viewUsers, "Odalar": viewRooms, "Kelimeler": viewWords, "Veri talepleri": viewData, "Sistem": viewSystem, "Günlük": viewLog };
+const TABS = { "Ziyaretçiler": viewTraffic, "Özet": viewStats, "Sağlık": viewHealth, "Huni": viewFunnel, "Davetler": viewRefs, "Kullanıcılar": viewUsers, "Odalar": viewRooms, "Kelimeler": viewWords, "Veri talepleri": viewData, "Sistem": viewSystem, "Günlük": viewLog };
 const go = (name) => open(name, [...document.querySelectorAll("#nav button")].find((b) => b.textContent === name));
 function start() {
-  $("login").classList.add("hide"); $("app").classList.remove("hide");
+  $("login").classList.add("hide"); $("app").classList.remove("hide"); tickClock();
   const nav = $("nav"); nav.textContent = "";
   Object.keys(TABS).forEach((name, i) => {
     const b = h("button", { onclick: () => open(name, b) }, name); nav.append(b); if (i === 0) open(name, b);
@@ -126,31 +165,138 @@ function open(name, btn) {
   $("view").textContent = ""; TABS[name]().catch((e) => $("view").append(h("p", { class: "err" }, e.message)));
 }
 
+// ---------- Grafik parçaları (bağımlılık yok; değerler textContent ile basılır) ----------
+const sv = (tag, attrs, ...kids) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); kids.flat().forEach((c) => c && e.append(c)); return e; };
+const DEV = { telefon: ["Telefon", "#e8613c", "📱"], bilgisayar: ["Bilgisayar", "#5fb3c4", "💻"], tablet: ["Tablet", "#e9b44c", "▭"] };
+const DEVS = ["telefon", "bilgisayar", "tablet"];
+let regionNames = null; try { regionNames = new Intl.DisplayNames(["tr"], { type: "region" }); } catch (e) { /* eski tarayıcı */ }
+function countryLabel(c) {
+  if (/^[A-Z]{2}$/.test(c)) {
+    const flag = String.fromCodePoint(...[...c].map((ch) => 127397 + ch.charCodeAt(0)));
+    let n = c; try { n = (regionNames && regionNames.of(c)) || c; } catch (e) { /* bilinmeyen kod */ }
+    return flag + " " + n;
+  }
+  return c.startsWith("dil:") ? "🌐 Bilinmiyor (dil: " + c.slice(4) + ")" : "🌐 Bilinmiyor";
+}
+// Günlük sütun grafiği: series = [{key, label, color}]
+function colChart(days, series) {
+  const max = Math.max(1, ...days.flatMap((d) => series.map((s) => d[s.key] || 0)));
+  return h("div", {},
+    h("div", { class: "legend" }, series.map((s) => h("span", {}, h("i", { style: "background:" + s.color }), s.label))),
+    h("div", { class: "cols" }, days.map((d) => h("div", { class: "col" },
+      h("div", { class: "stack" }, series.map((s) => { const v = d[s.key] || 0;
+        return h("div", { class: "b", title: d.day + " · " + s.label + ": " + v, style: `height:${(v / max) * 100}%;background:${s.color}` }, v ? h("em", {}, v) : ""); })),
+      h("small", {}, d.day)))));
+}
+// Halka grafik: items = [[etiket, sayı, renk], ...]
+function donut(items, centerLabel) {
+  const tot = items.reduce((a, x) => a + x[1], 0);
+  if (!tot) return h("p", { class: "empty" }, "Henüz veri yok.");
+  const R = 44, C = 2 * Math.PI * R; let off = 0;
+  const segs = items.filter((x) => x[1]).map((x) => { const len = (x[1] / tot) * C;
+    const c = sv("circle", { cx: 60, cy: 60, r: R, fill: "none", stroke: x[2], "stroke-width": 18, "stroke-dasharray": `${len} ${C - len}`, "stroke-dashoffset": -off, transform: "rotate(-90 60 60)" });
+    off += len; return c; });
+  const t = sv("text", { x: 60, y: 68 }); t.textContent = tot;
+  return h("div", { class: "donut" }, sv("svg", { viewBox: "0 0 120 120", role: "img", "aria-label": centerLabel || "" }, sv("circle", { cx: 60, cy: 60, r: R, fill: "none", stroke: "#2a2622", "stroke-width": 18 }), segs, t),
+    h("ul", {}, items.map((x) => h("li", {}, h("i", { style: "background:" + x[2] }), x[0], h("b", {}, x[1], h("small", { class: "dim" }, "  %" + pct(x[1], tot)))))));
+}
+// Yatay çubuklar: rows = [{label, sub, total, parts:[[sayı, renk]]}]
+function hbars(rows, emptyMsg) {
+  if (!rows.length) return h("p", { class: "empty" }, emptyMsg || "Henüz veri yok.");
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  return h("div", { class: "hb" }, rows.map((r) => [
+    h("div", { class: "lab", title: r.label }, r.label, r.sub ? h("small", {}, r.sub) : ""),
+    h("div", { class: "track" }, r.parts.map((p) => p[0] ? h("i", { style: `width:${(p[0] / max) * 100}%;background:${p[1]}`, title: p[2] || "" }) : "")),
+    h("b", {}, r.total)]));
+}
+const devParts = (o) => DEVS.map((k) => [o[k] || 0, DEV[k][1], DEV[k][0] + ": " + (o[k] || 0)]);
+const hh = (x) => String(x).padStart(2, "0");
+const trNow = () => new Date().toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: "2-digit", minute: "2-digit" });
+function tickClock() { const c = $("clock"); if (c) c.textContent = "🕐 İstanbul " + trNow(); }
+setInterval(tickClock, 20000);
+
+// ---------- Ziyaretçiler: kimler, nereden, hangi cihazdan, saat kaçta ----------
+async function viewTraffic() {
+  tickClock();
+  const days = period["Ziyaretçiler"] || 7, d = await api("/traffic?days=" + days), v = $("view");
+  const T = d.totals || {}, dv = d.devices || { site: {}, clicks: {}, os: {} };
+  const when = days === 1 ? "bugün" : "son " + days + " gün";
+  const phoneSite = dv.site.telefon || 0, siteDev = DEVS.reduce((a, k) => a + (dv.site[k] || 0), 0);
+  const seg = h("div", { class: "seg" }, [[1, "Bugün"], [7, "7 gün"], [30, "30 gün"]].map(([n, t]) =>
+    h("button", { class: n === days ? "on" : "", onclick: () => { period["Ziyaretçiler"] = n; go("Ziyaretçiler"); } }, t)));
+  const hrs = d.hours || { site: [], clicks: [] }, nowH = Number((d.now || "").slice(11, 13));
+  const hsum = Array.from({ length: 24 }, (_, i) => (hrs.site[i] || 0) + (hrs.clicks[i] || 0)), hmax = Math.max(1, ...hsum);
+  const peak = hsum.indexOf(Math.max(...hsum));
+  const srcRows = (d.sources || []).map((r) => ({ label: r.src, total: r.n,
+    sub: (DEVS.map((k) => r[k] ? DEV[k][2] + " " + r[k] : "").filter(Boolean).join("  ")) || "",
+    parts: [...devParts(r), [Math.max(0, r.n - DEVS.reduce((a, k) => a + r[k], 0)), "#6b645a", "Cihaz bilinmiyor"]] }));
+  const refRows = (d.referrers || []).map((r) => ({ label: r.ref || "Doğrudan / bilinmiyor", total: r.n, parts: [[r.n, r.ref ? "#e9b44c" : "#6b645a"]] }));
+  const ctyRows = (d.countries || []).map((r) => ({ label: countryLabel(r.country), total: r.site + r.ext + r.clicks,
+    sub: [r.clicks ? r.clicks + " tıklama" : "", r.site ? r.site + " site" : "", r.ext ? r.ext + " eklenti" : ""].filter(Boolean).join(" · "),
+    parts: [[r.clicks, "#e8613c", "Tıklama"], [r.site, "#5fb3c4", "Site"], [r.ext, "#86c79a", "Eklenti"]] }));
+  put(v,
+    h("div", { class: "bar" }, seg, h("button", { onclick: () => go("Ziyaretçiler") }, "↻ Yenile"),
+      h("span", { class: "dim" }, "Şu an İstanbul: ", h("b", {}, d.now || "—"), " · tüm saatler İstanbul saati")),
+    errBox(d.errors),
+    h("div", { class: "kpis" },
+      h("div", { class: "kpi", style: "--c:#e8613c" }, h("b", {}, T.clicks || 0), h("span", {}, "Mağaza linki tıklaması"), h("small", {}, when)),
+      h("div", { class: "kpi", style: "--c:#5fb3c4" }, h("b", {}, T.site || 0), h("span", {}, "Siteye giren"), h("small", {}, siteDev ? "%" + pct(phoneSite, siteDev) + " telefondan" : when)),
+      h("div", { class: "kpi", style: "--c:#86c79a" }, h("b", {}, T.ext || 0), h("span", {}, "Eklentiyi kullanan"), h("small", {}, when)),
+      h("div", { class: "kpi", style: "--c:#e9b44c" }, h("b", {}, T.signups || 0), h("span", {}, "Yeni kayıt"), h("small", {}, when))),
+    h("div", { class: "panel" }, h("h3", {}, "Son girenler ", h("span", { class: "dim" }, "(son 15 hareket)")),
+      (d.recent || []).length ? h("div", { class: "wrap" }, h("table", {},
+        h("tr", {}, ["Saat", "Ne", "Nereden", "Cihaz", "Ülke"].map((t) => h("th", {}, t))),
+        d.recent.slice(0, 15).map((r) => h("tr", {}, h("td", { class: "dim dev" }, r.at),
+          h("td", {}, h("span", { class: "tag " + (r.kind === "tıklama" ? "warn" : r.kind === "eklenti" ? "ok" : "") }, r.kind === "tıklama" ? "tıkladı" : r.kind === "eklenti" ? "eklenti" : "girdi")),
+          h("td", {}, r.what || h("span", { class: "dim" }, r.kind === "eklenti" ? "—" : "doğrudan / bilinmiyor")),
+          h("td", { class: "dev" }, r.device ? (DEV[r.device] ? DEV[r.device][2] + " " + DEV[r.device][0] : r.device) + (r.os ? " · " + r.os : "") : h("span", { class: "dim" }, "—")),
+          h("td", {}, countryLabel(r.country || "?"))))))
+        : h("p", { class: "empty" }, "Henüz kayıt yok. Bu sürümden sonraki ilk tıklama ve girişler burada görünür.")),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Telefon mu bilgisayar mı? (siteye girenler)"), donut(DEVS.map((k) => [DEV[k][0], dv.site[k] || 0, DEV[k][1]]), "Site cihaz dağılımı"),
+        h("p", { class: "dim" }, "Cihaz bilgisi bu sürümden önceki girişlerde yok; o yüzden sayı kartlardan küçük olabilir.")),
+      h("div", { class: "panel" }, h("h3", {}, "Telefon mu bilgisayar mı? (linke tıklayanlar)"), donut(DEVS.map((k) => [DEV[k][0], dv.clicks[k] || 0, DEV[k][1]]), "Tıklama cihaz dağılımı"),
+        Object.keys(dv.os).length ? h("p", { class: "dim" }, "Sistem: " + Object.entries(dv.os).map(([k, n]) => k + " " + n).join(" · ")) : "")),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Hangi linkten tıkladılar? (/get?src=…)"), hbars(srcRows, "Henüz tıklama yok. Linki şöyle kullan: /get?src=reddit"),
+        h("div", { class: "legend" }, DEVS.map((k) => h("span", {}, h("i", { style: "background:" + DEV[k][1] }), DEV[k][0])), h("span", {}, h("i", { style: "background:#6b645a" }), "Cihaz bilinmiyor"))),
+      h("div", { class: "panel" }, h("h3", {}, "Siteye hangi siteden geldiler?"), hbars(refRows, "Henüz veri yok."),
+        h("p", { class: "dim" }, "Yalnızca site adı tutulur (ör. google.com). Doğrudan = adresi yazdı, kısayoldan girdi ya da site adı gizlendi."))),
+    h("div", { class: "grid2" },
+      h("div", { class: "panel" }, h("h3", {}, "Hangi ülkelerden?"), hbars(ctyRows, "Henüz veri yok."),
+        h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:#e8613c" }), "Tıklama"), h("span", {}, h("i", { style: "background:#5fb3c4" }), "Site"), h("span", {}, h("i", { style: "background:#86c79a" }), "Eklenti")),
+        h("p", { class: "dim" }, "Ülke tarayıcı dilinden tahmin edilir; kesin değildir.")),
+      h("div", { class: "panel" }, h("h3", {}, "Saat kaçta giriyorlar? (İstanbul saati)"),
+        hsum.some(Boolean) ? [h("div", { class: "hours" }, hsum.map((n, i) => h("div", { class: i === nowH ? "now" : "", title: hh(i) + ":00 · " + n + " kişi" },
+          h("i", { style: "height:" + (n / hmax) * 100 + "%" }), h("small", {}, i % 3 === 0 ? hh(i) : "")))),
+          h("p", { class: "dim" }, "En yoğun saat: ", h("b", {}, hh(peak) + ":00–" + hh((peak + 1) % 24) + ":00"), " · sarı çubuk şu anki saat")] : h("p", { class: "empty" }, "Saat bilgisi bu sürümden sonra birikir."))),
+    h("div", { class: "panel" }, h("h3", {}, "Son 14 gün"),
+      h("div", { class: "grid2" },
+        h("div", {}, h("b", { class: "big" }, "Tıklama ve site"), colChart(d.daily || [], [{ key: "clicks", label: "Link tıklaması", color: "#e8613c" }, { key: "site", label: "Siteye giren", color: "#5fb3c4" }])),
+        h("div", {}, h("b", { class: "big" }, "Eklenti ve kayıt"), colChart(d.daily || [], [{ key: "ext", label: "Eklentiyi kullanan", color: "#86c79a" }, { key: "signups", label: "Yeni kayıt", color: "#e9b44c" }]))),
+      h("p", { class: "dim" }, "Günler İstanbul saatine göre 00:00'da döner. IP kaydedilmez; her gün değişen şifreli iz sayılır, aynı kişi ertesi gün yeniden sayılır. Senin kendi tıklamaların da dahildir.")));
+}
+
 // ---------- Özet ----------
 async function viewStats() {
   const s = await api("/stats");
-  const cards = [["Toplam kullanıcı", s.users], ["Bugün kayıt", s.users_today], ["7 günde kayıt", s.users_week],
-    ["Şu an çevrimiçi (5 dk)", s.online_now], ["24 saatte aktif", s.active_24h], ["Banlı", s.banned],
-    ["Çevrilmiş kelime", s.words], ["Kullanıcı kelime kaydı", s.user_words], ["Oynanan oyun", s.games], ["Açık oda", s.rooms]];
-  const max = Math.max(1, ...s.signups.map((x) => x.n));
+  const cards = [["Toplam kullanıcı", s.users, "#e9b44c"], ["Bugün kayıt", s.users_today, "#e9b44c"], ["7 günde kayıt", s.users_week, "#e9b44c"],
+    ["Şu an çevrimiçi (5 dk)", s.online_now, "#86c79a"], ["24 saatte aktif", s.active_24h, "#86c79a"], ["Banlı", s.banned, "#e0604f"],
+    ["Çevrilmiş kelime", s.words, "#5fb3c4"], ["Kullanıcı kelime kaydı", s.user_words, "#5fb3c4"], ["Oynanan oyun", s.games, "#e8613c"], ["Açık oda", s.rooms, "#e8613c"]];
+  const fd = (x) => x.slice(8, 10) + "." + x.slice(5, 7);
   $("view").append(
-    h("div", { class: "cards" }, cards.map(([k, v]) => h("div", { class: "card" }, h("b", {}, v), h("span", {}, k)))),
+    h("div", { class: "kpis" }, cards.map(([k, val, c]) => h("div", { class: "kpi", style: "--c:" + c }, h("b", {}, val), h("span", {}, k)))),
     h("div", { class: "grid2" },
-      h("div", { class: "panel" }, h("h3", {}, "Son 14 gün kayıtlar"),
-        h("div", { class: "spark" }, s.signups.map((x) => h("i", { title: x.day + ": " + x.n, style: "height:" + (x.n / max) * 100 + "%" })))),
+      h("div", { class: "panel" }, h("h3", {}, "Son 14 gün yeni kayıtlar"),
+        s.signups.length ? colChart(s.signups.map((x) => ({ day: fd(x.day), n: x.n })), [{ key: "n", label: "Kayıt", color: "#e9b44c" }]) : h("p", { class: "empty" }, "Bu aralıkta kayıt yok.")),
       h("div", { class: "panel" }, h("h3", {}, "Eklenti çeviri istekleri (günlük)"),
-        s.usage.length ? h("table", {}, h("tr", {}, h("th", {}, "Gün"), h("th", {}, "İstek"), h("th", {}, "Hesapsız"), h("th", {}, "Kelime")),
-          s.usage.map((x) => h("tr", {}, h("td", {}, x.day), h("td", {}, x.calls), h("td", {}, x.anon), h("td", {}, x.words))))
-          : h("p", {}, "Henüz kayıt yok. Sayaç bu sürümden itibaren çalışır."),
-        s.pairs.length ? h("table", {}, h("tr", {}, h("th", {}, "Dil çifti (14 gün)"), h("th", {}, "İstek")),
-          s.pairs.map((x) => h("tr", {}, h("td", {}, x.pair), h("td", {}, x.calls)))) : ""),
-      h("div", { class: "panel" }, h("h3", {}, "Link tıklamaları (/get?src=...)"),
-        s.clicks.length ? h("table", {}, h("tr", {}, h("th", {}, "Kaynak"), h("th", {}, "Bugün"), h("th", {}, "7 gün"), h("th", {}, "30 gün")),
-          s.clicks.map((x) => h("tr", {}, h("td", {}, x.src), h("td", {}, x.d1), h("td", {}, x.d7), h("td", {}, x.d30))))
-          : h("p", {}, "Henüz tıklama yok. Linki şöyle kullan: /get?src=reddit")),
+        s.usage.length ? colChart(s.usage.map((x) => ({ day: fd(x.day), calls: x.calls, anon: x.anon })), [{ key: "calls", label: "İstek", color: "#5fb3c4" }, { key: "anon", label: "Hesapsız", color: "#6b645a" }])
+          : h("p", { class: "empty" }, "Henüz kayıt yok. Sayaç bu sürümden itibaren çalışır."),
+        s.pairs.length ? [h("h3", { style: "margin-top:16px" }, "Dil çiftleri (14 gün)"), hbars(s.pairs.map((x) => ({ label: x.pair, total: x.calls, parts: [[x.calls, "#5fb3c4"]] })))] : ""),
       botPanel(),
       h("div", { class: "panel" }, h("h3", {}, "En çok kelime toplanan içerikler"),
-        h("table", {}, s.top_sources.map((x) => h("tr", {}, h("td", {}, x.episode), h("td", {}, x.n)))))));
+        hbars(s.top_sources.map((x) => ({ label: x.episode, total: x.n, parts: [[x.n, "#e8613c"]] }))))));
 }
 
 // ---------- Bot testi: mağaza yüklemesi ↔ gerçek çeviri isteği ----------

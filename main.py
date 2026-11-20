@@ -19,7 +19,8 @@ from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
-                      record_game, tag_user_words, _throttle_ip, q, db_conn, client_ip)
+                      record_game, tag_user_words, _throttle_ip, q, db_conn, client_ip, record_visit,
+                      device_info, _visit_country, TR_TODAY)
 import admin
 import growth
 import importer
@@ -76,6 +77,10 @@ async def static_no_stale(request: Request, call_next):
     resp = await call_next(request)
     if request.url.path.startswith("/static/"):
         resp.headers["Cache-Control"] = "no-cache"   # her seferinde ETag ile kontrol et (değişmediyse 304)
+    elif (request.method == "GET" and resp.status_code == 200
+          and resp.headers.get("content-type", "").startswith("text/html")
+          and not request.url.path.startswith(("/admin", "/api", "/privacy", "/delete-account"))):
+        record_visit(request, "site")  # anonim "günde kaç farklı kişi" sayacı
     return resp
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1467,8 +1472,11 @@ def install_redirect(request: Request, src: str = "", hl: str = ""):
     tag = re.sub(r"[^a-z0-9_-]", "", (src or "").lower())[:24] or "direct"
     if not _BOT_UA.search(request.headers.get("user-agent", "")):
         try:
-            q("INSERT INTO link_clicks (day, src, n) VALUES (current_date, %s, 1) "
+            q("INSERT INTO link_clicks (day, src, n) VALUES (" + TR_TODAY + ", %s, 1) "
               "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
+            dev, os_ = device_info(request)  # telefon mu bilgisayar mı: kimlik değil, yalnızca tür
+            q("INSERT INTO link_hits (src, device, os, country) VALUES (%s, %s, %s, %s);",
+              (tag, dev, os_, _visit_country(request)))
         except Exception as e:
             print(f"Link sayaci hatasi: {e!r}")  # yonlendirmeyi bozmasin, ama loga yazilsin
     lang = re.sub(r"[^a-zA-Z-]", "", hl or "")[:8]  # mağaza dili: ?hl=tr gibi
@@ -1597,6 +1605,7 @@ def translate_words(batch: WordsBatch, request: Request):
     _throttle_ip(request, limit=240, window=60, bucket="tr")
     batch.sentence = batch.sentence[:300]
     batch.episode = batch.episode[:80]
+    record_visit(request, "ext")
     if not batch.lookup_only:
         try:
             count_usage(bool(user_from_request(request)), len(batch.words), batch.src, batch.dst)

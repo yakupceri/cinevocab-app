@@ -115,10 +115,23 @@ def init_accounts(db_config: dict):
         "CREATE TABLE IF NOT EXISTS usage_daily (day DATE PRIMARY KEY, calls INT NOT NULL DEFAULT 0, "
         "anon_calls INT NOT NULL DEFAULT 0, words INT NOT NULL DEFAULT 0);",
         "CREATE TABLE IF NOT EXISTS store_stats (day DATE PRIMARY KEY, installs INT NOT NULL DEFAULT 0, users INT NOT NULL DEFAULT 0);",
+        # Anonim ziyaretçi sayacı: IP/kullanıcı kimliği YOK, sadece günlük değişen geri döndürülemez iz (hash) + ülke tahmini
+        "CREATE TABLE IF NOT EXISTS visits_daily (day DATE NOT NULL, kind TEXT NOT NULL, vid TEXT NOT NULL, "
+        "country TEXT NOT NULL DEFAULT '', PRIMARY KEY (day, kind, vid));",
+        # Cihaz türü, işletim sistemi, nereden geldi (yalnızca site adı) ve ilk giriş saati: kimlik içermez
+        "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS device TEXT NOT NULL DEFAULT '';",
+        "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS os TEXT NOT NULL DEFAULT '';",
+        "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS ref TEXT NOT NULL DEFAULT '';",
+        "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS first_at TIMESTAMPTZ;",
+        "ALTER TABLE visits_daily ALTER COLUMN first_at SET DEFAULT now();",
         "CREATE TABLE IF NOT EXISTS usage_pairs (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
         "calls INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst));",
     ):
         q(sql)
+
+
+# Sayaçlarda "gün" Türkiye saatine göre döner (UTC+3, yaz saati yok). Gece yarısı 00:00 İstanbul'da yeni gün başlar.
+TR_TODAY = "(now() AT TIME ZONE 'Europe/Istanbul')::date"
 
 
 def _lang(v) -> str:
@@ -129,14 +142,118 @@ def _lang(v) -> str:
 def count_usage(signed_in: bool, n_words: int, src: str = "tr", dst: str = "en"):
     """Eklentiden gelen çeviri isteğini günlük toplam olarak sayar. Hata verirse çeviriyi bozmaz."""
     try:
-        q("INSERT INTO usage_daily (day, calls, anon_calls, words) VALUES (current_date, 1, %s, %s) "
+        q("INSERT INTO usage_daily (day, calls, anon_calls, words) VALUES (" + TR_TODAY + ", 1, %s, %s) "
           "ON CONFLICT (day) DO UPDATE SET calls = usage_daily.calls + 1, "
           "anon_calls = usage_daily.anon_calls + EXCLUDED.anon_calls, words = usage_daily.words + EXCLUDED.words;",
           (0 if signed_in else 1, max(0, min(int(n_words), 30))))
-        q("INSERT INTO usage_pairs (day, src, dst, calls) VALUES (current_date, %s, %s, 1) "
+        q("INSERT INTO usage_pairs (day, src, dst, calls) VALUES (" + TR_TODAY + ", %s, %s, 1) "
           "ON CONFLICT (day, src, dst) DO UPDATE SET calls = usage_pairs.calls + 1;", (_lang(src), _lang(dst)))
     except Exception as e:
         print(f"Sayaç hatası: {e}")
+
+
+# ---------- Anonim ziyaretçi sayacı ----------
+# Gün + IP + tarayıcı bilgisinden, sunucudaki gizli bir anahtarla geri döndürülemez kısa bir iz üretilir.
+# Ham IP hiçbir yere yazılmaz; iz her gün değiştiği için ertesi gün aynı kişiyle eşleştirilemez.
+_SEEN = set()
+_SEEN_DAY = [""]
+_BOT_RE = re.compile(r"bot|crawl|spider|slurp|curl|wget|python|headless|preview|monitor|uptime|check", re.I)
+_VISIT_EXEC = None
+
+
+def _visit_key() -> bytes:
+    k = os.environ.get("VISIT_SALT") or os.environ.get("DATABASE_URL") or "cinevocab"
+    return k.encode()
+
+
+def _visit_country(request: Request) -> str:
+    cf = (request.headers.get("cf-ipcountry") or "").strip().upper()  # Cloudflare arkadaysa gerçek ülke
+    if re.fullmatch(r"[A-Z]{2}", cf) and cf not in ("XX", "T1"):
+        return cf
+    al = (request.headers.get("accept-language") or "").split(",")[0].strip()
+    m = re.match(r"^([a-zA-Z]{2,3})(?:-[A-Za-z]{4})?-([A-Za-z]{2})\b", al)
+    if m:
+        return m.group(2).upper()
+    m = re.match(r"^([a-zA-Z]{2,3})", al)
+    return ("dil:" + m.group(1).lower()) if m else "?"
+
+
+def device_info(request: Request):
+    """(cihaz, işletim sistemi): telefon / bilgisayar / tablet ve Android, iOS, Windows... Yalnızca tarayıcı bilgisinden tahmin."""
+    ua = (request.headers.get("user-agent") or "").lower()
+    ch_mobile = (request.headers.get("sec-ch-ua-mobile") or "").strip()
+    if "ipad" in ua or "tablet" in ua or ("android" in ua and "mobile" not in ua):
+        dev = "tablet"
+    elif ch_mobile == "?1" or re.search(r"mobi|iphone|ipod|android", ua):
+        dev = "telefon"
+    else:
+        dev = "bilgisayar"
+    if "android" in ua:
+        os_ = "Android"
+    elif re.search(r"iphone|ipad|ipod", ua):
+        os_ = "iOS"
+    elif "windows" in ua:
+        os_ = "Windows"
+    elif "cros" in ua:
+        os_ = "ChromeOS"
+    elif "mac os x" in ua or "macintosh" in ua:
+        os_ = "macOS"
+    elif "linux" in ua or "x11" in ua:
+        os_ = "Linux"
+    else:
+        os_ = "diğer"
+    return dev, os_
+
+
+def ref_source(request: Request) -> str:
+    """Ziyaretçi nereden geldi: ?src=/utm_source= etiketi varsa o, yoksa yönlendiren sitenin adı (yol ve parametre saklanmaz)."""
+    tag = re.sub(r"[^a-z0-9_-]", "", (request.query_params.get("src") or request.query_params.get("utm_source") or "").lower())[:24]
+    if tag:
+        return tag
+    ref = request.headers.get("referer") or ""
+    m = re.match(r"^https?://([^/:?#]+)", ref, re.I)
+    if not m:
+        return ""
+    host = m.group(1).lower()
+    host = host[4:] if host.startswith("www.") else host
+    own = (request.headers.get("host") or "").split(":")[0].lower()
+    if host == own or host.endswith(".up.railway.app") and own.endswith(".up.railway.app"):
+        return ""
+    return re.sub(r"[^a-z0-9.-]", "", host)[:40]
+
+
+def record_visit(request: Request, kind: str):
+    """kind: 'site' (sayfa açma) ya da 'ext' (eklenti kullanımı). Günde bir kişi bir kez sayılır. Hata çeviriyi/sayfayı bozmaz."""
+    global _VISIT_EXEC
+    try:
+        ua = request.headers.get("user-agent") or ""
+        if not ua or _BOT_RE.search(ua):
+            return
+        day = time.strftime("%Y-%m-%d", time.gmtime(time.time() + 3 * 3600))  # İstanbul günü
+        if _SEEN_DAY[0] != day or len(_SEEN) > 50000:
+            _SEEN.clear()
+            _SEEN_DAY[0] = day
+        vid = hmac.new(_visit_key(), f"{day}|{client_ip(request)}|{ua}".encode(), "sha256").hexdigest()[:16]
+        key = (kind, vid)
+        if key in _SEEN:
+            return
+        _SEEN.add(key)
+        country = _visit_country(request)
+        device, os_ = device_info(request)
+        ref = ref_source(request) if kind == "site" else ""
+        if _VISIT_EXEC is None:
+            import concurrent.futures
+            _VISIT_EXEC = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+        def write():
+            try:
+                q("INSERT INTO visits_daily (day, kind, vid, country, device, os, ref) VALUES (" + TR_TODAY + ", %s, %s, %s, %s, %s, %s) "
+                  "ON CONFLICT DO NOTHING;", (kind, vid, country, device, os_, ref))
+            except Exception as e:
+                print(f"Ziyaret sayacı hatası: {e}")
+        _VISIT_EXEC.submit(write)
+    except Exception as e:
+        print(f"Ziyaret sayacı hatası: {e}")
 
 
 # ---------- Parola ve oturum ----------
@@ -605,14 +722,14 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 14 Kasım 2026</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 20 Kasım 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir ve bunları kişisel kelime listene kaydeder. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (Google'dan e-posta adresin, adın ve fotoğrafın alınıp saklanmaz). Kullanıcı adı ve parolayla hesap açarken doğrulama kodu göndermek için e-posta adresin istenir ve hesabınla birlikte saklanır; hesabını silince o da silinir, reklam ya da bülten için kullanılmaz, oturum anahtarların, son görülme zamanın ve hesabını nerede açtığın (site, eklenti ya da mobil uygulama). Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
-<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li></ul>
+<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li>\n<li><b>Anonim ziyaretçi sayacı:</b> Günde kaç farklı kişinin siteyi ya da eklentiyi kullandığını görmek için, IP adresinden ve tarayıcı bilgisinden her gün değişen, geri döndürülemeyen kısa bir iz üretilir; IP adresin kendisi kaydedilmez ve ertesi gün seninle eşleştirilemez. Bununla birlikte tarayıcı dilinden tahmin edilen ülke bilgisi tutulur.</li></ul>
 <h2>Sesli okuma ve mikrofon (isteğe bağlı)</h2><p>Kelimeleri seslendirme özelliği cihazının kendi sesini kullanır; sunucuya hiçbir şey gönderilmez. Konuşma düellosunda mikrofonu yalnızca sen düğmeye dokununca kullanabilirsin. Konuşmayı yazıya çevirme işini tarayıcın yapar (Chrome, sesi bu iş için Google'ın konuşma tanıma hizmetine gönderebilir). Sunucumuz yalnızca tanınan <b>metni</b> alır; ses kaydı almaz, saklamaz. İstersen mikrofon yerine cevabı yazabilirsin.</p>
 <h2>Günlük meydan okuma ve bulmaca</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür. Günün bulmacasında çözme süren ve sonucun saklanır.</p>
 <h2>Android uygulaması</h2><p>CineVocab Android uygulaması aynı hesabı ve yukarıdaki aynı verileri kullanır. Uygulama oturum anahtarını ve ayarlarını (dil, günlük hedef) yalnızca telefonunda saklar. Uygulamaya bir metin yapıştırdığında ya da bir altyazı dosyası seçtiğinde metin yalnızca telefonunda okunur; sunucumuza yalnızca metindeki kelimelerin listesi ve senin verdiğin ad gönderilir. Uygulama hiçbir siteden içerik çekmez. Uygulama konumunu, rehberini, fotoğraflarını ya da mikrofonunu kullanmaz; reklam ve izleme (analitik) aracı içermez. Hatırlatma bildirimleri telefonunda oluşturulur ve yalnızca sen izin verirsen gösterilir. Sonucunu ya da davet bağlantını paylaşmak tamamen senin seçimindir.</p>
@@ -627,14 +744,14 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <title>CineVocab Privacy Policy</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <p><a href="/privacy?lang=tr">Türkçe</a></p>
-<h1>CineVocab Privacy Policy</h1><p>Last updated: November 14, 2026</p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: November 20, 2026</p>
 <h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site", and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose and saves them to your personal word list. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page.</p>
 <h2>What data we collect</h2><ul>
 <li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not taken from Google or stored). When you create an account with a username and password, your email address is requested to send a verification code and is stored with your account; it is deleted when you delete your account and is never used for ads or newsletters, your session keys, your last-seen time and where you created the account (website, extension or mobile app). If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>
-<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li></ul>
+<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li>\n<li><b>Anonymous visitor counter:</b> To see how many different people use the site or the extension each day, we derive a short irreversible token from your IP address and browser details that changes every day; your IP address itself is not stored and the token cannot be matched to you the next day. We also keep a country estimate taken from your browser language.</li></ul>
 <h2>Read-aloud and microphone (optional)</h2><p>The read-aloud feature uses your device's own voices; nothing is sent to our server. In the speaking duel the microphone is used only when you tap the button. Your browser converts speech to text (Chrome may send the audio to Google's speech-recognition service for this). Our server receives only the recognised <b>text</b>; we do not receive, record or store audio. You can type your answer instead of using the microphone.</p>
 <h2>Daily challenge and puzzle</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard. In the daily puzzle, your solving time and result are stored.</p>
 <h2>Android app</h2><p>The CineVocab Android app uses the same account and the same data described above. The app keeps your session key and settings (language, daily goal) only on your phone. When you paste a text or pick a subtitle file, it is read only on your phone; only the list of words in it and the name you give it are sent to our server. The app does not fetch content from any site. The app does not use your location, contacts, photos or microphone, and contains no advertising or tracking (analytics) tools. Reminder notifications are created on your phone and shown only if you allow them. Sharing your result or your invite link is entirely your choice.</p>

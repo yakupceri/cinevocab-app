@@ -15,13 +15,13 @@ import hashlib
 import hmac
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from accounts import q, _hash, client_ip, delete_user_data
+from accounts import q, _hash, client_ip, delete_user_data, TR_TODAY
 
 router = APIRouter()
 hooks = {}  # main.py doldurur: rooms, providers, reset_providers, kick_user
@@ -142,8 +142,17 @@ def admin_session(request: Request):
 
 # ---------- Yardımcılar ----------
 
+# Türkiye'de yaz saati yok: her zaman UTC+3. Veritabanındaki saatler sunucu saatiyle (UTC) tutulur; panelde İstanbul saati gösterilir.
+_TR = timezone(timedelta(hours=3))
+
+
 def _iso(dt):
-    return dt.strftime("%Y-%m-%d %H:%M") if dt else None
+    return dt.astimezone(_TR).strftime("%Y-%m-%d %H:%M") if dt else None
+
+
+def _tr_ts(col: str) -> str:
+    """SQL: 'timestamp without time zone' sütununu İstanbul yerel saatine çevirir (sunucu saat dilimi neyse onu esas alır)."""
+    return f"timezone('Europe/Istanbul', {col} AT TIME ZONE current_setting('TimeZone'))"
 
 
 def _until(dt):
@@ -193,22 +202,112 @@ def stats(request: Request):
         "games": one("SELECT count(*) FROM game_results;"),
         "rooms": len(hooks["rooms"]()) if "rooms" in hooks else 0,
         "signups": [{"day": str(r[0]), "n": r[1]} for r in q(
-            "SELECT created_at::date d, count(*) FROM users WHERE created_at > now() - interval '14 days' "
-            "GROUP BY d ORDER BY d;", (), True)],
+            "SELECT d, count(*) FROM (SELECT " + _tr_ts("created_at") + "::date AS d FROM users "
+            "WHERE created_at > now() - interval '16 days') t WHERE d > " + TR_TODAY + " - 14 GROUP BY d ORDER BY d;", (), True)],
         "usage": [{"day": str(r[0]), "calls": r[1], "anon": r[2], "words": r[3]} for r in q(
-            "SELECT day, calls, anon_calls, words FROM usage_daily WHERE day > current_date - 14 "
+            "SELECT day, calls, anon_calls, words FROM usage_daily WHERE day > " + TR_TODAY + " - 14 "
             "ORDER BY day;", (), True)],
         "pairs": [{"pair": r[0] + "→" + r[1], "calls": r[2]} for r in q(
-            "SELECT src, dst, sum(calls) FROM usage_pairs WHERE day > current_date - 14 "
+            "SELECT src, dst, sum(calls) FROM usage_pairs WHERE day > " + TR_TODAY + " - 14 "
             "GROUP BY src, dst ORDER BY sum(calls) DESC LIMIT 12;", (), True)],
-        "clicks": [{"src": r[0], "d1": int(r[1]), "d7": int(r[2]), "d30": int(r[3])} for r in q(
-            "SELECT src, coalesce(sum(n) FILTER (WHERE day = current_date), 0), "
-            "coalesce(sum(n) FILTER (WHERE day > current_date - 7), 0), coalesce(sum(n), 0) "
-            "FROM link_clicks WHERE day > current_date - 30 GROUP BY src ORDER BY 4 DESC LIMIT 20;", (), True)],
         "top_sources": [{"episode": r[0], "n": r[1]} for r in q(
             "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
     }
+
+
+# ---------- Ziyaretçiler: kim, nereden, hangi cihazdan, saat kaçta (hepsi İstanbul saati) ----------
+
+@router.get("/admin/api/traffic")
+def traffic(request: Request, days: int = 7):
+    """Kimlik yok: yalnızca sayılar, cihaz türü, ülke tahmini, yönlendiren site adı ve saat."""
+    need_admin(request)
+    days = max(1, min(int(days), 90))
+    out = {"days": days}
+    win_v = "day > " + TR_TODAY + " - %s"
+    win_h = "timezone('Europe/Istanbul', at)::date > " + TR_TODAY + " - %s"
+
+    _block(out, "now", lambda: q("SELECT to_char(now() AT TIME ZONE 'Europe/Istanbul', 'DD.MM.YYYY HH24:MI');",
+                                 (), True)[0][0], "")
+
+    def totals():
+        site, ext = q("SELECT count(*) FILTER (WHERE kind = 'site'), count(*) FILTER (WHERE kind = 'ext') "
+                      "FROM visits_daily WHERE " + win_v + ";", (days,), True)[0]
+        clicks = q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + win_v + ";", (days,), True)[0][0]
+        signups = q("SELECT count(*) FROM users WHERE " + _tr_ts("created_at") + "::date > " + TR_TODAY + " - %s;",
+                    (days,), True)[0][0]
+        return {"site": int(site), "ext": int(ext), "clicks": int(clicks), "signups": int(signups)}
+    _block(out, "totals", totals, {})
+
+    _block(out, "daily", lambda: [
+        {"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4])} for r in q(
+            "WITH d AS (SELECT g::date AS day FROM generate_series(" + TR_TODAY + " - 13, " + TR_TODAY + ", interval '1 day') g) "
+            "SELECT to_char(d.day, 'DD.MM'), "
+            "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'site'), "
+            "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'ext'), "
+            "(SELECT coalesce(sum(n), 0) FROM link_clicks c WHERE c.day = d.day), "
+            "(SELECT count(*) FROM users u WHERE " + _tr_ts("u.created_at") + "::date = d.day) "
+            "FROM d ORDER BY d.day;", (), True)], [])
+
+    def devices():
+        res = {"site": {}, "clicks": {}, "os": {}}
+        for dev, n in q("SELECT device, count(*) FROM visits_daily WHERE kind = 'site' AND device <> '' AND " + win_v +
+                        " GROUP BY device;", (days,), True):
+            res["site"][dev] = int(n)
+        for dev, n in q("SELECT device, count(*) FROM link_hits WHERE device <> '' AND " + win_h + " GROUP BY device;",
+                        (days,), True):
+            res["clicks"][dev] = int(n)
+        for os_, n in q("SELECT os, sum(n) FROM (SELECT os, count(*) n FROM visits_daily WHERE kind = 'site' AND os <> '' AND " + win_v +
+                        " GROUP BY os UNION ALL SELECT os, count(*) FROM link_hits WHERE os <> '' AND " + win_h +
+                        " GROUP BY os) t GROUP BY os ORDER BY 2 DESC;", (days, days), True):
+            res["os"][os_] = int(n)
+        return res
+    _block(out, "devices", devices, {"site": {}, "clicks": {}, "os": {}})
+
+    _block(out, "referrers", lambda: [{"ref": r[0], "n": int(r[1])} for r in q(
+        "SELECT ref, count(*) FROM visits_daily WHERE kind = 'site' AND " + win_v + " GROUP BY ref ORDER BY 2 DESC LIMIT 12;",
+        (days,), True)], [])
+
+    def sources():
+        rows = {r[0]: {"src": r[0], "n": int(r[1]), "telefon": 0, "bilgisayar": 0, "tablet": 0} for r in q(
+            "SELECT src, sum(n) FROM link_clicks WHERE " + win_v + " GROUP BY src ORDER BY 2 DESC LIMIT 15;", (days,), True)}
+        for src, dev, n in q("SELECT src, device, count(*) FROM link_hits WHERE " + win_h + " GROUP BY src, device;",
+                             (days,), True):
+            if src in rows and dev in ("telefon", "bilgisayar", "tablet"):
+                rows[src][dev] = int(n)
+        return list(rows.values())
+    _block(out, "sources", sources, [])
+
+    def countries():
+        c = {}
+        for k, s_, e in q("SELECT country, count(*) FILTER (WHERE kind = 'site'), count(*) FILTER (WHERE kind = 'ext') "
+                          "FROM visits_daily WHERE " + win_v + " GROUP BY country;", (days,), True):
+            c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0}).update(site=int(s_), ext=int(e))
+        for k, n in q("SELECT country, count(*) FROM link_hits WHERE " + win_h + " GROUP BY country;", (days,), True):
+            c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0})["clicks"] = int(n)
+        top = sorted(c.items(), key=lambda kv: -(kv[1]["site"] + kv[1]["ext"] + kv[1]["clicks"]))[:10]
+        return [{"country": k, **v} for k, v in top]
+    _block(out, "countries", countries, [])
+
+    def hours():
+        v, c = [0] * 24, [0] * 24
+        for h, n in q("SELECT extract(hour FROM timezone('Europe/Istanbul', first_at))::int, count(*) FROM visits_daily "
+                      "WHERE kind = 'site' AND first_at IS NOT NULL AND " + win_v + " GROUP BY 1;", (days,), True):
+            v[int(h)] = int(n)
+        for h, n in q("SELECT extract(hour FROM timezone('Europe/Istanbul', at))::int, count(*) FROM link_hits "
+                      "WHERE " + win_h + " GROUP BY 1;", (days,), True):
+            c[int(h)] = int(n)
+        return {"site": v, "clicks": c}
+    _block(out, "hours", hours, {"site": [0] * 24, "clicks": [0] * 24})
+
+    _block(out, "recent", lambda: [
+        {"at": r[0], "kind": r[1], "what": r[2], "device": r[3], "os": r[4], "country": r[5]} for r in q(
+            "SELECT to_char(timezone('Europe/Istanbul', t), 'DD.MM HH24:MI'), kind, what, device, os, country FROM ("
+            "(SELECT at AS t, 'tıklama' AS kind, src AS what, device, os, country FROM link_hits ORDER BY at DESC LIMIT 30) "
+            "UNION ALL "
+            "(SELECT first_at, CASE kind WHEN 'ext' THEN 'eklenti' ELSE 'site' END, ref, device, os, country FROM visits_daily "
+            "WHERE first_at IS NOT NULL ORDER BY first_at DESC LIMIT 30)) x ORDER BY t DESC LIMIT 30;", (), True)], [])
+    return out
 
 
 # ---------- Kullanıcılar ----------
@@ -725,7 +824,7 @@ def funnel(request: Request, days: int = 30):
     need_admin(request)
     days = max(1, min(int(days), 365))
     out = {"days": days}
-    _block(out, "clicks", lambda: int(q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE day > current_date - %s;",
+    _block(out, "clicks", lambda: int(q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE day > " + TR_TODAY + " - %s;",
                                         (days,), True)[0][0]), 0)
     _block(out, "steps", lambda: _funnel_row(q(_FUNNEL_CTE + "SELECT " + _FUNNEL_COLS + " FROM j;", (days,), True)[0]), {})
     _block(out, "cohorts", lambda: [
