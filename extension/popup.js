@@ -58,10 +58,22 @@ document.querySelectorAll("#tabs button").forEach((b) => { b.lastElementChild.te
 function paint() {
   $("sw").setAttribute("aria-checked", String(!!st.enabled));
   $("state").textContent = st.enabled ? T("status_on") : T("stOff");
-  $("hint").textContent = st.enabled ? T("tapOff") : T("tapOn");
+  $("hint").textContent = st.enabled ? T("tapOff") : T("startNow");
+  steps();
   $("src").value = st.src; $("dst").value = st.dst;
 }
+// Nasıl başlarım: üç adımın hangisi tamam, canlı gösterilir. Hepsi tamamsa tek satır "hazır" yazar.
+let tabOk = false, subOk = false, detTs = 0;
+function steps() {
+  const s = [!!st.enabled, tabOk, st.enabled && (subOk || Date.now() - detTs < 15000)];
+  const txt = [st.enabled ? T("st1on") : T("st1off"), T("st2"), T("st3")];
+  $("howT").textContent = T("howT");
+  ["st1", "st2", "st3"].forEach((id, i) => { $(id).className = s[i] ? "done" : ""; $(id).lastElementChild.textContent = txt[i]; });
+  const all = s.every(Boolean);
+  $("steps").hidden = all; $("howT").hidden = all; $("howOk").hidden = !all; $("howOk").textContent = T("stReady");
+}
 function showDet(d) {
+  detTs = (d && d.ts) || 0; steps();
   const n = $("det"); n.className = "note"; n.textContent = "";
   if (!st.enabled || !d || Date.now() - d.ts > 60000 || !d.lang) return;
   if (d.ok === false) {
@@ -73,23 +85,22 @@ function showDet(d) {
     }
   } else { n.className = "note ok"; n.textContent = T("detected", CVL.langName(d.lang)); }
 }
-// Altyazı kapalıysa uyar: etkin sekmedeki içerik betiği son 10 sn içinde altyazı okuyamadıysa
+// Etkin sekmede CineVocab çalışıyor mu, son 10 sn içinde altyazı okudu mu: adım listesi buna göre işaretlenir
 function checkSubs() {
-  if (!st.enabled) return;
   try {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const t = tabs && tabs[0]; if (!t || t.id == null) return;
       chrome.tabs.sendMessage(t.id, { cv: "ping" }, (r) => {
         void chrome.runtime.lastError;
-        if (!r || !r.ok || !st.enabled) return;
-        if (!r.seenAt || Date.now() - r.seenAt > 10000) { const n = $("det"); n.className = "note bad"; n.textContent = T("noSub"); }
+        tabOk = !!(r && r.ok); subOk = !!(r && r.seenAt && Date.now() - r.seenAt < 10000);
+        steps();
       });
     });
   } catch (e) {}
 }
 setTimeout(checkSubs, 600); setInterval(checkSubs, 3000);
 
-$("sw").onclick = () => { st.enabled = !st.enabled; chrome.storage.local.set({ enabled: st.enabled }); paint(); if (!st.enabled) showDet(null); };
+$("sw").onclick = () => { st.enabled = !st.enabled; chrome.storage.local.set({ enabled: st.enabled, startAsk: st.enabled ? null : "no" }); paint(); if (!st.enabled) showDet(null); };
 function pair(changed) {
   let src = $("src").value, dst = $("dst").value;
   if (src === dst) { if (changed === "src") dst = LANGS.find((l) => l !== src); else src = LANGS.find((l) => l !== dst); }

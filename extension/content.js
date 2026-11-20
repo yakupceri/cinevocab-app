@@ -2,7 +2,7 @@ window.__cvLoaded = true; // aynı çerçeveye iki kez yüklenmesin
 const IS_YT = location.hostname.endsWith("youtube.com");
 let SRC = "tr";
 let DST = "en";
-let ENABLED = false; // varsayılan KAPALI: kullanıcı açmadıkça hiçbir şey çevrilmez
+let ENABLED = false; // ayar okunana kadar kapalı. Yeni kurulumda ayar AÇIK gelir (background.js); kapalıyken hiçbir şey çevrilmez
 const guard = new CVL.Guard(); // altyazı dili kontrolü
 const knownCache = new Set(); // "biliyorum" dediğin kelimeler (çevirisi gösterilmez)
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
@@ -38,7 +38,18 @@ ovStyle.textContent = `
 .ep { font-size:12px; color:#9fb3ae; margin-bottom:4px; }
 .msg { max-width:24em; font-weight:600; white-space:normal; }
 .fix { all:unset; box-sizing:border-box; display:inline-block; margin-top:.7em; padding:.5em 1em; border-radius:.7em; background:linear-gradient(180deg,#ffc56b,#ff8a3d); color:#2a1204; font-weight:800; cursor:pointer; pointer-events:auto; }
+.fix.later { margin-left:.6em; background:rgba(255,255,255,.14); color:#fff; font-weight:600; }
 .fix:hover { filter:brightness(1.07); } .fix:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+[hidden] { display:none !important; }
+.lg { display:flex; align-items:center; gap:.6em; margin-bottom:.4em; font-size:max(11px, .74em); font-weight:600; color:#b9c9c4; white-space:nowrap; }
+.lg button, .pick button { all:unset; box-sizing:border-box; cursor:pointer; pointer-events:auto; }
+.lg button { padding:.12em .7em; border-radius:99px; border:1px solid rgba(255,197,107,.7); color:#ffc56b; font-weight:700; }
+.lg button:hover { background:#ffc56b; color:#2a1204; } .lg button:focus-visible, .pick button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.pick { max-width:27em; white-space:normal; }
+.pick b { display:block; margin:.5em 0 .35em; font-size:.9em; }
+.pick .l { display:inline-block; margin:0 .35em .35em 0; padding:.2em .7em; border-radius:99px; border:1px solid rgba(246,239,223,.3); font-size:.84em; font-weight:600; }
+.pick .l:hover { background:rgba(246,239,223,.16); } .pick .l.on { background:#ffc56b; border-color:#ffc56b; color:#2a1204; font-weight:800; }
+.pick .ok { display:inline-block; margin-top:.5em; padding:.45em 1.4em; border-radius:.7em; background:linear-gradient(180deg,#ffc56b,#ff8a3d); color:#2a1204; font-weight:800; }
 .sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(246,239,223,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
 .hint { margin-top:.6em; font-size:12px; font-weight:600; color:#ffc56b; }
 .grip { position:absolute; right:-7px; bottom:-7px; width:22px; height:22px; display:none; pointer-events:auto; cursor:nwse-resize; touch-action:none; }
@@ -60,7 +71,10 @@ const ovBoxEl = document.createElement("div"); ovBoxEl.className = "box";
 const ovContent = document.createElement("div");
 const ovGrip = document.createElement("i"); ovGrip.className = "grip";
 const ovWgrip = document.createElement("i"); ovWgrip.className = "wgrip";
-ovBoxEl.append(ovContent, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
+// Dil satırı ve dil seçici: uzantı penceresini açmadan, doğrudan videonun üstünde
+const ovHead = document.createElement("div"); ovHead.className = "lg";
+const ovPick = document.createElement("div"); ovPick.className = "pick"; ovPick.hidden = true;
+ovBoxEl.append(ovHead, ovContent, ovPick, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
 
 const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false, w: 0, c: 0 };
 const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff"]; // çeviri rengi seçenekleri
@@ -99,7 +113,35 @@ function applyWidth() {
   else { ovWrap.style.removeProperty("--bw"); ovWrap.style.removeProperty("--mw"); }
 }
 function saveBox() { try { chrome.storage.local.set({ box: BOX }); } catch (e) {} }
+let picking = false; // dil seçici açıkken kutu kendiliğinden kapanmaz
+function ovButton(cls, label, fn) {
+  const b = document.createElement("button"); b.className = cls; b.textContent = label;
+  b.addEventListener("pointerdown", (e) => e.stopPropagation());
+  b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); fn(); });
+  return b;
+}
+function paintHead() {
+  const t = document.createElement("span");
+  t.textContent = CVL.t("lgSub", CVL.langName(SRC)) + "  →  " + CVL.t("lgTr", CVL.langName(DST));
+  ovHead.replaceChildren(t, ovButton("", CVL.t("lgChange"), () => (picking ? closePick() : openPick())));
+}
+function paintPick() {
+  const row = (title, cur, set) => {
+    const b = document.createElement("b"); b.textContent = title; const d = document.createElement("div");
+    for (const l of SUB_LANGS) d.append(ovButton("l" + (l === cur ? " on" : ""), CVL.langName(l), () => set(l)));
+    return [b, d];
+  };
+  // Aynı dil iki tarafta seçilirse diğer taraf eski değeri alır (iki dil hep farklı kalır)
+  const save = (src, dst) => { try { chrome.storage.local.set({ src, dst, det: null }); } catch (e) {} SRC = src; DST = dst; applyPair(); paintPick(); };
+  ovPick.replaceChildren(
+    ...row(CVL.t("pickSub"), SRC, (l) => save(l, l === DST ? SRC : DST)),
+    ...row(CVL.t("pickDst"), DST, (l) => save(l === SRC ? DST : SRC, l)),
+    ovButton("ok", CVL.t("pickDone"), closePick));
+}
+function openPick() { picking = true; clearTimeout(hideTimer); ovContent.hidden = true; ovPick.hidden = false; paintPick(); showBox(true); }
+function closePick() { picking = false; ovPick.hidden = true; ovContent.hidden = false; clearTimeout(hideTimer); hideTimer = setTimeout(() => showBox(false), 2500); placeBox(); }
 function showBox(on) {
+  if (!on && picking) return;
   overlayBox.style.display = on ? "block" : "none";
   if (on) { placeBox(); }
 }
@@ -504,6 +546,7 @@ function showSentence(sentence) {
     if (transLine.textContent === "…") transLine.textContent = "";
   };
 
+  let fullSent = false;
   // lookupOnly=true: sadece veritabanı/sözlük (anında); false: gerçek çeviri
   function request(list, attempt, lookupOnly) {
     if (myId !== sentenceId) return;
@@ -522,12 +565,21 @@ function showSentence(sentence) {
       (res) => {
         answered = true;
         clearTimeout(watchdog);
+        const err = chrome.runtime.lastError;
+        // Cevap geç kalsa bile (ekranda artık başka cümle var) çeviriler önbelleğe alınır:
+        // arka arkaya gelen cümlelerde aynı kelime bir daha sunucuyu beklemez.
+        if (!err && res && res.status === "success") {
+          for (const w of res.known || []) knownCache.add(w);
+          for (const [w, eng] of Object.entries(res.results || {})) if (!knownCache.has(w)) wordCache.set(w, eng);
+          if (res.sentence_en) { sentCache.set(sentence, res.sentence_en); if (sentCache.size > 200) sentCache.delete(sentCache.keys().next().value); }
+        }
         if (myId !== sentenceId) return;
         if (res && res.status === "disabled") return; // kapatıldı
+        if (lookupOnly && fullSent && (err || res?.status !== "success")) return; // gerçek çeviri isteği zaten yolda, o yeniden dener
         console.log("CineVocab cevap:", lookupOnly ? "hızlı" : "tam", res);
 
-        if (chrome.runtime.lastError || res?.status !== "success") {
-          const why = chrome.runtime.lastError?.message || res?.message || "cevap yok";
+        if (err || res?.status !== "success") {
+          const why = err?.message || res?.message || "cevap yok";
           console.warn("CineVocab hata:", why);
           status(/401/.test(why) ? CVL.t("noKey") : "⚠ " + why);
           if (attempt < RETRY_DELAYS.length) {
@@ -555,6 +607,7 @@ function showSentence(sentence) {
 
         if (lookupOnly) {
           // Hızlı arama bitti (kelimeler bölüme/hesaba yazıldı).
+          if (fullSent) return; // eksikler için gerçek çeviri aynı anda istendi
           const unknown = res.pending || [];
           if (!unknown.length) {
             // Hepsi biliniyor. YouTube'un kayan otomatik altyazılarında her değişiklik için
@@ -581,7 +634,12 @@ function showSentence(sentence) {
     );
   }
 
+  // Hız: eskiden önce "hızlı arama" yapılır, cevabı gelince eksikler için ikinci istek gönderilirdi (iki gidiş-dönüş).
+  // Artık bu cihazın önbelleğinde olmayan kelime varsa gerçek çeviri isteği aynı anda yola çıkar.
+  const need = uniqueWords.filter((w) => !knownCache.has(w) && !wordCache.has(w));
+  fullSent = need.length > 0;
   request(uniqueWords, 0, true);
+  if (fullSent) request(need, 0, false);
 }
 
 // ---------- Saf Altyazı Yakalama ----------
@@ -709,13 +767,65 @@ function showMismatch(lang) {
   hideTimer = setTimeout(() => { noticeUntil = 0; showBox(false); }, NOTICE_MS);
 }
 
+// ---------- Yol gösteren kutular: kullanıcı açılır pencereyi hiç açmadan başlayabilsin ----------
+// 1) Eklenti kapalıyken sayfada altyazı varsa: videonun üstünde "Çeviriyi başlat" düğmesi (sayfa başına bir kez).
+//    Altyazı yalnızca sayfada okunur; düğmeye basılana kadar sunucuya hiçbir şey gitmez.
+// 2) Eklenti açık, video oynuyor ama altyazı yoksa: "altyazıyı (CC) aç" bilgisi (video başına bir kez).
+let ASK = true, askShown = false, askTick = 0, ccPlayed = 0, ccFor = "";
+function guide(text, btnText, onBtn, closeText, onClose, ms) {
+  sentenceId++;
+  ovContent.textContent = "";
+  const msg = document.createElement("div"); msg.className = "msg"; msg.textContent = text; ovContent.appendChild(msg);
+  const mk = (label, cls, fn) => {
+    const b = document.createElement("button"); b.className = cls; b.textContent = label;
+    b.addEventListener("pointerdown", (e) => e.stopPropagation());
+    b.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); noticeUntil = 0; showBox(false); fn(); });
+    ovContent.appendChild(b);
+  };
+  if (btnText) mk(btnText, "fix", onBtn);
+  if (closeText) mk(closeText, "fix later", onClose);
+  noticeUntil = Date.now() + ms;
+  showBox(true);
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => { noticeUntil = 0; showBox(false); }, ms);
+}
+function askStart() {
+  askShown = true;
+  guide(CVL.t("askStart"), CVL.t("startNow"), () => { try { chrome.storage.local.set({ enabled: true, startAsk: null }); } catch (e) {} },
+    CVL.t("notNow"), () => { ASK = false; try { chrome.storage.local.set({ startAsk: "no" }); } catch (e) {} }, 25000);
+}
+function playingVideo() {
+  for (const v of document.querySelectorAll("video")) if (!v.paused && !v.ended && v.readyState > 2 && v.offsetWidth >= 300) return v;
+  return null;
+}
+function ccGuide() {
+  // Altyazı az önce göründüyse (konuşma arası) ya da YouTube'da CC zaten açıksa uyarma
+  if (Date.now() < noticeUntil || Date.now() - seenAt < 60000 || !playingVideo()) return;
+  if (IS_YT && document.querySelector(".ytp-subtitles-button[aria-pressed='true']")) return;
+  ccPlayed += POLL_MS;
+  if (ccPlayed < 8000 || ccFor === location.href) return;
+  ccFor = location.href;
+  const yt = IS_YT ? document.querySelector(".ytp-subtitles-button[aria-pressed='false']") : null;
+  if (!yt) { guide(CVL.t("ccOff"), "", null, "", null, 14000); return; }
+  guide(CVL.t("ccOff"), CVL.t("ccOn"), () => {
+    const at = Date.now();
+    try { yt.click(); } catch (e) {}
+    setTimeout(() => { if (ENABLED && seenAt < at && playingVideo()) guide(CVL.t("noCc"), "", null, "", null, 12000); }, 9000);
+  }, "", null, 20000);
+}
+
 setInterval(() => {
-  if (!ENABLED) return;
+  if (!ENABLED) {
+    // Kapalıyken saniyede bir bak: altyazı görünüyorsa başlatma düğmesini göster
+    if (ASK && !askShown && ++askTick % 10 === 0 && readSubtitle().replace(/\s+/g, " ").trim().length > 2) askStart();
+    return;
+  }
   const text = readSubtitle().replace(/\s+/g, " ").trim();
 
-  if (text) seenAt = Date.now();
+  if (text) { seenAt = Date.now(); ccPlayed = 0; }
   if (!text) {
     lastSubtitle = ""; // altyazı kayboldu; aynı cümle tekrar gelirse yeniden işle
+    ccGuide();
     return;
   }
   if (IS_YT) {
@@ -754,25 +864,29 @@ try { chrome.runtime.onMessage.addListener((m, _s, send) => { if (m && m.cv === 
 
 // ---------- Ayarlar (canlı): aç/kapa ve dil değişince sayfayı yenilemeye gerek yok ----------
 function applyEnabled() {
-  if (ENABLED) return;
+  noticeUntil = 0; ccPlayed = 0;
+  if (ENABLED) { showBox(false); return; }
   sentenceId++;
   showBox(false);
   lastSubtitle = ""; ytCandidate = ""; guard.reset();
 }
 function applyEnabledAll() { applyEnabled(); applyHide(); }
 function applyPair() {
+  paintHead();
   wordCache.clear(); sentCache.clear(); knownCache.clear(); loadStars();
   lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0; noticeUntil = 0;
 }
 try {
-  chrome.storage.local.get(["enabled", "src", "dst", "hideOrig"], (r) => {
+  chrome.storage.local.get(["enabled", "src", "dst", "hideOrig", "startAsk"], (r) => {
     if (!r) return;
-    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars();
+    ASK = r.startAsk !== "no";
+    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars(); paintHead();
   });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area !== "local") return;
     if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
     if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabledAll(); }
+    if (ch.startAsk) ASK = ch.startAsk.newValue !== "no";
     if (ch.hideOrig) { HIDE_ORIG = ch.hideOrig.newValue !== false; applyHide(); }
     if (ch.stars) { starSet = new Set((ch.stars.newValue || {})[SRC + ">" + DST] || []); paintStars(); }
     if (ch.box && !boxBusy) { BOX = normBox(ch.box.newValue || BOX_DEF); placeBox(); }

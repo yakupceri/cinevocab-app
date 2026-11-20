@@ -68,6 +68,9 @@ chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.
 // İlk kurulumda karşılama sayfasını aç (güncellemede açılmaz)
 chrome.runtime.onInstalled.addListener((d) => {
   if (d.reason !== "install") return;
+  // Yeni kurulumda çeviri AÇIK başlar: eklentiyi kuran kişi araç çubuğundaki simgeyi bulup düğmeye basmak zorunda kalmasın.
+  // Kullanıcı daha önce bir seçim yaptıysa (yeniden kurulum) dokunulmaz.
+  chrome.storage.local.get("enabled", (r) => { if (!r || r.enabled === undefined) chrome.storage.local.set({ enabled: true }); });
   // Başlangıç dilleri tarayıcı diline göre seçilir (eskiden herkes için "Türkçe altyazı -> İngilizce" idi):
   // çeviriler kullanıcının kendi dilinde, altyazı dili İngilizce (kendi dili İngilizce ise İspanyolca).
   // Yanlışsa kutudaki tek tıklık düğme ya da açılır pencere düzeltir. Güncellemede dokunulmaz.
