@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
-                      record_game, tag_user_words, _throttle_ip, q)
+                      record_game, tag_user_words, _throttle_ip, q, db_conn, client_ip)
 import admin
 import growth
 import importer
@@ -284,14 +284,12 @@ def lookup_words(words: list) -> dict:
     """Veritabanında geçerli çevirisi olan kelimeleri {tr: en} döndürür."""
     if not words:
         return {}
-    conn = psycopg2.connect(**DB_CONFIG)
-    try:
+    with db_conn() as conn:
         cur = conn.cursor()
         cur.execute("SELECT tr, eng FROM words WHERE tr = ANY(%s);", (words,))
         rows = cur.fetchall()
+        conn.rollback()  # sadece okuma: bağlantıyı havuza temiz döndür
         cur.close()
-    finally:
-        conn.close()
     return {
         tr: eng
         for tr, eng in rows
@@ -314,8 +312,7 @@ def store_translations(pairs: dict, overwrite: bool = True):
     overwrite=False: kayıt zaten varsa dokunma."""
     if not pairs:
         return
-    conn = psycopg2.connect(**DB_CONFIG)
-    try:
+    with db_conn() as conn:
         cur = conn.cursor()
         for tr_word, en_word in pairs.items():
             cur.execute("SELECT id FROM words WHERE tr = %s LIMIT 1;", (tr_word,))
@@ -327,11 +324,6 @@ def store_translations(pairs: dict, overwrite: bool = True):
                 cur.execute("INSERT INTO words (eng, tr) VALUES (%s, %s);", (en_word, tr_word))
         conn.commit()
         cur.close()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def safe_store(pairs: dict, overwrite: bool = True):
@@ -971,6 +963,7 @@ def translate_missing(words: list, sources: dict | None = None, sentence_en: str
     # Yerel model çevirilerini cümle bağlamı + kök çevirisiyle düzelt
     if any(s == "local" for s in sources.values()):
         try:
+            sentence_en = _fut_text(sentence_en)  # cümle çevirisi hâlâ sürüyorsa burada beklenir
             refine_with_context(result, sources, sentence_en, norm_sentence(sentence))
         except Exception as e:
             print(f"   [bağlam] hata: {e}")
@@ -985,7 +978,22 @@ def translate_missing(words: list, sources: dict | None = None, sentence_en: str
 
 # ======================= Öncelik ve arka plan kuyruğu =======================
 
-LATEST_GEN = 0
+LATEST_GEN_BY = {}  # istemci IP -> gördüğümüz en yeni cümle numarası
+_SENT_EXEC = concurrent.futures.ThreadPoolExecutor(max_workers=8)  # _EXEC'ten ayrı: iç içe bekleme kilitlenmesin
+
+
+def _fut_text(x) -> str:
+    """Cümle çevirisi bir Future ise sonucunu (en çok 20 sn bekleyerek) al; yoksa/başarısızsa boş."""
+    if x is None:
+        return ""
+    if isinstance(x, str):
+        return x
+    try:
+        return x.result(timeout=20) or ""
+    except Exception:
+        return ""
+
+
 LAST_REQUEST_TIME = 0.0
 DEFERRED = {}  # eski cümlelerden kalan çevrilmemiş kelimeler
 _deferred_lock = threading.Lock()
@@ -1585,7 +1593,7 @@ admin.hooks.update(rooms=lambda: ROOMS, providers=provider_status,
 @app.post("/translate-words")
 def translate_words(batch: WordsBatch, request: Request):
     """Bir cümlenin kelimelerini alır. Önce veritabanı/sözlük, eksikler için çeviri servisleri."""
-    global LATEST_GEN, LAST_REQUEST_TIME
+    global LAST_REQUEST_TIME
     _throttle_ip(request, limit=240, window=60, bucket="tr")
     batch.sentence = batch.sentence[:300]
     batch.episode = batch.episode[:80]
@@ -1599,7 +1607,12 @@ def translate_words(batch: WordsBatch, request: Request):
     if (batch.src, batch.dst) != ("tr", "en"):
         return multilang.handle(batch, user_from_request(request))
     LAST_REQUEST_TIME = time.time()
-    LATEST_GEN = max(LATEST_GEN, batch.gen)
+    # "Eski cümle" sayacı kullanıcıya göre tutulur; eskiden herkes için tek sayaçtı ve
+    # saati ileri olan bir kullanıcı yüzünden diğerlerinin cümleleri "eski" sayılıyordu.
+    ck = client_ip(request)
+    LATEST_GEN_BY[ck] = max(LATEST_GEN_BY.get(ck, 0), batch.gen)
+    if len(LATEST_GEN_BY) > 5000:
+        LATEST_GEN_BY.clear()
 
     words = []
     for w in batch.words:
@@ -1646,7 +1659,7 @@ def translate_words(batch: WordsBatch, request: Request):
             "failed": [], "sentence_en": cached_sentence(batch.sentence), "known": known_hit,
         }
 
-    stale = bool(batch.gen) and batch.gen < LATEST_GEN
+    stale = bool(batch.gen) and batch.gen < LATEST_GEN_BY.get(ck, 0)
 
     # Cümle eskidiyse şimdi çevirme, arka plana bırak
     if missing and stale:
@@ -1656,17 +1669,20 @@ def translate_words(batch: WordsBatch, request: Request):
         return {"status": "success", "results": results, "pending": [], "failed": [],
                 "sentence_en": cached_sentence(batch.sentence), "known": known_hit}
 
-    sentence_en = "" if stale else translate_sentence(batch.sentence)
+    # Cümle çevirisi ve eksik kelimeler aynı anda çevrilir (eskiden sırayla, iki kat bekletiyordu)
+    sent_fut = None if stale else _SENT_EXEC.submit(translate_sentence, batch.sentence)
 
     if missing:
         src = {}
-        translated = translate_missing(missing, src, sentence_en, batch.sentence)
+        translated = translate_missing(missing, src, sent_fut or "", batch.sentence)
         save_translations(translated, src)
         results.update(translated)
         print(
             f"-> {len(words)} kelime | hazırdı: {len(words) - len(missing)} | "
             f"yeni: {len(translated)} | çevrilemeyen: {len(missing) - len(translated)}"
         )
+
+    sentence_en = _fut_text(sent_fut)
 
     failed = [w for w in words if w not in results and is_failed(w)]
     pending = [w for w in words if w not in results and w not in failed]

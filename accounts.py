@@ -4,9 +4,12 @@ import hmac
 import os
 import re
 import secrets
+import threading
 import time
+from contextlib import contextmanager
 
 import psycopg2
+from psycopg2 import pool as psycopg2_pool
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -16,16 +19,67 @@ DB = {}
 COOKIE = "cv"
 
 
-def q(sql, params=(), fetch=False):
-    conn = psycopg2.connect(**DB)
+_POOL = None
+_POOL_LOCK = threading.Lock()
+_POOL_MAX = 10
+_POOL_SEM = threading.BoundedSemaphore(_POOL_MAX)  # aynı anda en çok _POOL_MAX sorgu; fazlası sırada bekler
+_IDLE_CHECK = 20.0  # bağlantı bu kadar sn boşta kaldıysa kullanmadan önce canlı mı diye bak
+
+
+def _pool():
+    global _POOL
+    with _POOL_LOCK:
+        if _POOL is None:
+            _POOL = psycopg2_pool.ThreadedConnectionPool(1, _POOL_MAX, **DB)
+        return _POOL
+
+
+@contextmanager
+def db_conn():
+    """Havuzdan bağlantı verir (her sorguda yeni bağlantı açmak yavaştı).
+    Kopmuş bağlantı varsa atılır, yenisi alınır. Hata olursa işlem geri alınır."""
+    if not _POOL_SEM.acquire(timeout=20):
+        raise RuntimeError("Veritabanı meşgul")
     try:
+        p = _pool()
+        conn = p.getconn()
+    except Exception:
+        _POOL_SEM.release()
+        raise
+    try:
+        if conn.closed or time.time() - getattr(conn, "_cv_used", 0) > _IDLE_CHECK:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT 1;")
+                cur.close()
+                conn.rollback()
+            except Exception:
+                p.putconn(conn, close=True)
+                conn = p.getconn()
+        yield conn
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        try:
+            conn._cv_used = time.time()
+        except Exception:
+            pass
+        p.putconn(conn, close=bool(conn.closed))
+        _POOL_SEM.release()
+
+
+def q(sql, params=(), fetch=False):
+    with db_conn() as conn:
         cur = conn.cursor()
         cur.execute(sql, params)
         rows = cur.fetchall() if fetch else None
         conn.commit()
+        cur.close()
         return rows
-    finally:
-        conn.close()
 
 
 def init_accounts(db_config: dict):
@@ -164,15 +218,13 @@ def tag_user_words(uid: int, episode: str, words: list):
     episode = " ".join((episode or "").split())[:80]
     if not words:
         return
-    conn = psycopg2.connect(**DB)
-    try:
+    with db_conn() as conn:
         cur = conn.cursor()
         for w in words:
             cur.execute("INSERT INTO user_words (user_id, tr, episode) VALUES (%s, %s, %s) "
                         "ON CONFLICT DO NOTHING;", (uid, w, episode))
         conn.commit()
-    finally:
-        conn.close()
+        cur.close()
 
 
 def record_game(episode: str, results: list):
