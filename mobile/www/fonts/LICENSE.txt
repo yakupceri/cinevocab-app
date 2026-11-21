@@ -1,3 +1,0 @@
-adventor-bold.otf is "TeX Gyre Adventor Bold" by B. Jackowski and J. M. Nowacki (GUST e-foundry),
-based on URW Gothic L. It is released under the GUST Font License (GFL), which permits free use,
-embedding and redistribution. License text: http://www.gust.org.pl/projects/e-foundry/licenses
