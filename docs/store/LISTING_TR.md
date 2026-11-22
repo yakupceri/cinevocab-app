@@ -51,7 +51,7 @@ Eklentiyi açtıktan sonra, okuduğu altyazı satırını çevrilmek üzere sunu
 CineVocab bağımsız bir projedir. Amazon, Prime Video, Google, YouTube, Netflix veya Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.
 
 ## İzin gerekçeleri (Gizlilik sekmesi)
-- storage: Açma/kapama düğmesini, dil çiftini, kutu ayarlarını, kullanıcının cihazında tuttuğu kelimeleri ve isteğe bağlı giriş anahtarını saklar.
+- storage: Açma/kapama düğmesini, dil çiftini, kutu ayarlarını, kullanıcının cihazında tuttuğu kelimeleri (geçtikleri altyazı satırıyla), daha önce çevrilen kelimelerin daha hızlı görünmesi için küçük bir çeviri önbelleğini ve isteğe bağlı giriş anahtarını saklar.
 - identity: İsteğe bağlı "Google ile devam et". Google'ın giriş penceresini açar, yalnızca temel profil (openid, profile) ister; e-posta adresi istenmez.
 - scripting: Çeviri kutusunu bir sitede yalnızca kullanıcı "Bu sitede aç"a bastıktan sonra başlatır ve açık sayfadaki büyük video çerçevelerinin adreslerini okur, böylece gömülü oynatıcılarda da çalışır.
 - activeTab: Açılır pencerenin açık sekmenin adresini görmesini, ve yalnızca kullanıcı isterse CineVocab'ı orada açmasını sağlar.

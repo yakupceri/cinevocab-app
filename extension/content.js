@@ -545,6 +545,29 @@ const sentCache = new Map(); // cümle -> İngilizcesi
 // Gecikmeler: 2 sn, 4 sn, 8 sn (sunucu bloklanmışsa Google'ı yormayalım)
 const RETRY_DELAYS = [2000, 4000, 8000];
 
+// Kalıcı çeviri önbelleği: görülen kelimelerin çevirisi cihazda (chrome.storage.local "wc", dil çiftine göre, en çok 3000 kelime) saklanır.
+// Sayfa yenilense ya da başka videoya geçilse bile bilinen kelimeler ağ beklemeden anında görünür. Sunucuya "bu kelimeler görüldü" isteği yine gider
+// (hesap kaydı ve "biliyorum" bilgisi için); yalnızca ekranın ona beklemesi gerekmez.
+const WC_MAX = 3000;
+let wcTimer = 0;
+function loadWordCache() {
+  try {
+    const key = SRC + ">" + DST;
+    chrome.storage.local.get("wc", (r) => { const m = r && r.wc && r.wc[key]; if (m && key === SRC + ">" + DST) for (const [w, t] of Object.entries(m)) if (!wordCache.has(w)) wordCache.set(w, t); });
+  } catch (e) {}
+}
+function saveWordCache() {
+  if (wcTimer) return;
+  wcTimer = setTimeout(() => {
+    wcTimer = 0;
+    try {
+      const key = SRC + ">" + DST, obj = {};
+      for (const [w, t] of [...wordCache.entries()].slice(-WC_MAX)) obj[w] = t;
+      chrome.storage.local.get("wc", (r) => { const all = (r && r.wc) || {}; all[key] = obj; chrome.storage.local.set({ wc: all }); });
+    } catch (e) {}
+  }, 2000);
+}
+
 function showSentence(sentence) {
   lastSentence = sentence; // tutulan kelimenin cümlesi için (yalnızca cihazda)
   const myId = ++sentenceId;
@@ -626,6 +649,7 @@ function showSentence(sentence) {
         if (!err && res && res.status === "success") {
           for (const w of res.known || []) knownCache.add(w);
           for (const [w, eng] of Object.entries(res.results || {})) if (!knownCache.has(w)) wordCache.set(w, eng);
+          saveWordCache();
           if (res.sentence_en) { sentCache.set(sentence, res.sentence_en); if (sentCache.size > 200) sentCache.delete(sentCache.keys().next().value); }
         }
         if (myId !== sentenceId) return;
@@ -701,7 +725,9 @@ function showSentence(sentence) {
 let lastSubtitle = "";
 let seenAt = 0; // son altyazı okunma zamanı (açılır pencere "altyazı kapalı" uyarısı için)
 let ytCandidate = "", ytSince = 0;
-const YT_STABLE_MS = 220, POLL_MS = 100;
+// Hız: bilinen oynatıcılarda 40 ms'de bir yoklanır (eskiden 100); kayan (otomatik) YouTube altyazısında 150 ms kararlılık beklenir (eskiden 220),
+// kaymayan altyazıda hiç beklenmez. Bilinmeyen sitelerde tarama pahalı olduğundan 100 ms kalır.
+const YT_STABLE_MS = 150, POLL_MS = (IS_YT || IS_PRIME || IS_NETFLIX || IS_UDEMY) ? 40 : 100;
 
 // Genel siteler: videonun altyazı kanalı (<track>), yoksa yaygın oynatıcıların altyazı kutuları
 const hiddenTracks = new Set();
@@ -872,7 +898,7 @@ function ccGuide() {
 setInterval(() => {
   if (!ENABLED) {
     // Kapalıyken saniyede bir bak: altyazı görünüyorsa başlatma düğmesini göster
-    if (ASK && !askShown && ++askTick % 10 === 0 && readSubtitle().replace(/\s+/g, " ").trim().length > 2) askStart();
+    if (ASK && !askShown && Date.now() - askTick > 1000) { askTick = Date.now(); if (readSubtitle().replace(/\s+/g, " ").trim().length > 2) askStart(); }
     return;
   }
   const text = readSubtitle().replace(/\s+/g, " ").trim();
@@ -888,8 +914,10 @@ setInterval(() => {
     // Eskiden "iki yoklama aynı" şartı vardı (500 ms aralıkla 0,5-1 sn gecikme); artık yoklama sıklığı 150 ms
     // ve bekleme süresi zamana bağlı, böylece ~0,3 sn'de başlar.
     const now = Date.now();
-    if (text !== ytCandidate) { ytCandidate = text; ytSince = now; return; }
-    if (now - ytSince < YT_STABLE_MS) return;
+    if (document.querySelector(".ytp-caption-window-rollup")) { // kayan altyazı: kısa süre değişmeyince işle
+      if (text !== ytCandidate) { ytCandidate = text; ytSince = now; return; }
+      if (now - ytSince < YT_STABLE_MS) return;
+    } else ytCandidate = text; // kaymayan (yüklenmiş) altyazı satırı bütün gelir: beklemeye gerek yok
   }
   if (text.length < 3 || text.length > 200 || text === lastSubtitle) return;
 
@@ -928,14 +956,14 @@ function applyEnabled() {
 function applyEnabledAll() { applyEnabled(); applyHide(); }
 function applyPair() {
   paintHead();
-  wordCache.clear(); sentCache.clear(); knownCache.clear(); loadStars();
+  wordCache.clear(); sentCache.clear(); knownCache.clear(); loadStars(); loadWordCache();
   lastSubtitle = ""; ytCandidate = ""; guard.reset(); lastNoticeAt = 0; noticeUntil = 0;
 }
 try {
   chrome.storage.local.get(["enabled", "src", "dst", "hideOrig", "startAsk"], (r) => {
     if (!r) return;
     ASK = r.startAsk !== "no";
-    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars(); paintHead();
+    SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars(); paintHead(); loadWordCache();
   });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area !== "local") return;

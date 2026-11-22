@@ -68,7 +68,7 @@ CineVocab is an independent project. It is not affiliated with or endorsed by Am
 Translate the subtitle words of videos as the user watches (after the user switches it on), and let the user keep the words they like for practice.
 
 ### Permission justifications
-- storage: Saves the on/off switch, the chosen language pair, the subtitle box settings, the words the user keeps on their device, and the optional sign-in key.
+- storage: Saves the on/off switch, the chosen language pair, the subtitle box settings, the words the user keeps on their device (with the subtitle line they came from), a small cache of already translated words so they show up faster, and the optional sign-in key.
 - identity: Optional "Continue with Google" sign-in. Opens Google's sign-in window and asks only for basic profile (openid, profile); no email address is requested.
 - scripting: Starts the translation box on a site only after the user presses "Turn on for this site", and reads the addresses of the large video frames on the open page so the box also works in embedded players.
 - activeTab: Lets the popup see the address of the open tab, and enable CineVocab on it only when the user asks.

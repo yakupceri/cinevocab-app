@@ -10,6 +10,7 @@ document.documentElement.lang = CVL.ui();
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function icon(d) { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", d); s.append(p); return s; }
 const IC = { check: "M5 12.5l4.5 4.5L19 7.500", eye: "M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", duel: "M6 3l12 12M14 19l5-5M18 3L6 15M5 14l5 5M3 21l3-3M21 21l-3-3", day: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4" };
+IC.lines = "M4 6h16M4 12h10M4 18h13";
 
 let st = { enabled: false, src: "tr", dst: "en", key: "" };
 let home = null, tab = "watch", cfg = { google: "", mail: false }, authMode = "login", noAuto = false;
@@ -351,7 +352,7 @@ function syncStars() {
 // ---------- Hesapsız tekrar: cihazdaki kelimelerle ----------
 // Kelimeler kutuda tutulunca cihazdaki deftere (bank.js) girer; burada aralıklı tekrarla (srs.js) geri gelir. Sunucuya hiçbir şey gitmez.
 // Ödüller yalnızca doğru bilmeye bağlı: üst üste doğru, "öğrenildi" anı (3. kutu), kusursuz tur, gün serisi.
-let lq = null, localStreak = 0;
+let lq = null, localStreak = 0, useLocal = false; // useLocal: giriş yapmış kullanıcı da cihazdaki cümle alıştırmasını açabilir
 const NEED = 4; // 4 şıklı soru için en az 4 çevirisi olan kelime
 function loadLocal() { try { chrome.storage.local.get("reviewDays", (r) => { localStreak = SRS ? SRS.streak(r && r.reviewDays, SRS.dayOf()) : 0; render(); }); } catch (e) {} }
 const whenText = (d) => (d <= 0 ? T("lpNow") : d === 1 ? T("lpTomorrow") : T("lpInDays", d));
@@ -359,13 +360,14 @@ const whenText = (d) => (d <= 0 ? T("lpNow") : d === 1 ? T("lpTomorrow") : T("lp
 function renderLocalPractice(v) {
   if (lq) return lq.done ? localResult(v) : localQuestion(v);
   chrome.storage.local.get(["bank", "reviewDays"], (r) => {
-    if (tab !== "practice" || st.key || lq) return;
+    if (tab !== "practice" || (st.key && !useLocal) || lq) return;
     const pair = st.src + ">" + st.dst, items = BANK.list(r && r.bank, pair), day = SRS.dayOf(), s = SRS.stats(items, day);
     const c = el("div", "go");
+    const homeLink = () => { const k = el("button", "link", T("pBack")); k.onclick = () => { useLocal = false; lq = null; renderPractice(); }; return k; };
     if (s.usable < NEED) {
       const bar = el("div", "bar"), fi = el("i"); fi.style.width = Math.round((s.usable / NEED) * 100) + "%"; bar.append(fi); bar.style.margin = "12px 0";
       c.append(el("h2", "", T("pTitle")), el("p", "", T("lpNeed")), bar, el("p", "lp-line", T("lpOf", s.usable, NEED)));
-      return v.replaceChildren(c);
+      return v.replaceChildren(...[c, st.key ? homeLink() : null].filter(Boolean));
     }
     const streak = SRS.streak(r && r.reviewDays, day), b = el("button", "btn p", s.ready > 0 ? T("lpStart") : T("lpAnyway"));
     b.onclick = () => startLocal(items, pair, day);
@@ -382,7 +384,7 @@ function renderLocalPractice(v) {
     }
     if (!s.ready) c.append(el("p", "lp-line", T("lpNothing")));
     c.append(b);
-    v.replaceChildren(c);
+    v.replaceChildren(...[c, st.key ? homeLink() : null].filter(Boolean));
   });
 }
 
@@ -537,7 +539,7 @@ function finishLocal(quit) {
 }
 function localResult(v) {
   const total = lq.seen.size, again = el("button", "btn p", T("lpAgain")), back = el("button", "link", T("pBack"));
-  again.onclick = () => { lq = null; renderPractice(); }; back.onclick = again.onclick;
+  again.onclick = () => { lq = null; renderPractice(); }; back.onclick = () => { if (st.key) useLocal = false; lq = null; renderPractice(); };
   const kids = [el("div", "big", lq.right + "/" + total), el("div", "bigs", total && lq.right === total ? T("lpPerfect") : T("lpDone"))];
   if (lq.learned.length) { const c = el("div", "go"); c.append(el("div", "lp-lab", T("lpLearnedH"))); for (const w of lq.learned) c.append(el("span", "lw", w)); c.style.margin = "0 0 14px"; kids.push(c); }
   if (lq.bonus && lq.bonus.total) kids.push(el("p", "lp-line", T("lpBonus", lq.bonus.right, lq.bonus.total)));
@@ -554,14 +556,17 @@ const N_Q = 8;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function renderPractice() {
   const v = $("v-practice");
-  if (!st.key) return SRS ? renderLocalPractice(v) : guestCard(v, T("guestPractice"));
+  if (!st.key || useLocal) return SRS ? renderLocalPractice(v) : guestCard(v, T("guestPractice"));
   if (quiz) return quiz.done ? renderResult(v) : renderQuestion(v);
   if (!home) return loading(v);
   const go = el("div", "go"), b = el("button", "btn p", T("pStart")), ok = home.recent.length >= 4;
   go.append(el("h2", "", T("pTitle")), el("p", "", !ok ? T("pNeed") : home.due ? T("pDue", home.due) : T("pSub", N_Q)));
   b.disabled = !ok; b.onclick = () => startQuiz(b); go.append(b);
   const card = (ic, title, sub, to) => { const c = el("button", "opt2"), d = el("div"); d.append(el("b", "", title), el("span", "", sub)); c.append(icon(ic), d); c.onclick = () => openSite(to); return c; };
-  v.replaceChildren(go, card(IC.duel, T("duelT"), T("duelS"), "duel"), card(IC.day, T("dailyT"), T("dailyS"), "daily"));
+  const sent = el("button", "opt2"), sd = el("div"); // cihazdaki kelimelerle cümle alıştırması (boşluk doldurma + cümle kurma); hesapsız modla aynı ekran
+  sd.append(el("b", "", T("lpEntryT")), el("span", "", T("lpEntryS"))); sent.append(icon(IC.lines), sd);
+  sent.onclick = () => { useLocal = true; lq = null; renderPractice(); };
+  v.replaceChildren(go, ...(SRS ? [sent] : []), card(IC.duel, T("duelT"), T("duelS"), "duel"), card(IC.day, T("dailyT"), T("dailyS"), "daily"));
 }
 async function startQuiz(btn) {
   if (btn) btn.disabled = true;
@@ -659,7 +664,7 @@ async function loadHome() {
   }
 }
 function setKey(key) {
-  st.key = key; noAuto = false; home = null;
+  st.key = key; noAuto = false; home = null; useLocal = false;
   chrome.storage.local.set({ key, noAuto: false, authSkip: true });
   $("auth").hidden = true; render(); loadHome();
 }
