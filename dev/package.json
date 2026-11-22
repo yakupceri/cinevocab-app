@@ -1,0 +1,12 @@
+{
+  "name": "cinevocab-dev",
+  "private": true,
+  "description": "Gelistirme araclari (test, mağaza görselleri). Eklenti paketine ve siteye girmez; repo köküne package.json KONMAZ (Railway'in derleme algısını değiştirmesin).",
+  "scripts": {
+    "test": "node --test tests/js/",
+    "shots": "node harness/shots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
+  }
+}

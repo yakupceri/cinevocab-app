@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>store slide</title>
+<style>
+  @font-face { font-family:"CV Display"; font-weight:800; src:url(/fonts/d800.woff) format("woff"); }
+  @font-face { font-family:"CV Display"; font-weight:700; src:url(/fonts/d700.woff) format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:500; src:url(/fonts/t500.woff) format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:600 700; src:url(/fonts/t600.woff) format("woff"); }
+  /* Mağaza görseli 1280x800. Gece Seansı: sinema şeridi (üstte başlık bandı, altta ince satır). Gerçek eklenti arayüzü iframe içinde çalışır. */
+  :root { --bg:#0B0B0A; --panel:#151513; --line:rgba(237,232,218,.14); --ink:#EDE8DA; --dim:#A19C8E; --acc:#F0CB4A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; width:1280px; height:800px; background:var(--bg); color:var(--ink); overflow:hidden; font:500 20px/1.4 "CV Text",system-ui,sans-serif; }
+  .bar { position:absolute; left:0; right:0; display:flex; align-items:center; padding:0 56px; }
+  .top { top:0; height:150px; }
+  .bot { bottom:0; height:96px; justify-content:space-between; gap:24px; border-top:1px solid var(--line); }
+  h1 { margin:0; font:800 54px/1.04 "CV Display","CV Text",system-ui,sans-serif; letter-spacing:-.02em; max-width:1100px; text-wrap:balance; }
+  .tag { font:500 17px ui-monospace,Menlo,Consolas,monospace; color:var(--dim); letter-spacing:.01em; }
+  .brand { display:flex; align-items:center; gap:10px; font:800 20px "CV Display",sans-serif; letter-spacing:.01em; }
+  .brand img { width:30px; height:30px; display:block; }
+  .stage { position:absolute; left:0; top:150px; width:1280px; height:554px; overflow:hidden; border:0; }
+  iframe { border:0; display:block; background:#000; }
+  /* bölünmüş yerleşim: solda metin, sağda ürün */
+  .split .bot { border-top:0; justify-content:flex-start; }
+  .split .copy { position:absolute; left:56px; top:150px; width:520px; }
+  .split .copy h1 { font-size:58px; }
+  .split .copy p { margin:26px 0 0; color:var(--dim); font-size:22px; max-width:30ch; }
+  .split .dev { position:absolute; right:84px; top:70px; width:437px; height:671px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#000; }
+  .split .dev iframe { width:380px; height:584px; transform:scale(1.15); transform-origin:0 0; }
+  .welcomeframe { position:absolute; right:56px; top:130px; width:600px; height:560px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#000; }
+  .welcomeframe iframe { width:750px; height:700px; transform:scale(.8); transform-origin:0 0; }
+  .split .dev.crop { height:466px; top:150px; }   /* popup'ı doğal bir kart sınırında kırp (alt sekme çubuğu dışarıda kalır) */
+</style></head>
+<body>
+<script>
+const n = +new URLSearchParams(location.search).get("n") || 1;
+const S = {
+  1: { kind: "video", h: "Every subtitle word, translated on the video.", f: "Spanish → English, live, as the subtitles appear", src: "/__video.html?scene=on&ui=en&line=0" },
+  2: { kind: "video", h: "Click a word to keep it.", f: "No account needed. Your words stay on your device.", src: "/__video.html?scene=on&ui=en&line=0" },
+  3: { kind: "popup", h: "Your words, with the moment you met them.", p: "Kept on your device with the video time. Create a free account and they move over.", src: "/popup.html?scene=bank&ui=en&tab=yt&bankN=3" },
+  4: { kind: "welcome", h: "Pick two languages. Press one button.", p: "16 subtitle languages. Translations in your own language.", src: "/welcome.html?ui=en" },
+  5: { kind: "popup", h: "Off until you switch it on.", p: "No subtitle text is sent until you do. Switch it off any time.", src: "/popup.html?scene=new&ui=en&tab=yt", crop: true },
+}[n];
+const b = document.body;
+const brand = '<div class="brand"><img src="/icons/icon128.png" alt="">CineVocab</div>';
+if (S.kind === "video") {
+  b.innerHTML = '<div class="bar top"><h1>' + S.h + '</h1></div><iframe class="stage" id="f" src="' + S.src + '"></iframe><div class="bar bot"><span class="tag">' + S.f + '</span>' + brand + '</div>';
+} else {
+  const crop = S.crop ? " crop" : "";
+  const dev = S.kind === "popup" ? '<div class="dev' + crop + '"><iframe id="f" src="' + S.src + '"></iframe></div>' : '<div class="welcomeframe"><iframe id="f" src="' + S.src + '"></iframe></div>';
+  b.className = "split";
+  b.innerHTML = '<div class="copy"><h1>' + S.h + '</h1><p>' + S.p + '</p></div>' + dev + '<div class="bar bot"><span class="tag"></span>' + brand + '</div>';
+}
+</script>
+</body></html>

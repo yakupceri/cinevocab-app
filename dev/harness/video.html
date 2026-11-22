@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>harness video</title>
+<style>
+  /* Sahte video sahnesi: yalnızca CSS (gerçek film karesi yok). Altyazı satırı gerçek içerik betiğinin okuduğu türden bir öğe. */
+  html, body { margin:0; height:100%; background:#000; overflow:hidden; }
+  .stage { position:relative; width:100vw; height:100vh; background:linear-gradient(180deg,#1d2b30 0%,#0e1519 100%); }
+  .lamp { position:absolute; left:64%; top:7%; width:20%; height:38%; background:radial-gradient(closest-side,rgba(201,165,106,.7),rgba(201,165,106,0)); }
+  .win { position:absolute; left:66%; top:10%; width:9%; height:34%; background:#c9a56a; opacity:.5; border-radius:3px; }
+  .fig { position:absolute; left:17%; bottom:-8%; width:24%; height:70%; border-radius:50% 50% 0 0; background:#0a1013; }
+  .head { position:absolute; left:23%; bottom:56%; width:11%; height:22%; border-radius:50%; background:#16191c; }
+  .cap { position:absolute; left:0; right:0; bottom:14%; text-align:center; color:#fff; font:600 28px system-ui,sans-serif; opacity:0; } /* gerçek oynatıcıda site altyazısı gizlenir */
+  .cap.show { opacity:.35; }
+  .bar { position:absolute; left:14px; right:14px; bottom:10px; height:3px; background:rgba(255,255,255,.25); border-radius:2px; }
+  .bar i { display:block; width:34%; height:100%; background:#e8e6df; border-radius:2px; }
+</style></head>
+<body>
+<div class="stage"><div class="lamp"></div><div class="win"></div><div class="fig"></div><div class="head"></div>
+  <div class="cap" id="cap" class="subtitle-caption-text"></div><div class="bar"><i></i></div></div>
+<script src="/__stub.js"></script>
+<script src="/lang.js"></script>
+<script src="/bank.js"></script>
+<script>
+  const LINES = ["Lo más importante en la vida es tener amor propio", "No sé qué decir cuando me preguntan por el futuro", "أهم شيء في الحياة هو حب النفس"];
+  const cap = document.getElementById("cap");
+  cap.className = "cap subtitle-caption-text" + (new URLSearchParams(location.search).get("orig") ? " show" : "");
+  cap.textContent = LINES[+(new URLSearchParams(location.search).get("line") || 0) % LINES.length];
+</script>
+<script src="/content.js"></script>
+</body></html>
