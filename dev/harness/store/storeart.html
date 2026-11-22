@@ -32,7 +32,27 @@
 <body>
 <script>
 const Q = new URLSearchParams(location.search), K = Q.get("k") || "shot", N = +Q.get("n") || 1;
-const A = "../../out/ad2/assets/", ICON = "../../../extension/icons/icon128.png";
+const LANG = Q.get("l") === "tr" ? "tr" : "en";
+const A = "../../out/ad2/assets" + (LANG === "tr" ? "-tr" : "") + "/", ICON = "../../../extension/icons/icon128.png";
+const T = LANG === "tr" ? {
+  s1: [["Her altyazı kelimesi,", "*canlı çevrilir.*"], "YouTube, Prime Video, Netflix ve Udemy'de."],
+  s2: [["Bir kelimeye tıkla,", "*tutulsun.*"], "Hesap yok. Sahneyle birlikte kaydedilir."],
+  s3: [["Duyduğun cümlenin", "*içinde çalış.*"], "Tuttuğun altyazılardan boşluk doldurma soruları."],
+  s4: [["1 gün. 3 gün.", "*7 gün.*"], "Her doğru cevap sonraki tekrarı daha ileri atar.", ["1 gün", "3 gün", "7 gün"]],
+  s5: [["Arkadaşlarınla düello.", "*Sıralamada yüksel.*"], "Canlı düello ve sıralama, ücretsiz hesapla."],
+  tile: [["İzlediğinden", "*öğren.*"], "Her altyazı kelimesi canlı çevrilir. Ücretsiz."],
+  mq: [["İzlediğinden", "*öğren.*"], "Her altyazı kelimesi canlı çevrilir. Ücretsiz, başlamak için hesap yok."],
+  th: [["Dizi izleyerek", "*İngilizce öğren*"], "Ücretsiz Chrome eklentisi"],
+} : {
+  s1: [["Every subtitle word,", "*translated live.*"], "On YouTube, Prime Video, Netflix and Udemy."],
+  s2: [["Click a word,", "*keep it.*"], "No account. Saved with the scene."],
+  s3: [["Practise in the line", "*you heard it in.*"], "Fill-in-the-blank questions from the subtitles you kept."],
+  s4: [["1 day. 3 days.", "*7 days.*"], "Each right answer pushes the next review out.", ["1 day", "3 days", "7 days"]],
+  s5: [["Duel your friends.", "*Climb the board.*"], "Live duels and leaderboards with a free account."],
+  tile: [["Learn from", "*what you watch.*"], "Every subtitle word, translated live. Free."],
+  mq: [["Learn from", "*what you watch.*"], "Every subtitle word, translated live. Free, no account to start."],
+  th: [["Learn a language", "*from what you watch*"], "Free Chrome extension"],
+};
 const H = (lines) => '<h1 class="h">' + lines.map((l) => l.replace(/\*([^*]+)\*/g, '<span class="em">$1</span>')).join("<br>") + "</h1>";
 const brand = '<div class="brand"><img src="' + ICON + '" alt="">CineVocab</div>';
 const holes = '<div class="holes" style="top:12px"></div><div class="holes" style="bottom:12px"></div>';
@@ -40,12 +60,13 @@ const frame = (src, x, y, w, h, ox = 0, oy = 0, iw = null) => `<div class="shot"
 const pop = (src, x, y, h) => { const w = Math.round(h * 380 / 584); return `<div class="pbez" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><img src="${A + src}"></div>`; };
 let W = 1280, Hh = 800, th = "k", html = "";
 if (K === "shot") {
+  const steps = (a) => "<div style='margin-top:26px'>" + a.map((x) => `<span class='step'>${x}</span>`).join("") + "</div>";
   const S = {
-    1: ["k", ["Every subtitle word,", "*translated live.*"], "On YouTube, Prime Video, Netflix and Udemy.", frame("chips.png", 470, 262, 760, 532, 0, 0, 760)],
-    2: ["y", ["Click a word,", "*keep it.*"], "No account. Saved with the scene.", frame("kept.png", 470, 262, 760, 532, 0, 0, 760)],
-    3: ["k", ["Practise in the line", "*you heard it in.*"], "Fill-in-the-blank questions from the subtitles you kept.", pop("p-cloze.png", 770, 70, 700) + ""],
-    4: ["y", ["1 day. 3 days.", "*7 days.*"], "Each right answer pushes the next review out.<div style='margin-top:26px'><span class='step'>1 day</span><span class='step'>3 days</span><span class='step'>7 days</span></div>", pop("p-learned.png", 770, 70, 700)],
-    5: ["k", ["Duel your friends.", "*Climb the board.*"], "Live duels and leaderboards with a free account.", ""],
+    1: ["k", T.s1[0], T.s1[1], frame("chips.png", 470, 262, 760, 532, 0, 0, 760)],
+    2: ["y", T.s2[0], T.s2[1], frame("kept.png", 470, 262, 760, 532, 0, 0, 760)],
+    3: ["k", T.s3[0], T.s3[1], pop("p-cloze.png", 770, 70, 700)],
+    4: ["y", T.s4[0], T.s4[1] + steps(T.s4[2]), pop("p-learned.png", 770, 70, 700)],
+    5: ["k", T.s5[0], T.s5[1], ""],
   }[N];
   th = S[0];
   const tw = (N === 1 || N === 2) ? 1100 : 560, tt = (N === 1 || N === 2) ? 52 : 70;
@@ -57,17 +78,25 @@ if (K === "shot") {
   }
 } else if (K === "tile") {
   W = 440; Hh = 280; th = "y";
+  const t0 = T.tile[0];
   html = `<div class="cv y" style="width:440px;height:280px"><div class="holes" style="top:8px;height:7px;background-size:16px 7px"></div>
     <img src="${ICON}" class="abs" style="left:28px;top:34px;width:64px;height:64px;border-radius:15px;box-shadow:0 10px 24px rgba(0,0,0,.25)">
-    <div class="abs h" style="left:28px;top:112px;font-size:34px;line-height:1.05;width:380px">Learn from<br><span class="em" style="background:#111110;color:#FFD42B;padding:0 .14em;border-radius:.2em">what you watch.</span></div>
-    <div class="abs mono" style="left:28px;bottom:26px;font-size:15px;opacity:.75">Every subtitle word, translated live. Free.</div></div>`;
+    <div class="abs h" style="left:28px;top:112px;font-size:34px;line-height:1.05;width:390px">${t0[0]}<br><span style="background:#111110;color:#FFD42B;padding:0 .14em;border-radius:.2em">${t0[1].replace(/\*/g, "")}</span></div>
+    <div class="abs mono" style="left:28px;bottom:26px;font-size:15px;opacity:.75;width:390px">${T.tile[1]}</div></div>`;
 } else if (K === "marquee") {
   W = 1400; Hh = 560; th = "k";
   html = `<div class="cv k" style="width:1400px;height:560px">${holes}
     <img src="${ICON}" class="abs" style="left:70px;top:70px;width:84px;height:84px;border-radius:20px">
-    <div class="abs h" style="left:70px;top:190px;font-size:82px;width:640px">Learn from<br><span class="em">what you watch.</span></div>
-    <div class="abs sub" style="left:70px;top:420px;width:600px;font-size:28px">Every subtitle word, translated live. Free, no account to start.</div>
+    <div class="abs">${""}</div>
+    <div class="abs" style="left:70px;top:190px;width:640px">${H(T.mq[0]).replace('class="h"', 'class="h" style="font-size:82px"')}</div>
+    <div class="abs sub" style="left:70px;top:420px;width:600px;font-size:28px">${T.mq[1]}</div>
     ${frame("chips.png", 760, 70, 700, 490, 0, 0, 700)}</div>`;
+} else if (K === "thumb") {
+  W = 1280; Hh = 720; th = "y";
+  html = `<div class="cv y" style="width:1280px;height:720px">${holes}
+    <div class="abs" style="left:64px;top:90px;width:${LANG === "tr" ? 700 : 940}px">${H(T.th[0]).replace('class="h"', `class="h" style="font-size:${LANG === "tr" ? 92 : 76}px;line-height:1.04"`)}<div class="sub" style="font-size:34px;margin-top:26px">${T.th[1]}</div></div>
+    <img src="${ICON}" class="abs" style="left:64px;bottom:60px;width:96px;height:96px;border-radius:22px;box-shadow:0 14px 30px rgba(0,0,0,.28)">
+    ${frame("kept.png", 630, 292, 660, 462, 0, 0, 660)}</div>`;
 }
 document.body.innerHTML = html; document.documentElement.style.width = W + "px"; document.documentElement.style.height = Hh + "px";
 document.title = "ready";

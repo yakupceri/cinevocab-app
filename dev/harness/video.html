@@ -21,7 +21,7 @@
 <script src="/lang.js"></script>
 <script src="/bank.js"></script>
 <script>
-  const LINES = ["Lo más importante en la vida es tener amor propio", "No sé qué decir cuando me preguntan por el futuro", "أهم شيء في الحياة هو حب النفس"];
+  const LINES = ["Lo más importante en la vida es tener amor propio", "No sé qué decir cuando me preguntan por el futuro", "أهم شيء في الحياة هو حب النفس", "You told me it was a lie."];
   const cap = document.getElementById("cap");
   cap.className = "cap subtitle-caption-text" + (new URLSearchParams(location.search).get("orig") ? " show" : "");
   cap.textContent = LINES[+(new URLSearchParams(location.search).get("line") || 0) % LINES.length];

@@ -50,8 +50,9 @@
     "Lo más importante en la vida es tener amor propio": "The most important thing in life is to have self-love.",
     "No sé qué decir cuando me preguntan por el futuro": "I don't know what to say when they ask me about the future.",
     "أهم شيء في الحياة هو حب النفس": "The most important thing in life is self-love.",
+    "You told me it was a lie.": "Bana bunun bir yalan olduğunu söyledin.",
   };
-  const DICT = { "أهم": "most important", "شيء": "thing", "الحياة": "life", "حب": "love", "النفس": "self", más: "more", importante: "important", vida: "life", tener: "to have", amor: "love", propio: "own", sé: "I know", decir: "to say", cuando: "when", preguntan: "they ask", futuro: "future", qué: "what", por: "for", feliz: "happy", mundo: "world", pregunta: "question" };
+  const DICT = { "أهم": "most important", "شيء": "thing", "الحياة": "life", "حب": "love", "النفس": "self", más: "more", importante: "important", vida: "life", tener: "to have", amor: "love", propio: "own", sé: "I know", decir: "to say", cuando: "when", preguntan: "they ask", futuro: "future", qué: "what", por: "for", feliz: "happy", mundo: "world", pregunta: "question", you: "sen", told: "söyledin", me: "bana", it: "bunun", was: "idi", a: "bir", lie: "yalan" };
   const TAB = q.get("tab") === "yt" ? "https://www.youtube.com/watch?v=mECAxJYzj0Y" : "https://example.com/";
 
   const noop = () => {};

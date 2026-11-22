@@ -12,7 +12,9 @@ Her şey `dev/out/release-2.3.0/` klasöründe hazır (git'e girmez, yeniden ür
 | `cinevocab-promo-video-16x9.mp4` | Önce YouTube'a yükle, linkini "Global promo video"ya yapıştır |
 | `cinevocab-shorts-9x16.mp4` | Shorts, Reels, TikTok için (mağazaya girmez) |
 
-Yeniden üretmek: `cd dev && node harness/store-art.mjs 2.3.0` (görseller), `node harness/ad3.mjs wide video` ve `node harness/ad3.mjs tall video short` (videolar), paket: `cd extension && zip -q -r -X ../dev/out/release-2.3.0/cinevocab-2.3.0.zip . -x "*.DS_Store"`.
+**Türkçe sürüm** (`dev/out/release-2.3.0/tr/`): `screenshots/01..05-*.png` (Türkçe mağaza listesine, İngilizce altyazı → Türkçe çeviri örneğiyle), `promo-small-440x280.png`, `promo-marquee-1400x560.png`, `cinevocab-tanitim-videosu-16x9-tr.mp4` (YouTube'a), `cinevocab-shorts-9x16-tr.mp4`, `youtube-kapak-1280x720.png`. Dashboard'da *Turkish* dilini seçip bu görselleri yükle; İngilizce görselleri *English* altında bırak. YouTube kapakları: İngilizce `youtube-thumbnail-1280x720.png`.
+
+Yeniden üretmek: `cd dev && node harness/store-art.mjs 2.3.0` (görseller; `tr` eklenirse Türkçe), `node harness/ad3.mjs wide video` ve `node harness/ad3.mjs tall video short` (videolar; `l=tr` eklenirse Türkçe, önce `node harness/ad2-assets.mjs tr`), paket: `cd extension && zip -q -r -X ../dev/out/release-2.3.0/cinevocab-2.3.0.zip . -x "*.DS_Store"`.
 
 ## Adım adım (Developer Dashboard)
 1. Dashboard → CineVocab → **Package** → *Upload new package* → `cinevocab-2.3.0.zip`. Sürüm 2.3.0 görünmeli. İzin listesi mağazadaki 2.0.3 ile aynı (yeni izin uyarısı yok).
@@ -59,3 +61,24 @@ https://cinevocab.up.railway.app
 **Etiketler:** learn spanish, language learning, chrome extension, subtitles, vocabulary, flashcards, spaced repetition, learn english
 
 Not: videodaki müzik kodla üretilmiş özgün bir parçadır (telif sorunu yoktur). Kendi şarkını eklemek için: `node harness/ad3.mjs wide audio audio=/yol/sarki.mp3`.
+
+## Türkçe YouTube videosu
+**Başlık:** Dizi izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
+
+**Açıklama:**
+```
+CineVocab, izlerken her altyazı kelimesini canlı olarak Türkçeye çeviren ücretsiz bir Chrome eklentisidir. Bir kelimeye tıkla, tutulsun; sonra duyduğun cümlenin içinde boşluk doldurma soruları olarak çalış. Aralıklı tekrar, seri, canlı düello ve sıralama da var (ücretsiz hesapla).
+
+YouTube, Prime Video, Netflix ve Udemy'de çalışır. Ücretsiz. Başlamak için hesap gerekmez.
+
+0:00 Her altyazı kelimesi canlı çevrilir
+0:12 Kelimeyi tut, kutuyu özelleştir
+0:22 Tuttuğun kelimeleri çalış
+0:37 Seri, düello ve sıralama
+0:53 16 dil, başlamak ücretsiz
+
+Web sitesi: https://cinevocab.up.railway.app
+```
+**Etiketler:** ingilizce öğren, dil öğrenme, chrome eklentisi, altyazı, kelime öğrenme, dizi izleyerek ingilizce, youtube altyazı çeviri, aralıklı tekrar
+
+Ayarlar: Kategori Eğitim · Çocuklara özel değil · Dil Türkçe · "Değiştirilmiş veya sentetik içerik": Hayır. Chrome Web Store bağlantısını onaylanınca açıklamaya ekle.

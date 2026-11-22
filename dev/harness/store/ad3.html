@@ -74,14 +74,35 @@ const Q = new URLSearchParams(location.search);
 const FMT = Q.get("fmt") === "tall" ? "tall" : "wide", CUT = Q.get("cut") === "short" ? "short" : "full", LOGO = Q.get("logo") === "ticket" ? "ticket" : "sun";
 const WIDE = FMT === "wide", W = WIDE ? 1920 : 1080, H = WIDE ? 1080 : 1920;
 document.documentElement.className = FMT;
-const A = "../../out/ad2/assets/";
+const LANG = Q.get("l") === "tr" ? "tr" : "en";
+const A = "../../out/ad2/assets" + (LANG === "tr" ? "-tr" : "") + "/";
+const KW = LANG === "tr" ? { w: "lie", t: "= yalan", plain: "You told me it was a lie." } : { w: "propio", t: "= own", plain: "Lo más importante en la vida es tener amor propio" };
+const TRD = {
+  "Every subtitle word,": "Her altyazı kelimesi,", "*translated live.*": "*canlı çevrilir.*", "On YouTube, Prime Video, Netflix and Udemy.": "YouTube, Prime Video, Netflix ve Udemy'de.",
+  "Click a word,": "Bir kelimeye tıkla,", "*keep it.*": "*tutulsun.*", "No account. Saved with the scene.": "Hesap yok. Sahneyle birlikte kaydedilir.",
+  "The box is": "Kutu", "*yours.*": "*senin.*", "Drag": "Sürükle", "drop it anywhere": "istediğin yere bırak", "Resize": "Boyutlandır", "pull the corner": "köşesinden çek",
+  "Pick a color": "Renk seç", "for the translations": "çeviriler için", "Lock": "Kilitle", "keeps it in place": "yerinde sabit tutar",
+  "Every word you met,": "Tanıştığın her kelime,", "*one click away.*": "*bir tık uzağında.*", "Kept on your device, with the video time.": "Cihazında, videodaki saniyesiyle saklanır.",
+  "Tomorrow,": "Yarın", "*it comes back.*": "*geri gelir.*", "A fill-in-the-blank, in the line you heard.": "Duyduğun cümlenin içinde boşluk doldurma.",
+  "1 day. 3 days.": "1 gün. 3 gün.", "*7 days.*": "*7 gün.*", "Each right answer pushes the next review out.": "Her doğru cevap sonraki tekrarı daha ileri atar.",
+  "1 day": "1 gün", "3 days": "3 gün", "7 days": "7 gün", "3 right answers = learned": "3 doğru cevap = öğrenildi",
+  "Keep the streak,": "Seriyi koru,", "*a little every day.*": "*her gün biraz.*", "day streak": "günlük seri",
+  "Duel your": "Arkadaşlarınla", "*friends.*": "*düello yap.*", "Live, head to head. With a free account.": "Canlı, kafa kafaya. Ücretsiz hesapla.", "LIVE": "CANLI",
+  "Climb the": "Sıralamada", "*leaderboard.*": "*yüksel.*", "Weekly or all-time, plus private friend leagues.": "Haftalık ya da tüm zamanlar, bir de özel arkadaş ligleri.",
+  "16 subtitle": "16 altyazı", "*languages.*": "*dili.*", "Any pair: Spanish to English, French to English…": "Her dil çifti: İngilizceden Türkçeye, İspanyolcadan Türkçeye…",
+  "Free account?": "Ücretsiz hesap?", "*Even more.*": "*Çok daha fazlası.*",
+  "Quizzes with levels": "Seviyeli quiz'ler", "Streaks and daily goals": "Seri ve günlük hedefler", "Daily challenge": "Günlük meydan okuma", "Words from a whole YouTube video": "Bir YouTube videosunun tüm kelimeleri",
+  "Learn from what you watch.": "İzlediğinden öğren.", "Free. No account to start.": "Ücretsiz. Başlamak için hesap yok.", "Add to Chrome": "Chrome'a ekle", "KEPT TODAY": "BUGÜN TUTULAN",
+  "hours of series.": "saatlik dizi.", "How many new words did you learn?": "Kaç yeni kelime öğrendin?",
+};
+const L = (x) => (LANG === "tr" && typeof x === "string" && TRD[x] != null ? TRD[x] : x); // yalnızca metin çevirisi; sahne mantığı dile bağlı değildir
 const $ = (id) => document.getElementById(id);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const E = { out: (x) => 1 - Math.pow(1 - x, 3), back: (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }, io: (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2), lin: (x) => x };
 const P = (t, a, d, e = E.out) => e(clamp((t - a) / d));
 const tf = (el, o) => { el.style.opacity = o.o == null ? 1 : o.o; el.style.transform = `translate(${o.x || 0}px,${o.y || 0}px) scale(${o.s == null ? 1 : o.s}) rotate(${o.r || 0}deg)`; };
 const place = (el, b) => { el.style.position = "absolute"; el.style.left = b.x + "px"; el.style.top = b.y + "px"; if (b.w != null) el.style.width = b.w + "px"; if (b.h != null) el.style.height = b.h + "px"; };
-const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = L(txt); return e; };
 const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 let COORD = null;
 
@@ -99,7 +120,7 @@ function textBlock(sc, o) {
   else if (WIDE) { place(d, { x: o.side === "r" ? 1010 : 110, y: 0, w: 780, h: H }); d.style.justifyContent = "center"; }
   else { place(d, { x: 64, y: 150, w: 952, h: o.h || 500 }); d.style.justifyContent = "flex-end"; }
   const words = [], h = mk("div", "h");
-  (o.head || []).forEach((ln) => { const l = mk("span", "l"); ln.split(/(\*[^*]+\*)/).filter(Boolean).forEach((part) => { const em = part.startsWith("*"); (em ? part.slice(1, -1) : part).split(" ").filter(Boolean).forEach((w) => { const s = mk("span", "w" + (em ? " em" : ""), w); l.append(s); words.push(s); }); }); h.append(l); });
+  (o.head || []).map(L).forEach((ln) => { const l = mk("span", "l"); ln.split(/(\*[^*]+\*)/).filter(Boolean).forEach((part) => { const em = part.startsWith("*"); (em ? part.slice(1, -1) : part).split(" ").filter(Boolean).forEach((w) => { const s = mk("span", "w" + (em ? " em" : ""), w); l.append(s); words.push(s); }); }); h.append(l); });
   if (o.size) h.style.fontSize = (WIDE ? o.size : o.size * 1.08) + "px";
   d.append(h); let sub = null; if (o.sub) { sub = mk("div", "sub", o.sub); d.append(sub); }
   sc.append(d); return { d, words, sub, h };
@@ -128,17 +149,17 @@ function confetti(list, u) { list.forEach((c) => { const d = u - c.delay; if (d 
 function buildFrame(sc, o) { // o: {scale, x, y, tray, tools}
   const fw = mk("div", "fw"); fw.style.left = o.x + "px"; fw.style.top = o.y + "px"; fw.style.transform = `scale(${o.scale})`;
   const clip = mk("div", "fclip"), stage = mk("img"); stage.src = A + "stage.png";
-  const ps = mk("div", "psub"); ps.textContent = "Lo más importante en la vida es tener amor propio";
+  const ps = mk("div", "psub"); ps.textContent = KW.plain;
   const chips = mk("img"); chips.src = A + (o.tools ? "chips-tools.png" : "chips.png"); const kept = mk("img"); kept.src = A + "kept.png";
   const sweep = mk("div", "sweep"); clip.append(stage, ps, chips, kept, sweep);
   const fx = mk("div"); fx.style.cssText = "position:absolute;left:0;top:0;width:1000px;height:700px"; clip.append(fx);
   const h = { fw, clip, ps, chips, kept, sweep, r1: mkRip(fx), r2: mkRip(fx), b: mkBurst(fx), o };
   fw.append(clip);
-  if (o.tray) { const t = mk("div", "tray"); t.innerHTML = '<div class="lab"></div><div class="wd">propio</div><div class="tr">= own</div>'; t.querySelector(".lab").textContent = "KEPT TODAY"; fw.append(t); h.tray = t; h.fly = mk("div", "fly", "propio"); fw.append(h.fly); }
+  if (o.tray) { const t = mk("div", "tray"); t.innerHTML = '<div class="lab"></div><div class="wd"></div><div class="tr"></div>'; t.querySelector(".lab").textContent = L("KEPT TODAY"); t.querySelector(".wd").textContent = KW.w; t.querySelector(".tr").textContent = KW.t; fw.append(t); h.tray = t; h.fly = mk("div", "fly", KW.w); fw.append(h.fly); }
   sc.append(fw); return h;
 }
 function frameRender(h, u, c) { // c: {wipe:[a,d]|null, tap:t|null, plainFrom}
-  const prop = COORD.chips.propio, cx = prop.x + prop.width / 2, cy = prop.y + 34;
+  const prop = COORD.chips[KW.w], cx = prop.x + prop.width / 2, cy = prop.y + 34;
   if (c.wipe) { const p = P(u, c.wipe[0], c.wipe[1], E.io); h.chips.style.display = u >= c.wipe[0] ? "" : "none"; h.chips.style.clipPath = `inset(0 ${(1 - p) * 100}% 0 0)`; h.sweep.style.display = p > 0 && p < 1 ? "" : "none"; h.sweep.style.left = p * 1000 + "px"; h.ps.style.display = ""; }
   else { h.chips.style.display = ""; h.chips.style.clipPath = "none"; h.sweep.style.display = "none"; h.ps.style.display = "none"; }
   if (c.tap != null) {
@@ -171,17 +192,17 @@ function scene(o) { SC.push(o); }
 // 1) kanca: sayaç + "0"
 scene({ id: "hook", dur: 4.0, cues: [[0.1, "count"], [0.2, "count"], [0.3, "count"], [0.4, "count"], [0.5, "count"], [0.6, "count"], [0.7, "count"], [0.8, "count"], [0.9, "count"], [1.0, "count"], [1.35, "slam"], [2.5, "boom"]], th: "k", hdr: false, short: true, build(sc) {
   const d = mk("div"); place(d, { x: 0, y: 0, w: W, h: H }); d.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:" + (WIDE ? 26 : 40) + "px;padding:0 " + (WIDE ? 120 : 64) + "px";
-  const l1 = mk("div", "h"); l1.style.cssText = "color:#FFD42B;font-size:" + (WIDE ? 76 : 84) + "px"; l1.innerHTML = '<span class="cn">0</span> hours of series.';
-  const l2 = mk("div", "h"); l2.style.fontSize = (WIDE ? 100 : 108) + "px"; const words = []; "How many new words did you learn?".split(" ").forEach((w) => { const s = mk("span", "w", w); l2.append(s); words.push(s); });
+  const l1 = mk("div", "h"); l1.style.cssText = "color:#FFD42B;font-size:" + (WIDE ? 76 : 84) + "px"; l1.innerHTML = '<span class="cn">0</span> ' + L("hours of series.");
+  const l2 = mk("div", "h"); l2.style.fontSize = (WIDE ? 100 : 108) + "px"; const words = []; L("How many new words did you learn?").split(" ").forEach((w) => { const s = mk("span", "w", w); l2.append(s); words.push(s); });
   const z = mk("div", "h", "0"); z.style.cssText = "color:#FFD42B;font-size:" + (WIDE ? 400 : 520) + "px;line-height:.9;letter-spacing:-.04em";
   d.append(l1, l2, z); sc.append(d); this.s = { l1, words, z, cn: l1.querySelector(".cn") };
-}, render(u) { const s = this.s, c = P(u, 0.1, 1.1); s.cn.textContent = Math.round(c * 1000).toLocaleString("en-US"); fadeIn(s.l1, u, 0.0, 0.3, 20); slam(s.words, u, 1.35, 0.1); const p = P(u, 2.5, 0.45, E.back), sh = u > 2.5 ? Math.sin((u - 2.5) * 40) * 3 * Math.exp(-(u - 2.5) * 5) : 0; tf(s.z, { o: clamp((u - 2.5) / 0.1), s: 0.4 + 0.6 * p, r: sh }); } });
+}, render(u) { const s = this.s, c = P(u, 0.1, 1.1); s.cn.textContent = Math.round(c * 1000).toLocaleString(LANG === "tr" ? "tr-TR" : "en-US"); fadeIn(s.l1, u, 0.0, 0.3, 20); slam(s.words, u, 1.35, 0.1); const p = P(u, 2.5, 0.45, E.back), sh = u > 2.5 ? Math.sin((u - 2.5) * 40) * 3 * Math.exp(-(u - 2.5) * 5) : 0; tf(s.z, { o: clamp((u - 2.5) / 0.1), s: 0.4 + 0.6 * p, r: sh }); } });
 // 2) logo + slogan
 scene({ id: "logo", dur: 3.0, cues: [[0.1, "pop"], [0.55, "slam"]], th: "y", hdr: false, short: true, build(sc) {
   const d = mk("div"); place(d, { x: 0, y: 0, w: W, h: H }); d.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:50px;padding:0 " + (WIDE ? 220 : 64) + "px";
   const lg = logoEl(WIDE ? 190 : 230); lg.style.boxShadow = "0 24px 50px rgba(0,0,0,.25)";
   const h = mk("div", "h"); const words = [];
-  const parts = ["Turn", "what", "you", "watch", "into", "*words", "you", "keep.*"]; let em = false; parts.forEach((w) => { if (w.startsWith("*")) { em = true; w = w.slice(1); } const e = em; if (w.endsWith("*")) { em = false; w = w.slice(0, -1); } const s = mk("span", "w" + (e ? " em" : ""), w); h.append(s, document.createTextNode(" ")); words.push(s); });
+  const parts = LANG === "tr" ? ["İzlediğini", "*tuttuğun", "kelimelere*", "dönüştür."] : ["Turn", "what", "you", "watch", "into", "*words", "you", "keep.*"]; let em = false; parts.forEach((w) => { if (w.startsWith("*")) { em = true; w = w.slice(1); } const e = em; if (w.endsWith("*")) { em = false; w = w.slice(0, -1); } const s = mk("span", "w" + (e ? " em" : ""), w); h.append(s, document.createTextNode(" ")); words.push(s); });
   h.style.fontSize = (WIDE ? 96 : 104) + "px"; d.append(lg, h); sc.append(d); this.s = { lg, words };
 }, render(u) { const s = this.s; tf(s.lg, { o: P(u, 0.1, 0.2), s: 0.5 + 0.5 * P(u, 0.1, 0.5, E.back), r: (1 - P(u, 0.1, 0.5)) * -12 }); slam(s.words, u, 0.55, 0.09); } });
 // 3) her kelime canlı çevrilir
@@ -201,7 +222,7 @@ scene({ id: "box", dur: 5.0, cues: [[0.2, "slam"], [0.6, "pop"], [1.55, "pop"], 
   const T = textBlock(sc, { head: ["The box is", "*yours.*"], sub: null, side: "l" });
   const f = WIDE ? buildFrame(sc, { scale: 0.86, x: 960, y: 70, tools: true }) : buildFrame(sc, { scale: 1, x: 40, y: 620, tools: true });
   const defs = [["Drag", "drop it anywhere", "M12 3v18M3 12h18M12 3l-3 3m3-3l3 3M12 21l-3-3m3 3l3-3M3 12l3-3m-3 3l3 3M21 12l-3-3m3 3l-3 3"], ["Resize", "pull the corner", "M5 19L19 5M19 5h-6m6 0v6M5 19h6m-6 0v-6"], ["Pick a color", "for the translations", "C"], ["Lock", "keeps it in place", "L"]];
-  const cards = defs.map(([b, i, path], k) => { const c = mk("div", "card"); const ic = path === "C" ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>' : path === "L" ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`; c.innerHTML = ic + "<div><b>" + b + "</b><i>" + i + "</i></div>"; const cw = WIDE ? 420 : 480, ch = WIDE ? 120 : 150, gx = k % 2, gy = Math.floor(k / 2); place(c, WIDE ? { x: 960 + gx * 440, y: 700 + gy * 140, w: cw, h: ch } : { x: 40 + gx * 520, y: 1350 + gy * 170, w: cw, h: ch }); sc.append(c); return c; });
+  const cards = defs.map(([b, i, path], k) => { const c = mk("div", "card"); const ic = path === "C" ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>' : path === "L" ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`; c.innerHTML = ic + "<div><b>" + L(b) + "</b><i>" + L(i) + "</i></div>"; const cw = WIDE ? 420 : 480, ch = WIDE ? 120 : 150, gx = k % 2, gy = Math.floor(k / 2); place(c, WIDE ? { x: 960 + gx * 440, y: 700 + gy * 140, w: cw, h: ch } : { x: 40 + gx * 520, y: 1350 + gy * 170, w: cw, h: ch }); sc.append(c); return c; });
   const rg = mk("div"); this.s = { T, f, cards, rings: [[110, 365], [895, 611], [816, 334], [880, 334]].map(([x, y]) => { const r = mk("div", "ring"); r.style.left = x + "px"; r.style.top = y + "px"; f.clip.append(r); return r; }) };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); const p = P(u, 0, 0.5), sc = WIDE ? 0.86 : 1; s.f.fw.style.transform = `translate(${(1 - p) * 120}px,0) scale(${sc})`; s.f.fw.style.opacity = p; frameRender(s.f, u, { wipe: null, tap: null });
   s.cards.forEach((c, k) => { const at = 0.6 + k * 0.95, on = u >= at && u < at + 0.95, pp = P(u, 0.4 + k * 0.12, 0.4, E.back); c.classList.toggle("on", on); tf(c, { o: clamp((u - 0.4 - k * 0.12) / 0.15), y: (1 - pp) * 40, s: on ? 1.03 : 1 }); const r = s.rings[k], d = u - at; r.style.display = d >= 0 && d < 0.95 ? "" : "none"; if (d >= 0 && d < 0.95) { const q = (d % 0.5) / 0.5; r.style.opacity = 1 - q; r.style.transform = `scale(${0.5 + q * 1.1})`; } }); } });
@@ -217,7 +238,7 @@ scene({ id: "cloze", dur: 5.5, cues: [[0.2, "slam"], [2.9, "tap"], [3.0, "right"
   const sPop = WIDE ? 1.55 : 1.42, pw = buildPopup(sc, { scale: sPop, x: WIDE ? 1146 : (W - 380 * sPop) / 2, y: WIDE ? 87 : 720, imgs: ["p-cloze.png", "p-cloze-ok.png"] });
   pw.r = mkRip(pw.fx); pw.b = mkBurst(pw.fx, 8); this.s = { T, pw, sPop };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 1.0); const p = P(u, 0.1, 0.55), y0 = WIDE ? 87 : 720; s.pw.pw.style.top = y0 + (1 - p) * 90 + "px"; s.pw.pw.style.opacity = p;
-  const ok = u >= 3.0; showImg(s.pw, ok ? 1 : 0); const o = COORD.opts.find((x) => x.t === "propio"); rip(s.pw.r, u, 2.9, o.x / 1.0 * (380 / 380) + o.w * 0.7 - 0, o.y + o.h / 2); const pulse = ok && u - 3.0 < 0.4 ? 1 + 0.02 * Math.sin((u - 3.0) / 0.4 * Math.PI) : 1; s.pw.pw.style.transform = `scale(${s.sPop * pulse})`; burst(s.pw.b, u, 3.05, 190, 150, 150); } });
+  const ok = u >= 3.0; showImg(s.pw, ok ? 1 : 0); const o = COORD.opts.find((x) => x.t === KW.w); rip(s.pw.r, u, 2.9, o.x / 1.0 * (380 / 380) + o.w * 0.7 - 0, o.y + o.h / 2); const pulse = ok && u - 3.0 < 0.4 ? 1 + 0.02 * Math.sin((u - 3.0) / 0.4 * Math.PI) : 1; s.pw.pw.style.transform = `scale(${s.sPop * pulse})`; burst(s.pw.b, u, 3.05, 190, 150, 150); } });
 // 8) 1 gün, 3 gün, 7 gün + öğrenildi
 scene({ id: "learned", dur: 5.5, cues: [[0.2, "slam"], [1.5, "pop"], [2.1, "pop"], [2.7, "pop"], [3.5, "learned"], [3.5, "confetti"]], th: "y", hdr: true, short: true, build(sc) {
   const T = textBlock(sc, { head: ["1 day. 3 days.", "*7 days.*"], sub: "Each right answer pushes the next review out.", side: "l" });
