@@ -23,7 +23,7 @@ const slides = [
       await page.mouse.move(1150, 300); await wait(1500); // fare iframe İÇİNDE ama kutudan uzakta: araç çubuğu ve kesikli çerçeve kapanır
   } },
   { n: 3, name: "03-your-words", run: async (f) => { await f.locator('#tabs button[data-tab="words"]').click(); await f.locator(".wl li").first().waitFor(); await wait(300); } },
-  { n: 4, name: "04-two-languages", run: async (f) => { await f.locator("#go").waitFor(); await wait(300); } },
+  { n: 4, name: "04-practise-in-the-line", run: async (f, page) => { await page.locator("img#f").waitFor(); await wait(400); } },
   { n: 5, name: "05-off-until-on", run: async (f) => { await f.locator("#state").waitFor(); await wait(400); } },
 ];
 

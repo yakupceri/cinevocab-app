@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ad v2 9:16</title>
+<!-- Reklam v2: tüm hareket seek(t) ile zamandan hesaplanır (kare kare, deterministik). Arayüz görselleri GERÇEK eklentiden alınmıştır (dev/harness/ad2-assets.mjs).
+     ?v=a (merak: "hangi kelime?") | ?v=b ("kelime kaydetmek ücretli olmamalı")  ?l=en|tr -->
+<style>
+  @font-face { font-family:"CV Display"; font-weight:800; src:url("../../../extension/fonts/d800.woff") format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:500; src:url("../../../extension/fonts/t500.woff") format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:600 700; src:url("../../../extension/fonts/t600.woff") format("woff"); }
+  :root { --bg:#0B0B0A; --ink:#EDE8DA; --dim:#A19C8E; --acc:#F0CB4A; --on:#1A1500; --good:#86C79A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; width:1080px; height:1920px; background:var(--bg); color:var(--ink); overflow:hidden; font:500 36px/1.4 "CV Text",system-ui,sans-serif; }
+  .abs { position:absolute; } .hid { visibility:hidden; }
+  #glow { position:absolute; left:-200px; top:-300px; width:1480px; height:1100px; background:radial-gradient(closest-side,rgba(240,203,74,.10),rgba(240,203,74,0)); }
+  /* başlıklar */
+  .h { position:absolute; left:64px; right:64px; bottom:1396px; font:800 112px/1.02 "CV Display","CV Text",sans-serif; letter-spacing:-.03em; visibility:hidden; }
+  .h .l { display:block; white-space:nowrap; }
+  .h .w { display:inline-block; margin-right:.22em; will-change:transform,opacity; }
+  .h .w.em { color:var(--acc); }
+  .h.sm { font-size:96px; }
+  .mono { font:500 36px/1.3 ui-monospace,Menlo,Consolas,monospace; color:var(--dim); letter-spacing:0; }
+  /* video kartı */
+  #card { position:absolute; left:40px; top:560px; width:1000px; height:700px; border-radius:22px; overflow:hidden; background:#000; box-shadow:0 40px 90px rgba(0,0,0,.55); transform-origin:50% 60%; visibility:hidden; }
+  #card img { position:absolute; left:0; top:0; width:1000px; height:700px; display:block; }
+  #sub { position:absolute; left:0; right:0; top:560px; text-align:center; font:600 37px/1.28 "CV Text",system-ui,sans-serif; white-space:nowrap; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 2px #000; }
+  #sub .sw { display:inline-block; margin:0 .12em; }
+  #sweep { position:absolute; top:360px; width:10px; height:290px; margin-left:-5px; background:linear-gradient(180deg,rgba(240,203,74,0),var(--acc) 30%,var(--acc) 70%,rgba(240,203,74,0)); box-shadow:0 0 40px 10px rgba(240,203,74,.45); }
+  .q { position:absolute; width:50px; height:50px; margin:-25px 0 0 -25px; border-radius:50%; background:var(--acc); color:var(--on); font:800 32px/50px "CV Display",sans-serif; text-align:center; will-change:transform,opacity; }
+  .rip { position:absolute; width:150px; height:150px; margin:-75px 0 0 -75px; pointer-events:none; visibility:hidden; }
+  .rip .d { position:absolute; left:43px; top:43px; width:64px; height:64px; border-radius:50%; background:rgba(237,232,218,.38); border:3px solid rgba(237,232,218,.85); }
+  .rip .r { position:absolute; left:43px; top:43px; width:64px; height:64px; border-radius:50%; border:4px solid var(--acc); }
+  .spark { position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background:var(--acc); }
+  .ring { position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:5px solid var(--acc); }
+  #cap { position:absolute; left:64px; right:64px; top:1466px; text-align:center; visibility:hidden; }
+  /* popup */
+  #pop { position:absolute; left:255px; top:596px; width:570px; height:876px; border-radius:26px; overflow:hidden; background:#0B0B0A; box-shadow:0 40px 90px rgba(0,0,0,.6), 0 0 0 1.5px rgba(237,232,218,.14); transform-origin:50% 50%; visibility:hidden; }
+  #pop img { position:absolute; left:0; top:0; width:570px; height:876px; display:block; }
+  #path { position:absolute; left:64px; right:64px; top:1516px; visibility:hidden; }
+  #path .lab { text-align:center; margin-bottom:22px; }
+  #path .row { display:flex; align-items:center; justify-content:center; gap:20px; }
+  #path .st { min-width:210px; padding:20px 0; border-radius:99px; border:3px solid rgba(237,232,218,.25); text-align:center; font:800 46px/1 "CV Display",sans-serif; color:var(--dim); will-change:transform; }
+  #path .st.on { border-color:var(--acc); background:var(--acc); color:var(--on); }
+  #path .ar { width:40px; height:4px; background:rgba(237,232,218,.25); border-radius:2px; }
+  /* kanıtlar + kapanış */
+  .chk { position:absolute; left:84px; display:flex; align-items:center; gap:34px; font:800 66px/1.1 "CV Display",sans-serif; letter-spacing:-.02em; visibility:hidden; will-change:transform,opacity; }
+  .chk svg { flex:none; width:84px; height:84px; }
+  #end { position:absolute; inset:0; visibility:hidden; }
+  #end .ic { position:absolute; left:430px; top:520px; width:220px; height:220px; }
+  #end .nm { position:absolute; left:0; right:0; top:780px; text-align:center; font:800 150px/1 "CV Display",sans-serif; letter-spacing:-.035em; }
+  #end .tg { position:absolute; left:0; right:0; top:970px; text-align:center; font:500 52px/1.3 "CV Text",sans-serif; color:var(--dim); }
+  #end .btn { position:absolute; left:190px; right:190px; top:1140px; padding:42px 0; border-radius:28px; background:var(--acc); color:var(--on); text-align:center; font:800 70px/1 "CV Display",sans-serif; letter-spacing:-.01em; }
+  #end .sites { position:absolute; left:0; right:0; top:1350px; text-align:center; }
+  #foot { position:absolute; left:64px; bottom:96px; font:800 44px "CV Display",sans-serif; display:flex; align-items:center; gap:18px; visibility:hidden; }
+  #foot img { width:60px; height:60px; border-radius:14px; }
+  #tray { position:absolute; left:40px; top:1296px; width:1000px; height:136px; border-radius:22px; background:#151513; border:2px solid rgba(237,232,218,.14); visibility:hidden; }
+  #tray .lab { position:absolute; left:40px; top:50px; }
+  #tray .slot { position:absolute; left:330px; top:34px; height:68px; width:560px; display:flex; align-items:center; gap:18px; font:800 40px/1 "CV Display",sans-serif; }
+  #tray .slot .wd { display:inline-block; padding:9px 18px; border-radius:14px; background:var(--acc); color:var(--on); visibility:hidden; }
+  #tray .slot .tr { color:var(--dim); font:500 34px/1 ui-monospace,Menlo,Consolas,monospace; visibility:hidden; }
+  #fly { position:absolute; padding:9px 18px; border-radius:14px; background:var(--acc); color:var(--on); font:800 40px/1 "CV Display",sans-serif; visibility:hidden; will-change:transform; }
+  #stamp { position:absolute; right:40px; top:40px; padding:14px 34px; border:7px solid var(--acc); border-radius:16px; color:var(--acc); font:800 84px/1 "CV Display",sans-serif; letter-spacing:.02em; transform-origin:50% 50%; visibility:hidden; background:rgba(11,11,10,.55); }
+</style></head>
+<body>
+<div id="glow"></div>
+<div class="h" id="h0"></div>
+<div id="card">
+  <img id="stage" src="../../out/ad2/assets/stage.png" alt="">
+  <div id="sub"></div>
+  <img id="chips" src="../../out/ad2/assets/chips.png" alt="" class="hid">
+  <img id="kept" src="../../out/ad2/assets/kept.png" alt="" class="hid">
+  <div id="fxc"></div>
+  <div id="sweep" class="hid"></div>
+  <div id="stamp">FREE</div>
+</div>
+<div id="tray"><div class="lab mono"></div><div class="slot"><span class="wd">propio</span><span class="tr">= own</span></div></div>
+<div id="fly">propio</div>
+<div id="cap" class="mono"></div>
+<div id="pop"><img id="p1" src="../../out/ad2/assets/p-cloze.png" alt=""><img id="p2" class="hid" src="../../out/ad2/assets/p-cloze-ok.png" alt=""><img id="p3" class="hid" src="../../out/ad2/assets/p-learned.png" alt=""></div>
+<div id="path"><div class="lab mono"></div><div class="row"><div class="st" data-i="0"></div><div class="ar"></div><div class="st" data-i="1"></div><div class="ar"></div><div class="st" data-i="2"></div></div></div>
+<div id="chks"></div>
+<div id="end"><img class="ic" src="../../../extension/icons/icon128.png" alt=""><div class="nm">CineVocab</div><div class="tg"></div><div class="btn"></div><div class="sites mono"></div></div>
+<div id="foot"><img src="../../../extension/icons/icon128.png" alt="">CineVocab</div>
+<div id="fx"></div>
+
+<script>
+const Q = new URLSearchParams(location.search), V = Q.get("v") === "b" ? "b" : "a", LANG = Q.get("l") === "tr" ? "tr" : "en";
+const COPY = {
+  en: {
+    a1: ["One word", "is blocking", "this *scene.*"], a2: ["Tap *it.*"], a3: ["Every word,", "*translated live.*"], a4: ["Tap. *Kept.*"],
+    b1: ["Saving words", "shouldn't be", "a *paid feature.*"],
+    r1: ["Tomorrow,", "*it comes back.*"], r2: ["*1 day.* 3 days.", "7 days."], r3: ["Now it's", "*yours.*"],
+    z1: ["Learn from", "what you", "*already watch.*"],
+    cap: "Saved with the line you heard it in.", tray: "KEPT TODAY", pathLab: "NEXT REVIEW", pathSteps: ["1 day", "3 days", "7 days"], pathDone: "3 right answers, spaced out.",
+    chk: ["Free to start", "No account needed", "Words stay on your device"],
+    tag: "Free. No account to start.", btn: "Add to Chrome", sites: "YouTube · Prime Video · Netflix · Udemy",
+    sub: ["Lo más importante en la vida es tener amor propio"], stamp: "FREE",
+  },
+  tr: {
+    a1: ["Bir kelime", "bu sahneyi", "*engelliyor.*"], a2: ["Ona *dokun.*"], a3: ["Her kelime,", "*canlı çevrildi.*"], a4: ["Dokun. *Tutuldu.*"],
+    b1: ["Kelime kaydetmek", "ücretli", "bir *özellik olmamalı.*"],
+    r1: ["Yarın", "*geri gelir.*"], r2: ["*1 gün.* 3 gün.", "7 gün."], r3: ["Artık", "*senin.*"],
+    z1: ["İzlediğinden", "*öğren.*"],
+    cap: "Duyduğun cümleyle birlikte saklanır.", tray: "BUGÜN TUTULAN", pathLab: "SONRAKİ TEKRAR", pathSteps: ["1 gün", "3 gün", "7 gün"], pathDone: "3 doğru cevap, aralıklı.",
+    chk: ["Başlamak ücretsiz", "Hesap gerekmez", "Kelimeler cihazında kalır"],
+    tag: "Ücretsiz. Başlamak için hesap yok.", btn: "Chrome'a ekle", sites: "YouTube · Prime Video · Netflix · Udemy",
+    sub: ["Lo más importante en la vida es tener amor propio"], stamp: "ÜCRETSİZ",
+  },
+}[LANG];
+
+// ---- yardımcılar ----
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const E = {
+  out: (x) => 1 - Math.pow(1 - x, 3),
+  out5: (x) => 1 - Math.pow(1 - x, 5),
+  io: (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+  back: (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+  lin: (x) => x,
+};
+const P = (t, a, d, e = E.out) => e(clamp((t - a) / d));
+// display:none da verilir: üst öğe gizliyken, açıkça "visible" verilmiş çocuklar hayalet gibi görünmesin
+const vis = (el, on) => { el.style.display = on ? "" : "none"; el.style.visibility = on ? "visible" : "hidden"; };
+const tf = (el, o) => { el.style.opacity = o.o == null ? 1 : o.o; el.style.transform = `translate(${o.x || 0}px,${o.y || 0}px) scale(${o.s == null ? 1 : o.s}) rotate(${o.r || 0}deg)`; };
+
+// ---- başlıklar: kelime kelime "slam" ----
+const HEADS = []; // {el, a, b, words:[{el}]}
+function mkHead(lines, a, b, small) {
+  const d = document.createElement("div"); d.className = "h" + (small ? " sm" : ""); document.body.insertBefore(d, $("card"));
+  const words = [];
+  lines.forEach((ln) => {
+    const l = document.createElement("span"); l.className = "l";
+    ln.split(/(\*[^*]+\*)/).filter(Boolean).forEach((part) => {
+      const em = part.startsWith("*"), txt = em ? part.slice(1, -1) : part;
+      txt.split(" ").filter(Boolean).forEach((w) => { const s = document.createElement("span"); s.className = "w" + (em ? " em" : ""); s.textContent = w; l.append(s); words.push(s); });
+    });
+    d.append(l);
+  });
+  HEADS.push({ d, a, b, words });
+}
+function renderHeads(t) {
+  for (const h of HEADS) {
+    const on = t >= h.a && t < h.b + 0.22; vis(h.d, on); if (!on) continue;
+    const exit = 1 - P(t, h.b, 0.2, E.lin);
+    h.words.forEach((w, k) => {
+      const lt = t - h.a - k * 0.085, p = clamp(lt / 0.34);
+      tf(w, { o: clamp(lt / 0.1) * exit, y: (1 - E.back(p)) * 52, s: 0.86 + 0.14 * E.back(p) });
+    });
+  }
+}
+
+// ---- dokunma göstergesi ----
+function mkRip(parent) { const r = document.createElement("div"); r.className = "rip"; r.innerHTML = '<div class="r"></div><div class="d"></div>'; parent.append(r); return r; }
+function renderRip(r, t, t0, x, y) { // t0: dokunma anı; 0.35 sn önce belirir, dokunuşta basılır, halka yayılır
+  const u = t - t0, on = u > -0.4 && u < 0.7; vis(r, on); if (!on) return;
+  r.style.left = x + "px"; r.style.top = y + "px";
+  const d = r.querySelector(".d"), ring = r.querySelector(".r");
+  const appear = P(u, -0.4, 0.25), press = u < 0 ? 1 : 1 - 0.2 * P(u, 0, 0.08) + 0.2 * P(u, 0.08, 0.18);
+  d.style.opacity = appear * (1 - P(u, 0.3, 0.3, E.lin)); d.style.transform = `scale(${(0.7 + 0.3 * appear) * press})`;
+  const rp = P(u, 0, 0.55, E.out); ring.style.opacity = u < 0 ? 0 : (1 - rp) * 0.95; ring.style.transform = `scale(${1 + rp * 1.9})`;
+}
+// ---- patlama (halka + kıvılcımlar) ----
+function mkBurst(parent, n = 8) { const o = { ring: document.createElement("div"), sp: [] }; o.ring.className = "ring"; parent.append(o.ring); for (let i = 0; i < n; i++) { const s = document.createElement("div"); s.className = "spark"; parent.append(s); o.sp.push(s); } return o; }
+function renderBurst(b, t, t0, x, y, R = 120) {
+  const u = t - t0, on = u >= 0 && u < 0.8;
+  b.ring.style.visibility = on ? "visible" : "hidden"; b.sp.forEach((s) => (s.style.visibility = on ? "visible" : "hidden")); if (!on) return;
+  const p = E.out(u / 0.8);
+  b.ring.style.left = x + "px"; b.ring.style.top = y + "px"; b.ring.style.opacity = 1 - p; b.ring.style.transform = `scale(${0.4 + p * 1.6})`;
+  b.sp.forEach((s, i) => { const a = (i / b.sp.length) * Math.PI * 2 + 0.3, r = 40 + p * R; s.style.left = x + Math.cos(a) * r + "px"; s.style.top = y + Math.sin(a) * r + "px"; s.style.opacity = 1 - p; s.style.transform = `scale(${1 - p * 0.7})`; });
+}
+
+// ---- kurulum ----
+let COORD = null, subW = {}, OPT = null;
+const card = $("card"), fxc = $("fxc"), pop = $("pop");
+const ripCard1 = mkRip(card), ripCard2 = mkRip(card), burstCard = mkBurst(fxc), ripPop = mkRip(document.body), burstPop = mkBurst($("fx"), 10);
+let bubbles = [];
+
+async function setup() {
+  COORD = window.COORD_DATA || await (await fetch("../../out/ad2/assets/coords.json")).json(); // file:// altında fetch yok: sürücü veriyi enjekte eder
+  OPT = COORD.opts;
+  // düz altyazı (videonun kendi altyazısı gibi)
+  const sub = $("sub"); sub.innerHTML = "";
+  COPY.sub.forEach((ln) => { const d = document.createElement("div"); ln.split(" ").forEach((w) => { const s = document.createElement("span"); s.className = "sw"; s.textContent = w; d.append(s); }); sub.append(d); });
+  await document.fonts.ready; await new Promise((r) => setTimeout(r, 120));
+  const cr = card.getBoundingClientRect();
+  sub.querySelectorAll(".sw").forEach((s) => { const r = s.getBoundingClientRect(); subW[s.textContent] = { x: r.left - cr.left + r.width / 2, y: r.top - cr.top, w: r.width }; });
+  ["importante", "amor", "propio"].forEach((w) => { const q = document.createElement("div"); q.className = "q"; q.textContent = "?"; card.append(q); bubbles.push({ el: q, w }); });
+  // başlıklar (zaman çizelgesi aşağıda)
+  const T = TL[V];
+  T.heads.forEach(([k, a, b, small]) => mkHead(COPY[k], a, b, small));
+  const path = $("path"); path.querySelector(".lab").textContent = COPY.pathLab; path.querySelectorAll(".st").forEach((s, i) => (s.textContent = COPY.pathSteps[i]));
+  $("cap").textContent = COPY.cap; $("tray").querySelector(".lab").textContent = COPY.tray; $("end").querySelector(".tg").textContent = COPY.tag; $("end").querySelector(".btn").textContent = COPY.btn; $("end").querySelector(".sites").textContent = COPY.sites;
+  const chks = $("chks"); COPY.chk.forEach((txt, i) => { const d = document.createElement("div"); d.className = "chk"; d.style.top = 800 + i * 150 + "px"; d.innerHTML = '<svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="40" fill="#F0CB4A"/><path d="M24 43l13 13 24-27" fill="none" stroke="#1A1500" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>'; const s = document.createElement("span"); s.textContent = txt; d.append(s); chks.append(d); });
+  $("stamp").textContent = COPY.stamp;
+  window.READY = true;
+}
+
+// ---- zaman çizelgesi (saniye) ----
+// a: merak kancası · b: kelime kaydı kancası (kelime kaydetmek ücretli olmamalı)
+const TL = {
+  a: { heads: [["a1", 0.15, 2.5], ["a2", 2.6, 3.4], ["a3", 3.55, 5.5], ["a4", 5.6, 6.55], ["r1", 6.75, 8.9], ["r2", 9.0, 10.5], ["r3", 10.65, 12.4], ["z1", 12.6, 14.4]],
+    tapReveal: 3.4, wipe: [3.5, 1.0], tapKeep: 5.5, cardOut: 6.55, popIn: 6.7, tapOpt: 8.3, okAt: 8.36, pathAt: 9.0, learnedAt: 10.6, popOut: 12.45, chkAt: 13.0, endAt: 15.2, total: 19.0 },
+  b: { heads: [["b1", 0.15, 3.0], ["a4", 3.9, 5.0], ["r1", 5.5, 7.6], ["r2", 7.7, 9.2], ["r3", 9.35, 11.1], ["z1", 11.3, 13.1]],
+    tapReveal: null, wipe: null, tapKeep: 3.9, cardOut: 5.3, popIn: 5.45, tapOpt: 7.05, okAt: 7.11, pathAt: 7.7, learnedAt: 9.3, popOut: 11.15, chkAt: 11.7, endAt: 13.9, total: 17.7 },
+};
+
+const centerOf = (w) => { const b = COORD.chips[w]; return { x: b.x + b.width / 2, y: b.y + 34 }; };
+
+function seek(t) {
+  if (!window.READY) return;
+  const T = TL[V], A = V === "a";
+  renderHeads(t);
+  // arka plan ışığı: yavaş nefes
+  $("glow").style.opacity = 0.75 + 0.25 * Math.sin(t * 1.4);
+  // ---------- KART (sahne 1) ----------
+  const cardIn = P(t, 0, 0.55, E.out), cardOutP = P(t, T.cardOut, 0.35, E.io);
+  const cardOn = t < T.cardOut + 0.4;
+  vis(card, cardOn);
+  if (cardOn) {
+    const push = 1 + 0.035 * clamp(t / T.cardOut); // yavaş yaklaşma: durağan durmasın
+    tf(card, { o: cardIn * (1 - cardOutP), y: (1 - cardIn) * 60 - cardOutP * 40, x: -cardOutP * 260, s: (0.94 + 0.06 * cardIn) * push });
+    // düz altyazı (yalnızca A kancasında ve çeviriden önce)
+    const wipeT = A ? T.wipe : null;
+    $("sub").style.display = A ? "block" : "none";
+    // soru işaretleri
+    bubbles.forEach((b, i) => {
+      const at = 1.25 + i * 0.28, p = P(t, at, 0.4, E.back), gone = A && t > T.tapReveal + 0.2;
+      const on = A && t >= at && !gone; vis(b.el, on); if (!on) return;
+      const s = subW[b.w], pulse = i === 2 && t > 2.1 ? 1 + 0.12 * Math.sin((t - 2.1) * 9) : 1;
+      b.el.style.left = s.x + "px"; b.el.style.top = s.y - 26 + "px"; tf(b.el, { s: p * pulse, o: clamp((t - at) / 0.1) * (1 - (i === 2 ? 0 : P(t, 2.35, 0.2, E.lin))) });
+    });
+    // çeviri katmanı
+    const chips = $("chips");
+    if (A) {
+      const p = wipeT ? P(t, wipeT[0], wipeT[1], E.io) : 0;
+      vis(chips, t >= wipeT[0]); chips.style.clipPath = `inset(0 ${(1 - p) * 100}% 0 0)`;
+      const sw = $("sweep"); vis(sw, p > 0 && p < 1); sw.style.left = p * 1000 + "px";
+    } else { vis(chips, true); chips.style.clipPath = "none"; vis($("sweep"), false); }
+    // kelime tutuldu
+    const kp = t >= T.tapKeep ? P(t, T.tapKeep + 0.03, 0.14, E.lin) : 0; vis($("kept"), kp > 0); $("kept").style.opacity = kp;
+    const c = centerOf("propio");
+    if (A) renderRip(ripCard1, t, T.tapReveal, subW["propio"].x, subW["propio"].y + 22); else vis(ripCard1, false);
+    renderRip(ripCard2, t, T.tapKeep, c.x, c.y);
+    renderBurst(burstCard, t, T.tapKeep + 0.02, c.x, c.y, 150);
+    // kutu "pop"
+    const popS = t >= T.tapKeep ? 1 + 0.05 * Math.sin(clamp((t - T.tapKeep) / 0.35) * Math.PI) : 1;
+    $("chips").style.transformOrigin = $("kept").style.transformOrigin = `${c.x}px ${c.y}px`; $("kept").style.transform = `scale(${popS})`;
+    // B: "ÜCRETSİZ" damgası
+    const st = $("stamp"), sp = P(t, 1.7, 0.35, E.back), son = !A && t >= 1.7 && t < 3.55; vis(st, son);
+    if (son) tf(st, { s: 2.1 - 1.1 * sp, o: clamp((t - 1.7) / 0.1) * (1 - P(t, 3.3, 0.25, E.lin)), r: -9 });
+  }
+  // tepsi: tutulan kelime karttan tepsiye uçar
+  const trOn = t >= T.tapKeep && t < T.cardOut + 0.35; vis($("tray"), trOn);
+  const fly = $("fly"), wd = $("tray").querySelector(".wd"), tr2 = $("tray").querySelector(".tr");
+  if (trOn) {
+    const tin = P(t, T.tapKeep + 0.02, 0.35, E.out), tout = P(t, T.cardOut, 0.35, E.io);
+    tf($("tray"), { o: tin * (1 - tout), y: (1 - tin) * 50 - tout * 30, x: -tout * 260 });
+    const c0 = centerOf("propio"), sx = 40 + c0.x - 50, sy = 560 + c0.y - 20, ex = 40 + 330, ey = 1296 + 34 + 4;
+    const fp = P(t, T.tapKeep + 0.18, 0.62, E.io), landed = fp >= 1;
+    const fon = t >= T.tapKeep + 0.18 && !landed; vis(fly, fon);
+    if (fon) { fly.style.left = sx + (ex - sx) * fp + "px"; fly.style.top = sy + (ey - sy) * fp - Math.sin(fp * Math.PI) * 120 + "px"; tf(fly, { s: 1 + 0.12 * Math.sin(fp * Math.PI), o: 1 }); }
+    wd.style.visibility = landed ? "visible" : "hidden"; tr2.style.visibility = t >= T.tapKeep + 0.95 ? "visible" : "hidden";
+    const lb = landed ? 1 + 0.2 * Math.sin(clamp((t - (T.tapKeep + 0.8)) / 0.3) * Math.PI) : 1; wd.style.transform = `scale(${lb})`;
+  } else vis(fly, false);
+  // altyazı (başlığın altında)
+  const capOn = t >= T.tapKeep + 0.7 && t < T.cardOut + 0.1; vis($("cap"), capOn); if (capOn) tf($("cap"), { o: P(t, T.tapKeep + 0.7, 0.3) * (1 - P(t, T.cardOut - 0.15, 0.25, E.lin)), y: (1 - P(t, T.tapKeep + 0.7, 0.3)) * 20 });
+
+  // ---------- POPUP (sahne 2) ----------
+  const popP = P(t, T.popIn, 0.5, E.out), popOutP = P(t, T.popOut, 0.4, E.io), popOn = t >= T.popIn && t < T.popOut + 0.45;
+  vis(pop, popOn);
+  if (popOn) {
+    const ok = t >= T.okAt, lr = t >= T.learnedAt;
+    const pulse = ok && t - T.okAt < 0.4 ? 1 + 0.025 * Math.sin((t - T.okAt) / 0.4 * Math.PI) : 1;
+    const lp = lr && t - T.learnedAt < 0.6 ? 1 + 0.045 * Math.sin((t - T.learnedAt) / 0.6 * Math.PI) : 1;
+    tf(pop, { o: popP * (1 - popOutP), x: (1 - popP) * 330 - popOutP * 260, s: (0.96 + 0.04 * popP) * pulse * lp });
+    vis($("p1"), !ok); vis($("p2"), ok && !lr); vis($("p3"), lr);
+    // seçeneğe dokunma
+    const o = OPT.find((x) => x.t === "propio"), sc = 570 / 380, ox = 255 + (o.x + o.w * 0.7) * sc, oy = 596 + (o.y + o.h / 2) * sc;
+    renderRip(ripPop, t, T.tapOpt, ox, oy);
+    // yeşil ✓ yerine yazı zaten arayüzde; "Öğrenildi" anında patlama
+    renderBurst(burstPop, t, T.learnedAt, 540, 861, 330);
+  } else { vis(ripPop, false); renderBurst(burstPop, t, -9, 0, 0); }
+  // yol çizgisi: 1 gün -> 3 gün -> 7 gün
+  const pOn = t >= T.pathAt && t < T.popOut + 0.2; vis($("path"), pOn);
+  if (pOn) {
+    $("path").style.opacity = P(t, T.pathAt, 0.3) * (1 - P(t, T.popOut - 0.05, 0.25, E.lin));
+    $("path").querySelectorAll(".st").forEach((s, i) => {
+      const at = T.pathAt + 0.35 + i * 0.5 + (i === 2 ? 0.0 : 0), on = t >= at; s.classList.toggle("on", on);
+      s.style.transform = `scale(${on && t - at < 0.3 ? 1 + 0.18 * Math.sin((t - at) / 0.3 * Math.PI) : 1})`;
+    });
+    $("path").querySelector(".lab").textContent = t >= T.learnedAt ? COPY.pathDone : COPY.pathLab;
+  }
+
+  // ---------- KANITLAR ----------
+  $("chks").querySelectorAll(".chk").forEach((d, i) => {
+    const at = T.chkAt + i * 0.42, on = t >= at && t < T.endAt + 0.1; vis(d, on); if (!on) return;
+    const p = P(t, at, 0.4, E.back); tf(d, { o: clamp((t - at) / 0.1) * (1 - P(t, T.endAt - 0.1, 0.25, E.lin)), x: (1 - p) * -90 });
+  });
+  // ---------- KAPANIŞ ----------
+  const e = $("end"), eon = t >= T.endAt; vis(e, eon);
+  if (eon) {
+    const u = t - T.endAt, ic = e.querySelector(".ic"), nm = e.querySelector(".nm"), tg = e.querySelector(".tg"), bt = e.querySelector(".btn"), sites = e.querySelector(".sites");
+    tf(ic, { o: P(u, 0, 0.3), s: 0.5 + 0.5 * P(u, 0, 0.5, E.back) }); tf(nm, { o: P(u, 0.15, 0.3), y: (1 - P(u, 0.15, 0.4)) * 40 });
+    tf(tg, { o: P(u, 0.45, 0.3), y: (1 - P(u, 0.45, 0.4)) * 30 });
+    const press = u > 2.2 ? 1 - 0.05 * Math.sin(clamp((u - 2.2) / 0.3) * Math.PI) : 1;
+    tf(bt, { o: P(u, 0.7, 0.3), y: (1 - P(u, 0.7, 0.45, E.back)) * 60, s: press });
+    tf(sites, { o: P(u, 1.1, 0.4) });
+  }
+  // alt marka (kapanıştan önce)
+  const fo = t > 0.4 && t < T.endAt; vis($("foot"), fo); if (fo) $("foot").style.opacity = P(t, 0.4, 0.4) * (1 - P(t, T.endAt - 0.3, 0.25, E.lin));
+}
+window.seek = seek; window.TL = TL; window.VARIANT = V;
+setup();
+</script>
+</body></html>

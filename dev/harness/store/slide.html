@@ -36,7 +36,7 @@ const S = {
   1: { kind: "video", h: "Every subtitle word, translated on the video.", f: "Spanish → English, live, as the subtitles appear", src: "/__video.html?scene=on&ui=en&line=0" },
   2: { kind: "video", h: "Click a word to keep it.", f: "No account needed. Your words stay on your device.", src: "/__video.html?scene=on&ui=en&line=0" },
   3: { kind: "popup", h: "Your words, with the moment you met them.", p: "Kept on your device with the video time. Create a free account and they move over.", src: "/popup.html?scene=bank&ui=en&tab=yt&bankN=3" },
-  4: { kind: "welcome", h: "Pick two languages. Press one button.", p: "16 subtitle languages. Translations in your own language.", src: "/welcome.html?ui=en" },
+  4: { kind: "img", h: "Practise in the line you heard the word in.", p: "Fill-in-the-blank questions from the subtitles you kept. No account needed.", img: "/__ad/p-cloze.png" },
   5: { kind: "popup", h: "Off until you switch it on.", p: "No subtitle text is sent until you do. Switch it off any time.", src: "/popup.html?scene=new&ui=en&tab=yt", crop: true },
 }[n];
 const b = document.body;
@@ -45,7 +45,7 @@ if (S.kind === "video") {
   b.innerHTML = '<div class="bar top"><h1>' + S.h + '</h1></div><iframe class="stage" id="f" src="' + S.src + '"></iframe><div class="bar bot"><span class="tag">' + S.f + '</span>' + brand + '</div>';
 } else {
   const crop = S.crop ? " crop" : "";
-  const dev = S.kind === "popup" ? '<div class="dev' + crop + '"><iframe id="f" src="' + S.src + '"></iframe></div>' : '<div class="welcomeframe"><iframe id="f" src="' + S.src + '"></iframe></div>';
+  const dev = S.kind === "img" ? '<div class="dev"><img id="f" src="' + S.img + '" alt="" style="width:100%;height:100%;display:block"></div>' : S.kind === "popup" ? '<div class="dev' + crop + '"><iframe id="f" src="' + S.src + '"></iframe></div>' : '<div class="welcomeframe"><iframe id="f" src="' + S.src + '"></iframe></div>';
   b.className = "split";
   b.innerHTML = '<div class="copy"><h1>' + S.h + '</h1><p>' + S.p + '</p></div>' + dev + '<div class="bar bot"><span class="tag"></span>' + brand + '</div>';
 }

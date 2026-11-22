@@ -41,6 +41,11 @@ class Handler(SimpleHTTPRequestHandler):
             if os.path.isfile(f):
                 with open(f, "rb") as fh:
                     return self._send(fh.read(), "text/html; charset=utf-8" if f.endswith(".html") else "text/javascript; charset=utf-8")
+        if path.startswith("/__ad/") and ".." not in path:           # reklam/mağaza görselleri için gerçek eklenti ekran görüntüleri (dev/out/ad2/assets)
+            f = os.path.join(HERE, "..", "out", "ad2", "assets", path[len("/__ad/"):])
+            if os.path.isfile(f):
+                with open(f, "rb") as fh:
+                    return self._send(fh.read(), "image/png")
         if path in INJECT:
             with open(os.path.join(EXT, path.lstrip("/")), "rb") as f:
                 html = f.read()

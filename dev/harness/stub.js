@@ -22,6 +22,7 @@
     bank: { enabled: true, src: "es", dst: "en", boxTip: 1, keptFirst: 1, bank: BANK, stars: { "es>en": Object.values(BANK)[0].map((x) => x.w) }, box: BOX },
   };
   const store = JSON.parse(JSON.stringify(PRESET[scene] || {}));
+  if (q.get("kf")) store.keptFirst = 1;   // ?kf=1: "ilk kelime tutuldu" notu çıkmasın (reklam karesi)
   if (q.get("bs") && store.box) store.box.s = +q.get("bs");   // ?bs=1.7: dikey video için kutu ölçeği
   if (q.get("bankN") && store.bank) store.bank["es>en"] = store.bank["es>en"].slice(0, +q.get("bankN"));
   if (q.get("src")) store.src = q.get("src");   // ?src=ar&dst=en: sağdan sola dil denemesi
