@@ -78,6 +78,25 @@
     return { ok: false, close: false };
   }
 
-  root.CVSrs = { INTERVALS, LEARNED_BOX, TYPE_FROM_BOX, dayOf, boxOf, isNew, isDue, isLearned, usable, nextState, answer, pickSession, stats, streak, check, norm };
+  // ---- cümle çalışması (cihazdaki cümle bağlamıyla) ----
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Cümlede kelimeyi bulup boşlukla değiştirir (büyük/küçük harf ve noktalama fark etmez). Bulunamazsa null (ör. boşluksuz yazılan diller).
+  function blankSentence(sentence, word) {
+    if (!sentence || !word) return null;
+    let m;
+    try { m = new RegExp("(^|[^\\p{L}\\p{N}])(" + esc(word) + ")(?=$|[^\\p{L}\\p{N}])", "iu").exec(sentence); } catch (e) { return null; }
+    if (!m) return null;
+    const a = m.index + m[1].length, b = a + m[2].length;
+    return { before: sentence.slice(0, a), after: sentence.slice(b), shown: sentence.slice(a, b) };
+  }
+  // "Cümle kurma": kelimeler boşluktan bölünür, noktalama kelimede kalır
+  const orderTokens = (sentence) => String(sentence || "").trim().split(/\s+/).filter(Boolean);
+  const tokNorm = (t) => String(t).normalize("NFC").toLowerCase().replace(/[.,!?¿¡;:"“”]/g, "");
+  function checkOrder(tokens, sentence) {
+    const want = orderTokens(sentence).map(tokNorm);
+    return tokens.length === want.length && tokens.every((t, i) => tokNorm(t) === want[i]);
+  }
+
+  root.CVSrs = { blankSentence, orderTokens, checkOrder, INTERVALS, LEARNED_BOX, TYPE_FROM_BOX, dayOf, boxOf, isNew, isDue, isLearned, usable, nextState, answer, pickSession, stats, streak, check, norm };
   if (typeof module !== "undefined") module.exports = root.CVSrs;
 })(typeof self !== "undefined" ? self : globalThis);

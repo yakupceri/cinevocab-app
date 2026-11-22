@@ -369,8 +369,17 @@ function renderLocalPractice(v) {
     }
     const streak = SRS.streak(r && r.reviewDays, day), b = el("button", "btn p", s.ready > 0 ? T("lpStart") : T("lpAnyway"));
     b.onclick = () => startLocal(items, pair, day);
-    c.append(el("div", "lp-lab", T("lpReady")), el("div", "lp-num", String(s.ready)),
+    const learning = s.usable - s.learned - s.fresh, stack = el("div", "stack"); // yeni / öğreniliyor / öğrenildi: gerçek kutu sayılarından
+    stack.setAttribute("role", "img"); stack.setAttribute("aria-label", T("lpStack", s.learned, learning, s.fresh));
+    for (const [k, n] of [["l", s.learned], ["m", learning], ["n", s.fresh]]) if (n > 0) { const i = el("i", k); i.style.flex = String(n); stack.append(i); }
+    c.append(el("div", "lp-lab", T("lpReady")), el("div", "lp-num", String(s.ready)), stack,
       el("p", "lp-line", T("lpLine", s.learned, s.kept) + (streak > 0 ? " · " + T("lpStreak", streak) : "")));
+    const nextUp = SRS.pickSession(items, day, 4).picks.filter((x) => x.counts).map((x) => x.it.w);
+    if (nextUp.length) { // sıradaki kelimeler: yalnızca kelimenin kendisi, anlamı soruda
+      const row = el("div", "upnext"); row.append(el("span", "lp-lab", T("lpUpNext")));
+      for (const w of nextUp) row.append(el("span", "lw lw-sm", w));
+      c.append(row);
+    }
     if (!s.ready) c.append(el("p", "lp-line", T("lpNothing")));
     c.append(b);
     v.replaceChildren(c);
@@ -378,13 +387,22 @@ function renderLocalPractice(v) {
 }
 
 function startLocal(items, pair, day) {
-  const sel = SRS.pickSession(items, day, 8), pool = [...new Set(items.filter(SRS.usable).map((x) => x.t))];
+  const sel = SRS.pickSession(items, day, 8), usable = items.filter(SRS.usable), pool = [...new Set(usable.map((x) => x.t))], words = [...new Set(usable.map((x) => x.w))];
   const qs = sel.picks.map((p) => {
-    const it = p.it, others = pool.filter((t) => t !== it.t);
-    const type = (!SRS.isNew(it) && SRS.boxOf(it) >= SRS.TYPE_FROM_BOX) || others.length < 3; // 2. kutudan sonra yazarak (ipuçlu hatırlama)
-    return { it, counts: p.counts, type, opts: type ? null : shuffle([it.t, ...shuffle(others.slice()).slice(0, 3)]), retry: false };
+    const it = p.it, others = pool.filter((t) => t !== it.t), box = SRS.isNew(it) ? 0 : SRS.boxOf(it), adv = box >= SRS.TYPE_FROM_BOX;
+    const cl = box >= 1 ? SRS.blankSentence(it.s, it.w) : null; // cümle bağlamı: yeni kelimede değil, tanıdıktan sonra (üretme sorusu)
+    const q = { it, counts: p.counts, retry: false, cl };
+    if (cl) { // boşluk doldurma: kelimeyi cümlede hatırla
+      const oth = words.filter((w) => w !== it.w);
+      if (adv || oth.length < 3) { q.kind = "clozeType"; } else { q.kind = "clozePick"; q.opts = shuffle([it.w, ...shuffle(oth.slice()).slice(0, 3)]); }
+    } else if (adv || others.length < 3) q.kind = "type"; // 2. kutudan sonra yazarak (ipuçlu hatırlama)
+    else { q.kind = "pick"; q.opts = shuffle([it.t, ...shuffle(others.slice()).slice(0, 3)]); }
+    return q;
   });
-  lq = { pair, day, qs, i: 0, run: 0, learned: [], fb: null, done: false, seen: new Set(), right: 0, streakBefore: 0 };
+  // tur sonunda tek bir "cümle kurma" bonusu: kutuyu etkilemez, yalnızca çeviriyle birlikte saklanan cümlelerden
+  const cands = sel.picks.map((p) => p.it).filter((it) => it.s && it.st && SRS.orderTokens(it.s).length >= 4 && SRS.orderTokens(it.s).length <= 12);
+  if (cands.length) qs.push({ it: cands[Math.floor(Math.random() * cands.length)], kind: "order", bonus: true, counts: false, retry: false });
+  lq = { pair, day, qs, i: 0, run: 0, learned: [], fb: null, done: false, seen: new Set(), right: 0, streakBefore: 0, bonus: { right: 0, total: 0 }, ord: null };
   chrome.storage.local.get("reviewDays", (r) => { lq.streakBefore = SRS.streak(r && r.reviewDays, day); renderPractice(); });
 }
 
@@ -394,26 +412,67 @@ function localTop(v) {
   x.setAttribute("aria-label", T("pQuit")); x.onclick = () => finishLocal(true); bw.append(bar); top.append(bw, x);
   return top;
 }
-function localQuestion(v) {
-  const q = lq.qs[lq.i], it = q.it, top = localTop(v);
-  if (lq.fb) return localFeedback(v, top, q);
-  const kids = [top, el("div", "qw", it.w), el("div", "qh", q.type ? T("lpType", CVL.langName(st.dst)) : T("pQ", CVL.langName(st.dst)))];
-  if (q.type) {
-    const inp = el("input"), go = el("button", "btn p", T("lpCheck")), dk = el("button", "link", T("lpDunno"));
-    inp.type = "text"; inp.autocomplete = "off"; inp.spellcheck = false; inp.setAttribute("aria-label", T("lpType", CVL.langName(st.dst)));
-    go.style.marginTop = "10px"; go.onclick = () => submitLocal(inp.value); dk.onclick = () => submitLocal("");
-    inp.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
-    kids.push(inp, go, dk); v.replaceChildren(...kids); inp.focus();
-  } else {
-    kids.push(...q.opts.map((o) => { const b = el("button", "ans", o); b.onclick = () => submitLocal(o); return b; }));
-    v.replaceChildren(...kids);
+// Cümle: kelime boşken (fill yok) ya da doldurulmuş (sarı, videodaki "tutuldu" vurgusuyla aynı) görünür
+function sentenceEl(c, fill) {
+  const d = el("div", "cl"), gap = el("span", fill ? "cl-gap on" : "cl-gap", fill || "");
+  d.dir = "auto"; if (!fill) gap.setAttribute("aria-label", "…");
+  d.append(document.createTextNode(c.before), gap, document.createTextNode(c.after));
+  return d;
+}
+function typeBox(kids, label, v) {
+  const inp = el("input"), go = el("button", "btn p", T("lpCheck")), dk = el("button", "link", T("lpDunno"));
+  inp.type = "text"; inp.autocomplete = "off"; inp.spellcheck = false; inp.setAttribute("aria-label", label);
+  go.style.marginTop = "10px"; go.onclick = () => submitLocal(inp.value); dk.onclick = () => submitLocal("");
+  inp.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+  kids.push(inp, go, dk); v.replaceChildren(...kids); inp.focus();
+}
+function orderQuestion(v, top, q) {
+  const want = SRS.orderTokens(q.it.s);
+  if (!lq.ord || lq.ord.i !== lq.i) { // karışık dizilim, doğru sırayla aynı çıkmasın
+    let pool = want.map((t, k) => ({ t, k })), n = 0;
+    do { shuffle(pool); } while (++n < 8 && pool.every((x, k) => x.k === k));
+    lq.ord = { i: lq.i, pool, ans: [] };
   }
+  const o = lq.ord, ans = el("div", "ord-ans"), pl = el("div", "ord-pool");
+  ans.dir = "auto"; pl.dir = "auto";
+  o.ans.forEach((x, pos) => { const b = el("button", "tk", x.t); b.onclick = () => { o.ans.splice(pos, 1); renderPractice(); }; ans.append(b); });
+  o.pool.forEach((x) => { const b = el("button", "tk", x.t); if (o.ans.includes(x)) { b.disabled = true; b.className = "tk used"; } else b.onclick = () => { o.ans.push(x); renderPractice(); }; pl.append(b); });
+  const go = el("button", "btn p", T("lpCheck")), clr = el("button", "link", T("lpClear"));
+  go.disabled = o.ans.length !== o.pool.length; go.onclick = () => submitLocal(o.ans.map((x) => x.t));
+  clr.onclick = () => { o.ans = []; renderPractice(); };
+  v.replaceChildren(top, el("div", "lp-lab lp-c", T("lpBuild")), el("div", "cl-tr big-tr", q.it.st), ans, pl, go, clr);
+}
+function localQuestion(v) {
+  const q = lq.qs[lq.i], it = q.it, top = localTop(v), k = q.kind;
+  if (lq.fb) return localFeedback(v, top, q);
+  if (k === "order") return orderQuestion(v, top, q);
+  const dst = CVL.langName(st.dst);
+  if (k === "clozePick" || k === "clozeType") {
+    const kids = [top, el("div", "lp-lab lp-c", T("lpCloze")), sentenceEl(q.cl, "")];
+    if (it.st) kids.push(el("div", "cl-tr", it.st));
+    kids.push(el("div", "cl-tr mono", "= " + it.t));
+    if (k === "clozeType") return typeBox(kids, T("lpCloze"), v);
+    kids.push(...q.opts.map((o) => { const b = el("button", "ans", o); b.onclick = () => submitLocal(o); return b; }));
+    return v.replaceChildren(...kids);
+  }
+  const kids = [top, el("div", "qw", it.w), el("div", "qh", k === "type" ? T("lpType", dst) : T("pQ", dst))];
+  if (k === "type") return typeBox(kids, T("lpType", dst), v);
+  kids.push(...q.opts.map((o) => { const b = el("button", "ans", o); b.onclick = () => submitLocal(o); return b; }));
+  v.replaceChildren(...kids);
 }
 function submitLocal(value) {
   if (!lq || lq.fb || lq.done) return;
-  const q = lq.qs[lq.i], it = q.it;
+  const q = lq.qs[lq.i], it = q.it, k = q.kind;
+  if (q.bonus) { // cümle kurma: kutuyu ve seriyi etkilemez, yalnızca eğlence ve ek pratik
+    const ok = SRS.checkOrder(value, it.s);
+    lq.bonus.total++; if (ok) lq.bonus.right++;
+    lq.fb = { ok, bonus: true, run: lq.run };
+    return renderPractice();
+  }
   let ok, close = false;
-  if (q.type) { const c = SRS.check(value, it.t); ok = c.ok; close = c.close; } else ok = value === it.t;
+  if (k === "type") { const c = SRS.check(value, it.t); ok = c.ok; close = c.close; }
+  else if (k === "clozeType") { const c = SRS.check(value, it.w); ok = c.ok; close = c.close; }
+  else ok = value === (k === "pick" ? it.t : it.w);
   let learnedNow = false;
   if (!q.retry && !lq.seen.has(it.w)) { // yalnızca ilk deneme kutuyu etkiler; aynı oturumdaki tekrar denemesi etkilemez
     lq.seen.add(it.w);
@@ -427,10 +486,13 @@ function submitLocal(value) {
     });
   }
   lq.run = ok ? lq.run + 1 : 0;
-  if (!ok && !q.retry) lq.qs.push({ ...q, retry: true }); // yanlış bilinen kelime turun sonunda bir kez daha sorulur
+  if (!ok && !q.retry) { // yanlış bilinen kelime turun sonunda (bonustan önce) bir kez daha sorulur
+    const bi = lq.qs.findIndex((x) => x.bonus), again = { ...q, retry: true };
+    if (bi < 0) lq.qs.push(again); else lq.qs.splice(bi, 0, again);
+  }
   lq.fb = { ok, close, learnedNow, run: lq.run };
   renderPractice();
-  if (ok && !learnedNow && !close) { const idx = lq.i; setTimeout(() => { if (lq && !lq.done && lq.i === idx && lq.fb) nextLocal(); }, 650); }
+  if (ok && !learnedNow && !close) { const idx = lq.i; setTimeout(() => { if (lq && !lq.done && lq.i === idx && lq.fb) nextLocal(); }, k.startsWith("cloze") ? 1100 : 650); }
 }
 function nextLocal() {
   if (!lq || lq.done) return;
@@ -438,18 +500,24 @@ function nextLocal() {
   if (lq.i >= lq.qs.length) finishLocal(false); else renderPractice();
 }
 function localFeedback(v, top, q) {
-  const it = q.it, f = lq.fb, from = [it.ep, BANK.clock(it.vt)].filter(Boolean).join(" · ");
+  const it = q.it, f = lq.fb, k = q.kind, from = [it.ep, BANK.clock(it.vt)].filter(Boolean).join(" · ");
+  if (f.bonus) { // cümle kurma geri bildirimi: doğru cümle her durumda gösterilir
+    const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal;
+    return v.replaceChildren(top, el("div", f.ok ? "fb-ok" : "fb-no", f.ok ? T("lpRight") : T("lpAnswer")), el("div", "cl", it.s), el("div", "cl-tr", it.st), b);
+  }
   if (f.ok && f.learnedNow) { // "öğrenildi" anı: sakin ama net. Gerçek bilgi: aralıklı tekrarla yine hatırladı, sonraki tekrar ne zaman
     const c = el("div", "fb-center");
-    c.append(el("div", "lp-lab", T("lpLearnedTag")), el("div", "lw lw-xl", it.w), el("p", "lp-line", T("lpLearnedLine", whenText(SRS.INTERVALS[SRS.LEARNED_BOX]))));
+    const dots = el("div", "dots"); dots.setAttribute("aria-hidden", "true"); for (let k = 0; k < SRS.LEARNED_BOX; k++) dots.append(el("i")); // her nokta bir doğru hatırlama
+    c.append(el("div", "lp-lab", T("lpLearnedTag")), el("div", "lw lw-xl", it.w), dots, el("p", "lp-line", T("lpLearnedLine", whenText(SRS.INTERVALS[SRS.LEARNED_BOX]))));
     const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal;
     return v.replaceChildren(...[top, c, from ? el("p", "src", T("lpFrom", from)) : null, b].filter(Boolean));
   }
-  const kids = [top, el("div", "qw", it.w)];
+  const cloze = k === "clozePick" || k === "clozeType", kids = [top];
+  if (cloze) { kids.push(sentenceEl(q.cl, q.cl.shown)); if (it.st) kids.push(el("div", "cl-tr", it.st)); } else kids.push(el("div", "qw", it.w));
   if (f.ok) {
     kids.push(el("div", "fb-ok", T("lpRight") + (f.run >= 3 ? " · " + T("lpRow", f.run) : "")));
-    if (f.close) kids.push(el("div", "fb-is", it.t), el("p", "src", T("lpClose", it.t)));
-  } else kids.push(el("div", "fb-is", it.t));
+    if (f.close) kids.push(el("div", "fb-is", cloze ? it.w : it.t), el("p", "src", T("lpClose", cloze ? it.w : it.t)));
+  } else kids.push(el("div", "fb-is", cloze ? it.w : it.t), ...(cloze ? [el("p", "src", "= " + it.t)] : []));
   if (from && !f.ok) kids.push(el("p", "src", T("lpFrom", from)));
   if (!f.ok || f.close || f.learnedNow) { const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal; kids.push(b); }
   v.replaceChildren(...kids);
@@ -472,6 +540,7 @@ function localResult(v) {
   again.onclick = () => { lq = null; renderPractice(); }; back.onclick = again.onclick;
   const kids = [el("div", "big", lq.right + "/" + total), el("div", "bigs", total && lq.right === total ? T("lpPerfect") : T("lpDone"))];
   if (lq.learned.length) { const c = el("div", "go"); c.append(el("div", "lp-lab", T("lpLearnedH"))); for (const w of lq.learned) c.append(el("span", "lw", w)); c.style.margin = "0 0 14px"; kids.push(c); }
+  if (lq.bonus && lq.bonus.total) kids.push(el("p", "lp-line", T("lpBonus", lq.bonus.right, lq.bonus.total)));
   if (lq.streakAfter >= 2 && lq.streakAfter > lq.streakBefore) kids.push(el("p", "lp-line", T("lpDayN", lq.streakAfter)));
   if (lq.ready) kids.push(el("p", "lp-line", T("lpMore", lq.ready)));
   else if (lq.nextIn != null) kids.push(el("p", "lp-line", T("lpNext", whenText(lq.nextIn))));

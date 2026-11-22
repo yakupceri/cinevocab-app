@@ -31,7 +31,8 @@ ovStyle.textContent = `
 .chip { display:inline-block; text-align:center; margin:2px 4px 2px 0; padding:1px 4px; border-radius:.45em; vertical-align:top; cursor:pointer; }
 .chip:hover { background:rgba(237,232,218,.16); }
 .chip .w { font-weight:700; } .chip .t { font-size:.85em; font-weight:600; color:var(--tr, #F0CB4A); min-height:1em; }
-.chip.star .w { text-decoration:underline; text-decoration-color:#F0CB4A; text-decoration-thickness:2px; text-underline-offset:3px; }
+.chip.star .w { background:#F0CB4A; color:#1A1500; box-shadow:0 0 0 .2em #F0CB4A; border-radius:.2em; }
+.chip.star .w .p { color:rgba(26,21,0,.6); }
 .wgrip { position:absolute; right:-10px; top:50%; width:18px; height:44px; margin-top:-22px; display:none; pointer-events:auto; cursor:ew-resize; touch-action:none; }
 .wgrip::after { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:#F0CB4A; }
 .hot:not(.locked) .wgrip, .drag .wgrip { display:block; }
@@ -87,7 +88,7 @@ ovBoxEl.append(ovHead, ovContent, ovPick, ovWgrip, ovGrip); ovWrap.append(ovPill
 const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff", "#F0CB4A"];
 const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false, w: 0, c: 5 };
 let BOX = { ...BOX_DEF }, boxTip = true, boxBusy = false;
-let keptN = 0, firstMsgUntil = 0; // bu dil çiftinde tutulan kelime sayısı; "ilk kelime tutuldu" notunun görüneceği son an
+let keptN = 0, firstMsgUntil = 0, lastSentence = ""; // bu dil çiftinde tutulan kelime sayısı; "ilk kelime tutuldu" notunun görüneceği son an
 function normBox(b) {
   b = b && typeof b === "object" ? b : {};
   const n = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
@@ -228,7 +229,7 @@ function loadStars() {
     });
   } catch (e) {}
 }
-function paintStars() { ovContent.querySelectorAll(".chip").forEach((c) => { const on = starSet.has(c.dataset.w); c.classList.toggle("star", on); c.setAttribute("aria-pressed", String(on)); }); }
+function paintStars() { ovContent.querySelectorAll(".chip").forEach((c) => { const on = starSet.has(c.dataset.w); c.classList.toggle("star", on); c.setAttribute("aria-pressed", String(on)); c.title = CVL.t(on ? "keptTip" : "keepTip"); }); }
 function toggleStar(word) {
   const on = !starSet.has(word);
   if (on) starSet.add(word); else starSet.delete(word);
@@ -253,7 +254,8 @@ function keepLocal(word, on) {
       let bank = (r && r.bank) || {};
       if (on) {
         const v = document.querySelector("video");
-        bank = BANK.add(bank, pair, { w: word, t: wordCache.get(word) || "", ep: readEpisode(), vt: v ? v.currentTime : NaN });
+        const inSentence = lastSentence && lastSentence.toLowerCase().includes(word); // cümle yalnızca kelimeyi içeriyorsa saklanır
+        bank = BANK.add(bank, pair, { w: word, t: wordCache.get(word) || "", ep: readEpisode(), vt: v ? v.currentTime : NaN, s: inSentence ? lastSentence : "", st: inSentence ? (sentCache.get(lastSentence) || "") : "" });
       } else bank = BANK.remove(bank, pair, word);
       const patch = { bank }, first = on && !(r && r.keptFirst);
       if (first) patch.keptFirst = Date.now();
@@ -470,7 +472,7 @@ function makeChip(word, shown, lead, trail) {
   const chip = document.createElement("div");
   chip.className = "chip" + (starSet.has(word) ? " star" : "");
   chip.dataset.w = word;
-  chip.tabIndex = 0; chip.setAttribute("role", "button"); chip.setAttribute("aria-pressed", String(starSet.has(word)));
+  chip.tabIndex = 0; chip.setAttribute("role", "button"); chip.setAttribute("aria-pressed", String(starSet.has(word))); chip.title = CVL.t(starSet.has(word) ? "keptTip" : "keepTip");
   chip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleStar(word); } }); // sayfanın kısayolları (boşluk = oynat/durdur) çalışmasın
   const tr = document.createElement("div"); tr.className = "w";
   const punct = (t) => { if (!t) return; const p = document.createElement("span"); p.className = "p"; p.textContent = t; tr.append(p); };
@@ -544,6 +546,7 @@ const sentCache = new Map(); // cümle -> İngilizcesi
 const RETRY_DELAYS = [2000, 4000, 8000];
 
 function showSentence(sentence) {
+  lastSentence = sentence; // tutulan kelimenin cümlesi için (yalnızca cihazda)
   const myId = ++sentenceId;
   const gen = Date.now();
   const episode = readEpisode();

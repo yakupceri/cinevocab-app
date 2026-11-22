@@ -39,6 +39,7 @@ WHILE YOU WATCH
 
 PRACTISE WHAT YOU KEPT (no account needed)
 - Quick rounds from the words you kept, right in the popup
+- Fill-in-the-blank questions use the subtitle line you heard the word in, and a sentence builder ends each round
 - Spaced review: words you miss come back sooner, words you know come back later
 - After a few days, words you still remember are marked as learned
 - The toolbar icon shows how many words are ready to review
@@ -50,7 +51,7 @@ WITH A FREE ACCOUNT (on the CineVocab website and in the popup)
 - Private friend leagues and live duels with a 4-digit room code
 
 PRIVACY
-After you switch it on, the extension sends the subtitle line it reads to our server, and from there to Google Translate, to be translated. The subtitle sentence is not saved in our database. The individual words and their translations are saved to a shared translation dictionary (not linked to your name), together with the title and thumbnail address of the video they came from. Words you click are kept on your device; when you create or sign in to an account, they are sent to it, and from then on the words you see are saved to your account. We also keep simple anonymous usage counters (such as daily request counts, approximate country, device type and operating system) to see whether the extension is used; they are not linked to an account. We never sell your data. You can delete your account and all your data at any time. Full policy: https://cinevocab.up.railway.app/privacy
+After you switch it on, the extension sends the subtitle line it reads to our server, and from there to Google Translate, to be translated. The subtitle sentence is not saved in our database. The individual words and their translations are saved to a shared translation dictionary (not linked to your name), together with the title and thumbnail address of the video they came from. Words you click are kept on your device, together with the subtitle line they appeared in and its translation, so practice can ask fill-in-the-blank questions. That copy of the line stays on your device. When you create or sign in to an account, the kept words (without those lines) are sent to it, and from then on the words you see are saved to your account. We also keep simple anonymous usage counters (such as daily request counts, approximate country, device type and operating system) to see whether the extension is used; they are not linked to an account. We never sell your data. You can delete your account and all your data at any time. Full policy: https://cinevocab.up.railway.app/privacy
 
 CineVocab is an independent project. It is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube, Netflix or Udemy.
 

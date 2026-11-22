@@ -289,5 +289,15 @@
   Object.assign(S.pt, {"firstKept": "Primeira palavra guardada. Ela está na janela do CineVocab (ícone de quebra-cabeça), em Palavras."});
   Object.assign(S.hi, {"firstKept": "पहला शब्द सहेज लिया। वह CineVocab विंडो (पज़ल आइकन) में शब्द टैब में मिलेगा।"});
   Object.assign(S.id, {"firstKept": "Kata pertama tersimpan. Lihat di jendela CineVocab (ikon puzzle), di Kata."});
+  /* 2.2: kutudaki kelime üzerine gelince açıklama (9 dil) */
+  Object.assign(S.en, {"keepTip": "Click to keep this word", "keptTip": "Kept. Click to remove"});
+  Object.assign(S.tr, {"keepTip": "Kaydetmek için tıkla", "keptTip": "Kaydedildi. Kaldırmak için tıkla"});
+  Object.assign(S.es, {"keepTip": "Haz clic para guardar la palabra", "keptTip": "Guardada. Haz clic para quitarla"});
+  Object.assign(S.fr, {"keepTip": "Clique pour garder ce mot", "keptTip": "Gardé. Clique pour le retirer"});
+  Object.assign(S.it, {"keepTip": "Clicca per tenere questa parola", "keptTip": "Tenuta. Clicca per rimuoverla"});
+  Object.assign(S.de, {"keepTip": "Klicke, um das Wort zu behalten", "keptTip": "Gemerkt. Klicke zum Entfernen"});
+  Object.assign(S.pt, {"keepTip": "Clique para guardar a palavra", "keptTip": "Guardada. Clique para remover"});
+  Object.assign(S.hi, {"keepTip": "शब्द सहेजने के लिए क्लिक करें", "keptTip": "सहेजा गया। हटाने के लिए क्लिक करें"});
+  Object.assign(S.id, {"keepTip": "Klik untuk menyimpan kata ini", "keptTip": "Tersimpan. Klik untuk menghapus"});
 })(typeof self !== "undefined" ? self : globalThis);
 

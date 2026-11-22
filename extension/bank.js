@@ -1,7 +1,7 @@
 /* CineVocab: hesapsız "kelimeyi tut" defteri.
    Saf işlevler: yalnızca veriyi düzenler. Saklama chrome.storage.local içindeki "bank" anahtarında, çağıran yapar.
-   Biçim: bank = { "es>en": [ { w, t, ts, ep?, vt? } ] }  (en yeni başta)
-     w = kelime, t = çevirisi, ts = tutulma zamanı (ms), ep = video/bölüm adı, vt = videodaki saniye.
+   Biçim: bank = { "es>en": [ { w, t, ts, ep?, vt?, s?, st? } ] }  (en yeni başta)
+     w = kelime, t = çevirisi, ts = tutulma zamanı (ms), ep = video/bölüm adı, vt = videodaki saniye, s = kelimenin geçtiği cümle, st = cümlenin çevirisi (ikisi de yalnızca cihazda, sunucuya gitmez).
    Hiçbir şey sunucuya gitmez. Hesaba bağlı kullanıcının listesi sunucudadır, bu defter ondan bağımsızdır. */
 (function (root) {
   const CAP = 500; // dil çifti başına en çok bu kadar kelime
@@ -18,6 +18,8 @@
     if (item.ep) e.ep = String(item.ep).slice(0, 80);
     if (Number.isFinite(item.vt) && item.vt >= 0) e.vt = Math.round(item.vt);
     for (const k of REVIEW_KEYS) if (Number.isFinite(item[k])) e[k] = item[k]; // tekrar durumu (srs.js)
+    if (item.s) e.s = String(item.s).slice(0, 160);   // kelimenin geçtiği cümle (yalnızca cihazda)
+    if (item.st) e.st = String(item.st).slice(0, 160); // cümlenin çevirisi
     b[pair] = [e].concat(list(b, pair).filter((x) => x && x.w !== w)).slice(0, CAP);
     return b;
   }

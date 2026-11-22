@@ -34,6 +34,7 @@ Yeni kurulumdan sonra CineVocab, karşılama sayfasındaki düğmeye, araç çub
 
 TUTTUĞUN KELİMELERLE ÇALIŞ (hesap gerekmez)
 - Tuttuğun kelimelerden açılır pencerede hızlı turlar
+- Boşluk doldurma soruları kelimeyi duyduğun altyazı cümlesiyle sorar; her tur bir cümle kurma bonusuyla biter
 - Aralıklı tekrar: yanlış yaptığın kelimeler erken, bildiklerin geç karşına çıkar
 - Birkaç gün sonra hâlâ hatırladığın kelimeler "öğrenildi" sayılır
 - Araç çubuğu simgesi kaç kelimenin tekrar beklediğini gösterir
@@ -45,7 +46,7 @@ TUTTUĞUN KELİMELERLE ÇALIŞ (hesap gerekmez)
 - Özel arkadaş ligleri ve 4 haneli kodla canlı düello
 
 GİZLİLİK
-Eklentiyi açtıktan sonra, okuduğu altyazı satırını çevrilmek üzere sunucumuza, oradan da Google Translate'e gönderir. Altyazı cümlesi veritabanımıza kaydedilmez. Tek tek kelimeler ve çevirileri, geldikleri videonun adı ve küçük resim adresiyle birlikte, adına bağlı olmayan ortak bir çeviri sözlüğüne kaydedilir. Tıkladığın kelimeler cihazında tutulur; hesap açtığında ya da giriş yaptığında hesabına gönderilir, bundan sonra gördüğün kelimeler hesabına kaydedilir. Ayrıca eklentinin kullanılıp kullanılmadığını görmek için anonim kullanım sayaçları tutarız (günlük istek sayısı, yaklaşık ülke, cihaz türü ve işletim sistemi gibi); bunlar bir hesapla ilişkilendirilmez. Verilerini asla satmayız. Hesabını ve tüm verilerini istediğin zaman silebilirsin. Tam metin: https://cinevocab.up.railway.app/privacy
+Eklentiyi açtıktan sonra, okuduğu altyazı satırını çevrilmek üzere sunucumuza, oradan da Google Translate'e gönderir. Altyazı cümlesi veritabanımıza kaydedilmez. Tek tek kelimeler ve çevirileri, geldikleri videonun adı ve küçük resim adresiyle birlikte, adına bağlı olmayan ortak bir çeviri sözlüğüne kaydedilir. Tıkladığın kelimeler, geçtikleri altyazı satırı ve çevirisiyle birlikte cihazında tutulur; alıştırma bu satırla boşluk doldurma soruları sorar. Bu satır kopyası cihazında kalır. Hesap açtığında ya da giriş yaptığında tutulan kelimeler (bu satırlar olmadan) hesabına gönderilir, bundan sonra gördüğün kelimeler hesabına kaydedilir. Ayrıca eklentinin kullanılıp kullanılmadığını görmek için anonim kullanım sayaçları tutarız (günlük istek sayısı, yaklaşık ülke, cihaz türü ve işletim sistemi gibi); bunlar bir hesapla ilişkilendirilmez. Verilerini asla satmayız. Hesabını ve tüm verilerini istediğin zaman silebilirsin. Tam metin: https://cinevocab.up.railway.app/privacy
 
 CineVocab bağımsız bir projedir. Amazon, Prime Video, Google, YouTube, Netflix veya Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.
 

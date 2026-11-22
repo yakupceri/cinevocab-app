@@ -105,13 +105,34 @@
   .lp-lab { font:500 11px ui-monospace,Menlo,Consolas,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
   .lp-num { margin:4px 0 2px; font:800 56px/1 var(--display); letter-spacing:-.03em; color:var(--sun); font-variant-numeric:tabular-nums; }
   .lp-line { margin:4px 0 14px; color:var(--dim); font-size:13px; }
-  .lw { display:inline-block; margin:4px 12px 4px 0; font:800 26px/1.1 var(--display); text-decoration:underline; text-decoration-color:var(--sun); text-decoration-thickness:3px; text-underline-offset:5px; overflow-wrap:anywhere; }
+  .lw { display:inline-block; margin:4px 8px 4px 0; padding:.06em .32em; border-radius:.25em; background:var(--sun); color:var(--on); font:800 24px/1.2 var(--display); overflow-wrap:anywhere; }
   .fb-center { margin:34px 0 8px; text-align:center; }
   .fb-center .lp-line { margin:10px 0 0; }
-  .lw.lw-xl { font-size:42px; margin:10px 0 0; }
+  .lw.lw-xl { font-size:40px; margin:12px 0 0; padding:.06em .3em; animation:pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+  .fb-center { position:relative; }
+  .fb-center::before { content:""; position:absolute; left:50%; top:62px; width:110px; height:110px; margin:-55px 0 0 -55px; border-radius:50%; border:2px solid var(--sun); opacity:0; animation:ring .9s ease-out .12s; pointer-events:none; }
+  .dots { display:flex; justify-content:center; gap:7px; margin:14px 0 0; } .dots i { width:9px; height:9px; border-radius:50%; background:var(--sun); animation:pop .4s cubic-bezier(.2,1.4,.4,1) both; } .dots i:nth-child(2) { animation-delay:.12s; } .dots i:nth-child(3) { animation-delay:.24s; }
+  @keyframes pop { from { transform:scale(.6); opacity:0; } to { transform:scale(1); opacity:1; } }
+  @keyframes ring { from { transform:scale(.4); opacity:.9; } to { transform:scale(2); opacity:0; } }
+  @media (prefers-reduced-motion: reduce) { .lw.lw-xl, .fb-center::before, .dots i { animation:none; } }
   .fb-ok { margin:18px 0 4px; text-align:center; color:var(--mint); font-weight:700; }
   .fb-is { margin:10px 0; text-align:center; font:800 30px/1.15 var(--display); color:var(--sun); overflow-wrap:anywhere; }
   .src { margin:10px 0 16px; text-align:center; font:400 12px ui-monospace,Menlo,Consolas,monospace; color:var(--dim); overflow-wrap:anywhere; }
+  .stack { display:flex; gap:3px; height:10px; margin:12px 0 4px; } .stack i { display:block; border-radius:99px; min-width:8px; }
+  .stack .l { background:var(--sun); } .stack .m { background:rgba(240,203,74,.42); } .stack .n { background:var(--panel2); box-shadow:inset 0 0 0 1px var(--line2); }
+  .upnext { margin:2px 0 16px; } .upnext .lp-lab { display:block; margin-bottom:6px; }
+  .lw.lw-sm { font-size:15px; margin:3px 6px 3px 0; padding:.1em .4em; }
+  .fb-no { margin:18px 0 4px; text-align:center; color:var(--bad); font-weight:700; }
+  .lp-c { text-align:center; margin-top:18px; }
+  .cl { margin:12px 0 8px; font:600 19px/1.6 var(--display); text-align:center; overflow-wrap:anywhere; }
+  .cl-gap { display:inline-block; min-width:4.4em; margin:0 .1em; border-bottom:2px solid var(--sun); text-align:center; }
+  .cl-gap.on { min-width:0; padding:0 .3em; border-bottom:0; background:var(--sun); color:var(--on); border-radius:.25em; font-weight:800; }
+  .cl-tr { margin:0 0 6px; text-align:center; color:var(--dim); font-size:13px; } .cl-tr.mono { font:500 12.5px ui-monospace,Menlo,Consolas,monospace; margin-bottom:14px; }
+  .cl-tr.big-tr { font-size:15px; color:var(--ink); margin:10px 0 4px; }
+  .ord-ans { display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px; min-height:96px; margin:12px 0; padding:10px; border-radius:13px; border:1px dashed var(--line2); }
+  .ord-pool { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:12px 0 14px; }
+  .tk { padding:8px 11px; border-radius:10px; border:1px solid var(--line2); background:var(--panel); font:600 15px var(--text); }
+  .tk:hover { background:var(--panel2); } .tk.used { visibility:hidden; } .ord-ans .tk { background:var(--panel2); }
   .sec { display:flex; align-items:baseline; justify-content:space-between; margin:6px 2px 2px; }
   .sec b { font:700 15px/1.2 var(--display); letter-spacing:.01em; }
   .sec span { font:400 11.5px ui-monospace,Menlo,Consolas,monospace; color:var(--dim); }
