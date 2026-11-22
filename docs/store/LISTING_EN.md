@@ -1,5 +1,5 @@
 # CineVocab: Chrome Web Store listing (English, default language)
-For extension version 2.2.0. Copy each block into the matching field of the Developer Dashboard.
+For extension version 2.3.0. Copy each block into the matching field of the Developer Dashboard.
 Rules this text follows: it says only what the code does, and the name and summary carry no third-party brand names (an earlier listing was rejected for that, see git 23a3778).
 
 ## Store listing tab

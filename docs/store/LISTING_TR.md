@@ -1,5 +1,5 @@
 # CineVocab: Chrome Web Store ilanı (Türkçe, ek dil)
-Eklenti sürümü 2.2.0. Her blok Geliştirici Paneli'ndeki ilgili alana kopyalanır.
+Eklenti sürümü 2.3.0. Her blok Geliştirici Paneli'ndeki ilgili alana kopyalanır.
 Bu metin yalnızca kodun yaptığını söyler; ad ve özette üçüncü taraf marka adı yoktur (daha önce bu yüzden reddedildi, bkz. git 23a3778).
 
 ## Özet (en fazla 132 karakter; manifest'teki metinle aynı, `_locales/tr/messages.json`)
