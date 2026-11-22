@@ -6,11 +6,11 @@
 <title>CineVocab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0e1e24">
+<meta name="theme-color" content="#0B0B0A">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
@@ -18,9 +18,9 @@
 <body>
 <header class="top"><div class="in">
   <a class="brand" href="/"><i></i>CineVocab</a>
-  <div id="pairbox" class="pairsel"></div>
   <div class="grow"></div>
-  <div id="tools" class="row" style="gap:6px"></div>
+  <div id="pairbox"></div>
+  <div id="tools"></div>
 </div></header>
 <main class="wrap" id="app"></main>
 <script src="/static/common.js?v={{ ASSET_V }}"></script>
@@ -193,10 +193,19 @@ async function googleButton(card) {
 }
 
 /* ---------- ana akış ---------- */
+const TAB_KEYS = ["words", "videos", "known", "practice", "duel", "leagues", "settings"];
+const tabFromHash = () => { const h = location.hash.slice(1); return TAB_KEYS.includes(h) ? h : null; };
+// Sekme değiştirir; adres #words, #videos, #known, #practice, #duel, #leagues, #settings olur (eski bağlantılar ve eklenti aynı adreslerle açar)
+function go(k) {
+  tab = k; try { history.replaceState(null, "", "#" + k); } catch (e) {}
+  render(); window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", () => { const h = tabFromHash(); if (me && h && h !== tab) { tab = h; render(); window.scrollTo(0, 0); } });
+
 async function boot() {
   try { me = await api("/api/me"); } catch (e) { me = null; return authView(); }
   try { window.dispatchEvent(new Event("cv-login")); } catch (e) {} // eklenti bu hesaba kendiliğinden bağlanır
-  { const h = location.hash.slice(1); if (["words", "practice", "duel", "leagues", "settings"].includes(h)) { tab = h; try { history.replaceState(null, "", location.pathname); } catch (e) {} } }
+  { const h = tabFromHash(); if (h) tab = h; }
   loadG(); await syncG();
   let joined = null;
   try { const jc = localStorage.getItem("cv-join"); if (jc) { localStorage.removeItem("cv-join"); joined = await api("/api/leagues/join", { code: jc }); tab = "leagues"; LG.open = joined.id; } } catch (e) { if (e && e.message) setTimeout(() => toast(e.message), 700); }
@@ -214,21 +223,28 @@ async function reload() {
   render();
 }
 
-function renderPair() {
-  const box = document.getElementById("pairbox"); box.className = "pairsel";
-  const sel = el("select"), list = pairs.slice();
+// Üst çubukta kelime listesi seçici: hap biçimli etiket, altında görünmez gerçek <select> (klavye ve ekran okuyucu bunu kullanır)
+function pairOptions() {
+  const list = pairs.slice();
   if (!list.some((p) => p.src === PAIR.src && p.dst === PAIR.dst)) list.unshift({ src: PAIR.src, dst: PAIR.dst, count: 0 });
+  return list;
+}
+function pairSelect() {
+  const sel = el("select"), list = pairOptions();
   list.forEach((p) => sel.append(new Option(langName(p.src) + " → " + langName(p.dst) + " · " + p.count, p.src + ">" + p.dst)));
-  sel.append(new Option("＋ " + t("newPair"), "+"));
+  sel.append(new Option("+ " + t("newPair"), "+"));
   sel.value = pairKey(); sel.setAttribute("aria-label", t("listLabel"));
   sel.onchange = () => { if (sel.value === "+") { sel.value = pairKey(); newPairModal(); } else { const [a, b] = sel.value.split(">"); setPair(a, b); } };
-  const help = el("div", "help"), hb = el("button", "icon", "?");
-  hb.setAttribute("aria-label", t("listHelp"));
-  hb.onclick = (e) => { e.stopPropagation(); const old = help.querySelector(".pop"); if (old) return old.remove(); help.append(el("div", "pop", t("listHelp"))); };
-  help.append(hb);
-  box.replaceChildren(el("span", "", t("listLabel")), sel, help);
+  return sel;
 }
-document.addEventListener("click", () => document.querySelectorAll(".pop").forEach((p) => p.remove()));
+function renderPair() {
+  const box = document.getElementById("pairbox"), cur = pairOptions().find((p) => p.src === PAIR.src && p.dst === PAIR.dst);
+  const lp = el("label", "psel"), sel = pairSelect();
+  lp.title = t("listLabel") + ": " + langName(PAIR.src) + " → " + langName(PAIR.dst);
+  lp.append(svg(ICONS.words), el("span", "full", langName(PAIR.src) + " → " + langName(PAIR.dst)), el("span", "cnt", cur ? "· " + cur.count : ""),
+    el("span", "short", PAIR.src.toUpperCase() + " → " + PAIR.dst.toUpperCase()), sel);
+  box.replaceChildren(lp);
+}
 function newPairModal() {
   const m = el("div", "modal"), c = el("div", "card"), a = el("select"), b = el("select"), go = el("button", "primary", t("open")), no = el("button", "", t("cancel"));
   PAIR_LANGS.forEach((l) => { a.append(new Option(langName(l), l)); b.append(new Option(langName(l), l)); });
@@ -239,48 +255,55 @@ function newPairModal() {
   const r = el("div", "row"); r.append(go, no);
   const h = el("h2", "", t("newPairTitle")); h.style.marginBottom = "6px";
   c.append(h, el("p", "dim", t("newPairSub")), f(t("learning"), a), f(t("translateTo"), b), r);
-  c.children[1].style.marginBottom = "14px"; m.append(c); document.body.append(m);
+  c.children[1].style.marginBottom = "14px"; m.append(c); document.body.append(m); a.focus();
 }
 
-const TABS = [["words", "words"], ["videos", "videos"], ["known", "known"], ["practice", "practice"], ["duel", "duel"], ["leagues", "league"], ["settings", "settings"]];
-const BAR = [["words", "words", ["words", "videos", "known"]], ["practice", "practice", ["practice"]], ["duel", "duel", ["duel", "leagues"]], ["settings", "settings", ["settings"]]];
 const uniqWords = () => { const m = new Map(); V.words.forEach((w) => { if (!m.has(w.tr)) m.set(w.tr, w); }); return [...m.values()]; };
 const counts = () => ({ words: uniqWords().length, videos: VIDS.length, known: V.known.length });
 
+// Gezinme: 4 ana grup (hem sol menü hem telefonda alt çubuk). Aynı gruptaki sekmeler sayfa başlığının altında görünür.
+// Videolar ve Bildiklerim "Kelimeler" altında, Ligler "Düello" altında; yedi adresin hepsi çalışır.
+const GROUPS = [["words", "words", ["words", "videos", "known"]], ["practice", "practice", ["practice"]], ["duel", "duel", ["duel", "leagues"]], ["settings", "user", ["settings"]]];
+let SUB = null;
 function render() {
   document.querySelectorAll(".tabbar,.bulk").forEach((n) => n.remove());
   mountTools(document.getElementById("tools"));
   mountGameChip();
   renderPair();
+  document.title = t("nav_" + tab) + " · CineVocab";
   const c = counts(), nav = el("nav", "nav"), bar = el("nav", "tabbar");
-  TABS.forEach(([k, ic]) => {
-    const b = el("button", tab === k ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k)));
-    if (c[k] !== undefined) b.append(el("span", "n", c[k]));
-    b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); };
-    nav.append(b);
+  nav.setAttribute("aria-label", t("menuLabel")); bar.setAttribute("aria-label", t("menuLabel"));
+  const grp = GROUPS.find(([, , g]) => g.includes(tab)) || GROUPS[0];
+  GROUPS.forEach(([k, ic, g]) => {
+    const mk = () => { const b = el("button", g.includes(tab) ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k))); if (g.includes(tab)) b.setAttribute("aria-current", "page"); b.onclick = () => go(k); return b; };
+    const nb = mk(); if (k === "words" && c.words) nb.append(el("span", "n", c.words));
+    nav.append(nb); bar.append(mk());
   });
-  // Telefonda 4 sekmeli alt çubuk; ilgili sekmeler üstte küçük bir seçiciyle birleşir
-  const grp = BAR.find(([, , g]) => g.includes(tab)) || BAR[0];
-  BAR.forEach(([k, ic, g]) => {
-    const b = el("button", g.includes(tab) ? "on" : ""); b.append(svg(ICONS[ic]), el("span", "", t("nav_" + k)));
-    b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); };
-    bar.append(b);
-  });
-  const main = el("div");
+  const more = el("a", "more"); more.href = "/explore"; more.append(svg(ICONS.search), document.createTextNode(t("expNav")));
+  nav.append(el("div", "sep"), more);
+  SUB = null;
   if (grp[2].length > 1) {
-    const seg = el("div", "seg");
-    grp[2].forEach((k) => { const b = el("button", tab === k ? "on" : "", t("nav_" + k)); if (c[k] !== undefined) b.append(el("span", "n", c[k])); b.onclick = () => { tab = k; render(); window.scrollTo(0, 0); }; seg.append(b); });
-    main.append(seg);
+    SUB = el("nav", "subtabs"); SUB.setAttribute("aria-label", t("nav_" + grp[0]));
+    grp[2].forEach((k) => {
+      const b = el("button", tab === k ? "on" : "", t("nav_" + k)); if (tab === k) b.setAttribute("aria-current", "page");
+      if (c[k] !== undefined) b.append(el("span", "n", c[k]));
+      b.onclick = () => go(k); SUB.append(b);
+    });
   }
+  const main = el("div");
   main.append({ words: tWords, videos: tVideos, known: tKnown, practice: tPractice, duel: tDuel, leagues: tLeagues, settings: tSettings }[tab]());
   const lay = el("div", "layout"); lay.append(nav, main);
   app.replaceChildren(lay);
   document.body.append(bar);
 }
 
+// Sayfa başlığı (+ varsa sağda tek ana eylem). Aynı gruptaki sekmeler başlığın hemen altına gelir.
 function head(title, sub, extra) {
-  const h = el("div", "head"), l = el("div"); l.append(el("h1", "", title)); if (sub) l.append(el("p", "", sub));
-  h.append(l); if (extra) h.append(extra); return h;
+  const f = document.createDocumentFragment(), h = el("div", "head"), l = el("div");
+  l.append(el("h1", "", title)); if (sub) l.append(el("p", "", sub));
+  h.append(l); if (extra) { const a = el("div", "acts"); a.append(extra); h.append(a); }
+  f.append(h); if (SUB) f.append(SUB);
+  return f;
 }
 function bulkBar(set, buttons) {
   document.querySelectorAll(".bulk").forEach((n) => n.remove());
@@ -298,17 +321,26 @@ function otherPairs() {
   list.forEach((p) => { const b = el("button", "", langName(p.src) + " → " + langName(p.dst) + " · " + p.count); b.onclick = () => setPair(p.src, p.dst); r.append(b); });
   return r;
 }
-
+// Açılır panel: görünür düğme (başlık + tek satır özet + ok). Metin gibi duran gizli bağlantı yerine.
+function disclosure(icon, title, summary, body, open, onToggle) {
+  const root = el("div", "disc" + (open ? " open" : "")), btn = el("button", "dtog"), tx = el("span", "dt"), sm = el("span", "", summary || ""), bd = el("div", "dbody");
+  btn.type = "button"; tx.append(el("b", "", title), sm); btn.append(svg(ICONS[icon]), tx, svg(ICONS.chevD, "chev"));
+  bd.append(body); bd.hidden = !open; btn.setAttribute("aria-expanded", String(!!open));
+  const set = (o) => { root.classList.toggle("open", o); bd.hidden = !o; btn.setAttribute("aria-expanded", String(o)); if (onToggle) onToggle(o); };
+  btn.onclick = () => set(bd.hidden);
+  root.append(btn, bd);
+  return { root, set, summary: (s) => { sm.textContent = s; } };
+}
 
 const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl";
 function startGuide() {
   const g = el("div", "card guide"), ol = el("ol", "gsteps");
   g.append(el("h2", "", t("gsTitle")), el("p", "dim", t("gsSub")), ol);
-  const more = el("details", "gmore"), ol2 = el("ol", "gsteps"); more.append(el("summary", "", t("gsMore")), ol2); ol2.style.counterReset = "gs 1";
+  const ol2 = el("ol", "gsteps"); ol2.style.counterReset = "gs 1"; ol2.style.margin = "0";
   const step = (n, extra) => { const li = el("li"), b = el("div", "gbody"); b.append(el("b", "", t("gs" + n + "T")), el("span", "dim small", t("gs" + n))); if (extra) b.append(extra); li.append(b); (n === 1 ? ol : ol2).append(li); return li; };
-  const b1 = el("button", "primary", t("gs1B")); b1.onclick = () => window.open(STORE_URL, "_blank", "noopener");
+  const b1 = ibtn("external", t("gs1B"), "primary"); b1.onclick = () => window.open(STORE_URL, "_blank", "noopener");
   step(1, b1);
-  const b2 = el("button", "primary", t("gs2B")), out = el("code", "gkey hide");
+  const b2 = ibtn("key", t("gs2B"), "primary"), out = el("code", "gkey hide");
   const s2 = step(2, b2); s2.querySelector(".gbody").append(out);
   if (document.documentElement.dataset.cvExt) { b2.remove(); s2.classList.add("done"); s2.querySelector(".gbody").append(el("span", "dim small", t("extLinked"))); }
   b2.onclick = async () => {
@@ -319,17 +351,18 @@ function startGuide() {
     } catch (e) { toast(e.message); }
   };
   step(3); step(4);
-  g.append(more, el("p", "dim small gtip", t("gsTip")));
+  const more = disclosure("plug", t("gsMore"), "", ol2, false);
+  g.append(more.root, el("p", "dim small gtip", t("gsTip")));
   return g;
 }
 
 /* ---------- Başlangıç paketleri ---------- */
 function packsCard() {
   const c = el("div", "card in"), list = el("div"); c.style.marginTop = "16px";
-  c.append(el("h2", "", "🎁 " + t("packsTitle")), el("p", "dim small", t("packsSub")), list);
+  c.append(ttl("gift", t("packsTitle")), el("p", "dim small", t("packsSub")), list);
   list.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;margin-top:12px";
   fetch("/api/packs?src=" + PAIR.src).then((r) => r.json()).then((d) => {
-    if (!d.packs.length || (PAIR.src === "tr" && PAIR.dst === "en")) { c.replaceChildren(el("h2", "", "🎁 " + t("packsTitle")), el("p", "dim small", t("packNone"))); return; }
+    if (!d.packs.length || (PAIR.src === "tr" && PAIR.dst === "en")) { c.replaceChildren(ttl("gift", t("packsTitle")), el("p", "dim small", t("packNone"))); return; }
     d.packs.forEach((p) => {
       const b = el("button", "", (p.title[I18N.lang] || p.title.en) + " · " + p.count + " · " + t("packAdd"));
       b.onclick = async () => {
@@ -346,21 +379,22 @@ function packsCard() {
 /* ---------- Kelimeler ---------- */
 function tWords() {
   const box = el("div"), c = counts();
-  box.append(head(t("nav_words"), t("wordsSub", c.words, langName(PAIR.src))));
-  const st = el("div", "stats");
-  [[c.words, t("statWords")], [c.videos, t("statVideos")], [c.known, t("statKnown")], [me.wins || 0, t("statWins")]].forEach(([n, l]) => {
-    const s = el("div", "stat"); s.append(el("b", "", n), el("span", "", l)); st.append(s); });
-  box.append(st);
+  let goP = null;
+  if (V.words.length) { goP = ibtn("play", t("nav_practice"), "primary lg"); goP.onclick = () => go("practice"); } // tek ana eylem
+  box.append(head(t("nav_words"), t("wordsSub", c.words, langName(PAIR.src)), goP));
   if (!V.words.length) { box.append(startGuide(), packsCard(), empty(t("emptyWords"), t("emptyWordsText", langName(PAIR.src), langName(PAIR.dst)), otherPairs())); return box; }
 
-  const goP = el("button", "primary", "▶ " + t("nav_practice")); goP.style.cssText = "width:100%;min-height:52px;font-size:17px;margin-bottom:14px";
-  goP.onclick = () => { tab = "practice"; render(); window.scrollTo(0, 0); }; box.append(goP);
-  const q = el("input"), ep = el("select"), all = el("button", "", t("selectShown"));
-  q.type = "search"; q.placeholder = t("search"); q.value = Q;
-  ep.append(new Option(t("allVideos"), ""));
+  // arama + video süzgeci tek satırda
+  const q = el("input"), ep = el("select"), sbox = el("div", "search"), bar = el("div", "toolbar");
+  q.type = "search"; q.placeholder = t("search"); q.value = Q; q.setAttribute("aria-label", t("search"));
+  sbox.append(svg(ICONS.search), q);
+  ep.append(new Option(t("allVideos"), "")); ep.setAttribute("aria-label", t("allVideos"));
   VIDS.forEach((v) => ep.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
   if (EP.startsWith("series:")) ep.append(new Option(EP.slice(7), EP));
   ep.value = EP;
+  bar.append(sbox, ep);
+  const meta = el("div", "metaline"), cnt = el("span", "mono"), all = ibtn("check", t("selectShown"), "ghost");
+  meta.append(cnt, all);
   const grid = el("div", "words"), more = el("button", "");
   const rows = () => {
     const ql = Q.trim().toLowerCase(), seen = new Set(), out = [];
@@ -373,9 +407,10 @@ function tWords() {
   };
   const paint = () => {
     const list = rows(); grid.replaceChildren();
+    cnt.textContent = t("wordsN", list.length);
     list.slice(0, SHOW).forEach((w) => {
       const b = el("button", "w" + (SELW.has(w.tr) ? " sel" : ""));
-      b.setAttribute("aria-pressed", SELW.has(w.tr));
+      b.type = "button"; b.setAttribute("aria-pressed", SELW.has(w.tr));
       b.append(el("span", "src", w.tr), el("span", "dst", w.eng), el("span", "ep", w.episode || t("noVideo")), el("span", "ck"));
       if (canSpeak()) b.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst)));
       b.onclick = () => { SELW.has(w.tr) ? SELW.delete(w.tr) : SELW.add(w.tr); b.classList.toggle("sel"); b.setAttribute("aria-pressed", SELW.has(w.tr)); wbar(); };
@@ -393,9 +428,7 @@ function tWords() {
   q.oninput = () => { Q = q.value; SHOW = 240; paint(); };
   ep.onchange = () => { EP = ep.value; SHOW = 240; paint(); };
   more.onclick = () => { SHOW += 240; paint(); };
-  const bar = el("div", "row"); q.style.cssText = "flex:1 1 200px"; ep.style.cssText = "flex:0 1 260px;width:auto"; bar.append(q, ep, all);
-  bar.style.marginBottom = "14px";
-  box.append(bar, grid, more); more.style.cssText = "display:block;margin:16px auto 0";
+  box.append(bar, meta, grid, more); more.style.cssText = "display:block;margin:16px auto 0";
   if (V.words.length < 40) box.append(packsCard());
   paint(); wbar();
   return box;
@@ -435,7 +468,12 @@ function loadPoster(name, img) {
 function tVideos() {
   const box = el("div");
   box.append(head(t("nav_videos"), t("videosSub")));
-  if (!VIDS.length) { box.append(startGuide(), empty(t("emptyVideos"), t("emptyVideosText"), otherPairs())); return box; }
+  if (!VIDS.length) {
+    const ex = el("div", "row"); ex.style.cssText = "justify-content:center;margin-top:16px";
+    const fv = el("a", "btn"); fv.href = "/explore"; fv.append(svg(ICONS.search), document.createTextNode(t("expNav"))); ex.append(fv);
+    const em = empty(t("emptyVideos"), t("emptyVideosText"), ex); const op = otherPairs(); if (op) em.append(op);
+    box.append(startGuide(), em); return box;
+  }
   const items = videoItems(), cnt = { all: items.length };
   items.forEach((i) => (cnt[i.plat] = (cnt[i.plat] || 0) + 1));
   if (PLAT !== "all" && !cnt[PLAT]) PLAT = "all";
@@ -445,10 +483,9 @@ function tVideos() {
     const b = el("button", PLAT === k ? "on" : "", l); b.append(el("span", "n", cnt[k])); b.onclick = () => { PLAT = k; render(); }; bar.append(b);
   });
   const shown = items.filter((i) => PLAT === "all" || i.plat === PLAT);
-  const all = el("button", "", t("selectAll")); all.onclick = () => { shown.forEach((i) => i.eps.forEach((v) => SELV.add(v.episode || ""))); render(); };
-  const top = el("div", "row"); all.style.marginLeft = "auto"; top.append(bar, all); top.style.cssText = "margin-bottom:6px;align-items:flex-start";
-  bar.style.marginBottom = "0";
-  const note = el("p", "dim small", t("autoNote")); note.style.marginBottom = "14px";
+  const all = ibtn("check", t("selectAll"), "ghost"); all.onclick = () => { shown.forEach((i) => i.eps.forEach((v) => SELV.add(v.episode || ""))); render(); };
+  const top = el("div", "row"); all.style.marginLeft = "auto"; top.append(bar, all); top.style.cssText = "margin-bottom:8px;align-items:center";
+  const note = el("p", "dim small", t("autoNote")); note.style.marginBottom = "16px";
   const grid = el("div", "vgrid");
   const vbar = () => bulkBar(SELV, [[t("del"), "danger", async () => {
     const eps = [...SELV]; if (!(await ask(t("confirmDelVideos", eps.length), t("confirmDelVideosText")))) return;
@@ -467,27 +504,27 @@ function tVideos() {
     if (PNAME[it.plat]) th.append(el("span", "plat", PNAME[it.plat]));
     const cb = el("input", "chk pick"); cb.type = "checkbox"; cb.checked = picked(); cb.setAttribute("aria-label", it.title);
     cb.onchange = () => { keys.forEach((k) => (cb.checked ? SELV.add(k) : SELV.delete(k))); card.classList.toggle("sel", cb.checked); vbar(); };
-    th.append(cb);
+    const pw = el("label", "pickwrap"); pw.append(cb); th.append(pw);
     const multi = it.eps.length > 1 || it.plat === "pv";
     bd.append(el("div", "tt", it.title), el("div", "mt", (multi ? t("episodesN", it.eps.length) + " · " : "") + t("wordsN", it.count) + (it.last ? " · " + fmtDate(it.last) : "")));
     const acts = el("div", "acts"), view = el("button", "", t("viewWords"));
-    view.onclick = () => { EP = multi && it.series ? "series:" + it.series : (it.eps[0].episode || "\u0000"); tab = "words"; render(); };
+    view.onclick = () => { EP = multi && it.series ? "series:" + it.series : (it.eps[0].episode || "\u0000"); go("words"); };
     acts.append(view);
-    if (it.eps.length === 1) { const d = el("button", "", t("nav_duel")); d.onclick = () => { DUEL_EP = it.eps[0].episode || ""; tab = "duel"; render(); }; acts.append(d); }
+    if (it.eps.length === 1) { const d = ibtn("duel", t("nav_duel"), ""); d.onclick = () => { DUEL_EP = it.eps[0].episode || "\u0000"; go("duel"); }; acts.append(d); }
     let list = null;
     if (it.eps.length > 1) {
-      const tg = el("button", "ghost", t("showEps"));
+      const tg = ibtn("chevD", t("showEps"), "ghost");
       tg.onclick = () => {
-        if (list) { list.remove(); list = null; tg.textContent = t("showEps"); return; }
+        if (list) { list.remove(); list = null; tg.replaceChildren(svg(ICONS.chevD), document.createTextNode(t("showEps"))); return; }
         list = el("div", "eps");
         it.eps.slice().sort((a, b) => { const k = (v) => { const m = /S(\d+)\s*E(\d+)/i.exec(v.episode || ""); return m ? m[1] * 1000 + +m[2] : 0; }; return k(a) - k(b); }).forEach((v) => {
-          const li = el("div", "li"), c2 = el("input", "chk"); c2.type = "checkbox"; c2.checked = SELV.has(v.episode || "");
+          const li = el("div", "li"), c2 = el("input", "chk"), cw = el("label", "chkwrap"); c2.type = "checkbox"; c2.checked = SELV.has(v.episode || ""); cw.append(c2);
           c2.onchange = () => { c2.checked ? SELV.add(v.episode || "") : SELV.delete(v.episode || ""); cb.checked = picked(); card.classList.toggle("sel", cb.checked); vbar(); };
           const nm = el("div", "grow", ((/S\d+\s*E\d+/i.exec(v.episode || "") || [""])[0] || v.episode)); nm.style.minWidth = "0";
-          const dv = el("button", "ghost", t("nav_duel")); dv.onclick = () => { DUEL_EP = v.episode || ""; tab = "duel"; render(); };
-          li.append(c2, nm, el("span", "dim small", t("wordsN", v.count)), dv); list.append(li);
+          const dv = ibtn("duel", t("nav_duel"), "ghost"); dv.onclick = () => { DUEL_EP = v.episode || "\u0000"; go("duel"); };
+          li.append(cw, nm, el("span", "dim small", t("wordsN", v.count)), dv); list.append(li);
         });
-        bd.append(list); tg.textContent = t("hideEps");
+        bd.append(list); tg.replaceChildren(svg(ICONS.chevD), document.createTextNode(t("hideEps")));
       };
       acts.append(tg);
     }
@@ -501,20 +538,20 @@ function tVideos() {
 function tKnown() {
   const box = el("div");
   box.append(head(t("nav_known"), t("knownSub")));
-  const card = el("div", "card"), ta = el("textarea"), add = el("button", "primary", t("add"));
+  const card = el("div", "card"), ta = el("textarea"), add = ibtn("plus", t("add"), "primary");
   ta.rows = 2; ta.placeholder = t("addKnownPh"); ta.setAttribute("aria-label", t("addKnown"));
   add.onclick = async () => {
     const ws = ta.value.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean); if (!ws.length) return;
     await api("/api/known", { src: PAIR.src, words: ws, known: true }); toast(t("markedKnown", ws.length)); ta.value = ""; reload();
   };
-  ta.style.margin = "10px 0"; card.append(el("h3", "", t("addKnown")), ta, add); box.append(card);
+  ta.style.margin = "12px 0"; card.append(el("h3", "", t("addKnown")), ta, add); box.append(card);
   card.style.marginBottom = "18px";
   if (!V.known.length) { box.append(empty(t("emptyKnown"), t("emptyKnownText"))); return box; }
   const grid = el("div", "words");
   V.known.forEach((w) => {
     const b = el("button", "w" + (SELK.has(w.tr) ? " sel" : ""));
-    b.append(el("span", "src", w.tr), el("span", "dst", w.eng || "—"), el("span", "ck"));
-    b.onclick = () => { SELK.has(w.tr) ? SELK.delete(w.tr) : SELK.add(w.tr); b.classList.toggle("sel"); kbar(); };
+    b.type = "button"; b.setAttribute("aria-pressed", SELK.has(w.tr)); b.append(el("span", "src", w.tr), el("span", "dst", w.eng || "—"), el("span", "ck"));
+    b.onclick = () => { b.setAttribute("aria-pressed", !SELK.has(w.tr)); SELK.has(w.tr) ? SELK.delete(w.tr) : SELK.add(w.tr); b.classList.toggle("sel"); kbar(); };
     grid.append(b);
   });
   const kbar = () => bulkBar(SELK, [[t("moveBack"), "primary", async () => { const ws = [...SELK];
@@ -543,14 +580,7 @@ async function syncG() {
 const levelOf = (xp) => Math.floor(xp / XP_LEVEL) + 1;
 const streakNow = () => (G.last === todayStr() || G.last === yesterdayStr() ? G.streak : 0);
 const todayN = () => (G.day === todayStr() ? G.n : 0);
-const ICO = {
-  flame: '<path d="M12 2s5 4.5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 1-6 1-9z"/>',
-  heart: '<path d="M12 21s-8-5.3-8-11a4.5 4.5 0 018-2.8A4.5 4.5 0 0120 10c0 5.7-8 11-8 11z"/>',
-  star: '<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  sound: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/>',
-  mute: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/>',
-};
+const ICO = Object.assign({ sound: ICONS.speak }, ICONS);  // ortak simge kümesi (common.js)
 function ring(frac, center, cls) {
   const w = el("div", "ring " + (cls || "")), C = 251.3;
   w.innerHTML = '<svg viewBox="0 0 100 100"><circle class="bgc" cx="50" cy="50" r="40"/><circle class="fg" cx="50" cy="50" r="40" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '"/></svg>';
@@ -559,21 +589,23 @@ function ring(frac, center, cls) {
   requestAnimationFrame(() => requestAnimationFrame(() => { fg.style.strokeDashoffset = C * (1 - Math.max(0, Math.min(1, frac))); }));
   return w;
 }
-// Paylaşılabilir ilerleme kartı (1080x1350 PNG): kelime sayısı, seri, seviye
+// Paylaşılabilir ilerleme kartı (1080x1350 PNG): kelime sayısı, seri, seviye. Düz renk, emoji yok.
 async function shareProgress() {
   const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
-  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0e1e24"); g.addColorStop(1, "#08121a"); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  [[540, 470, 420, .05], [540, 470, 330, .09]].forEach(([cx, cy, r, a]) => { x.fillStyle = "rgba(255,138,61," + a + ")"; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); });
-  x.fillStyle = "#ff9a3d"; x.beginPath(); x.arc(540, 470, 250, 0, 7); x.fill();
-  x.fillStyle = "#08121a"; x.beginPath(); x.ellipse(540, 1560, 1000, 860, 0, 0, 7); x.fill();
+  const SANS = "'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", MONO = "ui-monospace, Menlo, Consolas, monospace";
+  x.fillStyle = "#0B0B0A"; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#151513"; x.fillRect(80, 200, W - 160, 700);
+  x.strokeStyle = "rgba(237,232,218,.18)"; x.lineWidth = 2; x.strokeRect(80, 200, W - 160, 700);
   const n = uniqWords().length, st = streakNow(), lv = levelOf(G.xp);
-  x.textAlign = "center"; x.fillStyle = "#0e1e24"; x.font = "800 230px Fraunces, Georgia, serif"; x.fillText(String(n), 540, 520);
-  x.font = "700 52px 'Instrument Sans', Arial, sans-serif"; x.fillText(t("shWords").toUpperCase(), 540, 590);
-  x.fillStyle = "#eef1f7"; x.font = "800 64px Fraunces, Georgia, serif"; x.fillText((me && me.username) || "CineVocab", 540, 840);
-  x.font = "600 44px 'Instrument Sans', Arial, sans-serif";
-  const bits = [t("shLevel") + " " + lv]; if (st) bits.push("🔥 " + st + " " + t("shStreak")); x.fillStyle = "#ffb878"; x.fillText(bits.join("   ·   "), 540, 920);
-  x.fillStyle = "#eef1f7"; x.font = "800 58px Fraunces, Georgia, serif"; x.fillText("CineVocab", 540, 1180);
-  x.fillStyle = "#9db0bb"; x.font = "500 36px 'Instrument Sans', Arial, sans-serif"; x.fillText("cinevocab.up.railway.app", 540, 1240);
+  x.textAlign = "center";
+  x.fillStyle = "#F0CB4A"; x.font = "800 280px " + SANS; x.fillText(String(n), 540, 560);
+  x.fillStyle = "#EDE8DA"; x.font = "500 44px " + MONO; x.fillText(t("shWords").toUpperCase(), 540, 650);
+  x.font = "800 72px " + SANS; x.fillText((me && me.username) || "CineVocab", 540, 790);
+  x.fillStyle = "#A19C8E"; x.font = "500 40px " + MONO;
+  const bits = [t("shLevel") + " " + lv]; if (st) bits.push(st + " " + t("shStreak")); x.fillText(bits.join("   ·   "), 540, 860);
+  x.fillStyle = "#F0CB4A"; x.fillRect(80, 1040, 56, 34); x.fillStyle = "#1A1500"; x.fillRect(92, 1062, 32, 4);
+  x.textAlign = "left"; x.fillStyle = "#EDE8DA"; x.font = "800 64px " + SANS; x.fillText("CineVocab", 160, 1074);
+  x.fillStyle = "#A19C8E"; x.font = "500 36px " + MONO; x.fillText("cinevocab.up.railway.app", 80, 1150);
   const blob = await new Promise((r) => c.toBlob(r, "image/png")), url = "https://cinevocab.up.railway.app/?utm_source=progress_card", txt = t("shareTxt", n);
   const file = new File([blob], "cinevocab-progress.png", { type: "image/png" });
   try {
@@ -587,12 +619,15 @@ const chip = (icon, text, cls) => { const c = el("span", "chip " + (cls || ""));
 function mountGameChip() {
   const box = document.getElementById("tools"); if (!box || !me) return;
   box.querySelectorAll(".gchip").forEach((n) => n.remove());
-  const st = streakNow(), c = chip(ICO.flame, st + " · " + t("lvl", levelOf(G.xp)), st ? "fire gchip" : "gchip");
+  const st = streakNow(), c = el("button", "psel gchip" + (st ? " fire" : ""));
+  c.type = "button"; c.title = t("streakDays", st) + " · " + t("lvl", levelOf(G.xp)); c.setAttribute("aria-label", c.title);
+  c.append(svg(ICO.flame, "fl"), el("span", "", String(st)), el("span", "lvl-t", "· " + t("lvl", levelOf(G.xp))));
+  c.onclick = () => go("practice");
   box.prepend(c);
 }
 
 /* ---------- Pratik ---------- */
-let PR = { scope: "", n: 10, mode: "classic" };
+let PR = { scope: "", n: 10, mode: "classic", open: false };
 // Quiz kalitesi: "the", "a", "and" gibi anlamsız kelimeler ve olumsuzluğu kaybolmuş çeviriler sorulmaz
 const QSTOP = new Set("to the a an of and for you are was not has have there that this its our his her they them she him who with from can will be is it me my we i question particle he us your in on at by or if as do so".split(" "));
 const QNEG = new Set(["not", "no", "never", "cannot", "without", "nobody", "nothing", "nowhere", "none", "neither", "nor"]);
@@ -631,39 +666,47 @@ function tPractice() {
   if (G.best) chips.append(chip(ICO.star, t("bestScore", G.best)));
   mid.append(el("h2", "", t("lvl", L)), el("p", "dim small", t("xpTo", XP_LEVEL - into, L + 1)), chips);
   goal.append(ring(dn / DAILY_GOAL, dn >= DAILY_GOAL ? "✓" : dn), el("span", "", dn >= DAILY_GOAL ? t("dailyDone") : t("dailyGoal") + " · " + t("dailyOf", dn, DAILY_GOAL)));
-  const shb = el("button", "ghost", "📤 " + t("shareProg")); shb.onclick = () => shareProgress(); shb.style.marginTop = "8px"; mid.append(shb);
+  const shb = ibtn("share", t("shareProg"), "ghost"); shb.onclick = () => shareProgress(); shb.style.marginTop = "8px"; mid.append(shb);
   pc.append(ring(into / XP_LEVEL, L), mid, goal);
 
   // mod seçimi
-  const modes = el("div", "modes");
+  const modes = el("div", "modes"), modeName = {};
   [["classic", t("modeClassic"), t("modeClassicD"), ICONS.known], ["speed", t("modeSpeed"), t("modeSpeedD"), ICO.clock], ["survival", t("modeSurv"), t("modeSurvD"), ICO.heart]].concat(canSpeak() ? [["listen", t("modeListen"), t("modeListenD"), ICONS.speak]] : []).concat(SpeechRec ? [["speak", t("modeSpeak"), t("modeSpeakD"), ICONS.mic]] : []).forEach(([k, n, d, ic]) => {
-    const b = el("button", "mode" + (PR.mode === k ? " on" : "")), h = el("b"); h.append(svg(ic), document.createTextNode(n)); b.append(h, el("span", "", d));
-    b.onclick = () => { PR.mode = k; [...modes.children].forEach((x) => x.classList.remove("on")); b.classList.add("on"); }; modes.append(b);
+    modeName[k] = n;
+    const b = el("button", "mode" + (PR.mode === k ? " on" : "")), h = el("b"); b.type = "button"; h.append(svg(ic), document.createTextNode(n)); b.append(h, el("span", "", d));
+    b.onclick = () => { PR.mode = k; [...modes.children].forEach((x) => x.classList.remove("on")); b.classList.add("on"); optsSum(); }; modes.append(b);
   });
-  const setup = el("div", "card in"), sc = el("select"), nn = el("select"), go = el("button", "primary go-btn", t("start"));
-  sc.append(new Option(t("allWords"), ""));
+  const setup = el("div"), sc = el("select"), nn = el("select"), go = el("button", "primary go-btn", t("start"));
+  sc.append(new Option(t("allWords"), "")); sc.setAttribute("aria-label", t("source")); nn.setAttribute("aria-label", t("questions"));
   VIDS.filter((v) => v.count >= 4).forEach((v) => sc.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
   [5, 10, 20, 30].forEach((n) => nn.append(new Option(t("nQuestions", n), n)));
   sc.value = PR.scope; nn.value = PR.n;
   const f1 = el("label", "f"), f2 = el("label", "f"), row = el("div", "row");
   f1.append(el("span", "", t("source")), sc); f2.append(el("span", "", t("questions")), nn);
-  f1.style.cssText = "flex:1 1 220px;margin:0"; f2.style.cssText = "flex:0 0 150px;margin:0"; row.append(f1, f2); row.style.marginBottom = "14px";
-  setup.append(row, go);
+  f1.style.cssText = "flex:1 1 220px;margin:0"; f2.style.cssText = "flex:0 0 160px;margin:0"; row.append(f1, f2);
+  setup.append(modes, row);
   go.onclick = () => {
     PR.scope = sc.value; PR.n = +nn.value; FX.play("go");
     const pool = shuf(words.filter((w) => !PR.scope || (w.episode || "\u0000") === PR.scope));
     runQuiz(area, intro, (pool.length >= 4 ? pool : shuf(words)).slice(0, PR.n).map((w) => mkQ(w, engs, PR.mode)), PR.mode);
   };
+  // tek ana eylem: Başla. Seçenekleri görünür bir düğme açar ve özeti tek satırda gösterir.
+  const quick = ibtn("play", t("start"), "primary go-btn"); quick.onclick = () => { PR.scope = sc.value; PR.n = +nn.value; go.click(); };
+  const optsText = () => [modeName[PR.mode] || t("modeClassic"), t("nQuestions", nn.value), sc.selectedOptions[0] ? sc.selectedOptions[0].text.split(" · ")[0] : t("allWords")].join(" · ");
+  const optsD = disclosure("settings", t("opts"), optsText(), setup, PR.open, (o) => { PR.open = o; });
+  const optsSum = () => optsD.summary(optsText());
+  sc.onchange = nn.onchange = optsSum;
+
   const dcard = el("a", "card in"), dtx = el("div");
-  dcard.href = "/daily?src=" + PAIR.src + "&dst=" + PAIR.dst; dcard.style.cssText = "display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;margin-top:16px;border-color:var(--accent)";
-  dtx.append(el("h2", "", "📅 " + t("dcTitle")), el("p", "dim small", t("dcSub")));
-  dcard.append(dtx, el("span", "grow"), el("b", "", "→"));
+  dcard.href = "/daily?src=" + PAIR.src + "&dst=" + PAIR.dst; dcard.style.cssText = "display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;margin-top:16px";
+  dtx.append(ttl("calendar", t("dcTitle")), el("p", "dim small", t("dcSub")));
+  const dar = svg(ICONS.arrowR); dar.style.color = "var(--accent)";
+  dcard.append(dtx, el("span", "grow"), dar);
   const srsBox = el("div"); srsBox.style.marginTop = "16px";
   loadSrs(srsBox, area, intro, engs);
-  const quick = el("button", "primary go-btn", "▶ " + t("start")); quick.style.cssText = "width:100%;min-height:58px;font-size:18px;margin-bottom:16px";
-  quick.onclick = () => go.click();
-  const opts = el("details", "gmore"); opts.append(el("summary", "", t("opts")), modes, setup);
-  intro.append(quick, pc, dcard, srsBox, opts);
+  const qw = el("div"); qw.append(quick, optsD.root);
+  intro.append(qw, pc, dcard, srsBox);
+  pc.style.marginTop = "16px";
   box.append(intro, area);
   return box;
 }
@@ -673,21 +716,25 @@ function loadSrs(host, area, intro, engs) {
   api("/api/srs?src=" + PAIR.src + "&dst=" + PAIR.dst).then((d) => {
     const c = el("div", "card in"), chips = el("div", "chips");
     chips.append(chip(null, t("srsDue", d.due), d.due ? "fire" : ""), chip(null, t("srsNew", d.new)), chip(null, t("srsLearning", d.learning)), chip(null, t("srsMastered", d.mastered)));
-    const row = el("div", "row"); row.style.marginTop = "12px";
-    const go = el("button", "primary", t("srsStart"));
+    const row = el("div", "row"); row.style.marginTop = "14px";
+    const go = ibtn("refresh", t("srsStart"), "");
     go.disabled = d.due + d.new < 4;
     go.onclick = () => startSrs(false, area, intro, engs);
     row.append(go);
-    c.append(el("h2", "", "🧠 " + t("srsTitle")), el("p", "dim small", t("srsSub")), chips, row);
+    c.append(ttl("refresh", t("srsTitle")), el("p", "dim small", t("srsSub")), chips, row);
     if (go.disabled) c.append(el("p", "dim small", t("srsNone")));
     host.append(c);
     const h = el("div", "card in"); h.style.marginTop = "16px";
-    h.append(el("h2", "", "🔥 " + t("hardTitle")));
+    h.append(ttl("flame", t("hardTitle")));
     if (!d.hard.length) h.append(el("p", "dim small", t("hardEmpty")));
     else {
-      const l = el("div", "list"); l.style.marginTop = "8px";
-      d.hard.slice(0, 8).forEach((w) => { const li = el("div", "li"); li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng), el("span", "dim small", "✗" + w.wrong + " ✓" + w.right)); if (canSpeak()) li.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst))); l.append(li); });
-      const hb = el("button", "primary", t("hardStudy", d.hard.length)); hb.style.marginTop = "12px"; hb.disabled = d.hard.length < 4;
+      const l = el("div", "list"); l.style.marginTop = "10px";
+      d.hard.slice(0, 8).forEach((w) => {
+        const li = el("div", "li"), sc = el("span", "dim small mono"); sc.style.cssText = "display:inline-flex;align-items:center;gap:4px";
+        sc.append(svg(ICONS.x, "sm"), document.createTextNode(String(w.wrong)), svg(ICONS.check, "sm"), document.createTextNode(String(w.right)));
+        li.append(el("span", "t", w.tr), el("span", "grow dim", w.eng), sc); if (canSpeak()) li.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst))); l.append(li);
+      });
+      const hb = ibtn("play", t("hardStudy", d.hard.length), ""); hb.style.marginTop = "12px"; hb.disabled = d.hard.length < 4;
       hb.onclick = () => startSrs(true, area, intro, engs);
       h.append(l, hb);
       if (hb.disabled) h.append(el("p", "dim small", t("hardNeed")));
@@ -861,44 +908,84 @@ function runQuiz(area, intro, qs, mode) {
 }
 
 /* ---------- Düello ---------- */
+// Üç eski yol (hızlı oda, kodla katıl, özel oda) iki net yola indi:
+//   1) "Düello başlat": seçili ayarlarla oda kurar (ayarlar tek satırda özetlenir, "Düzenle" ile aynı sayfada açılır)
+//   2) "Kodla katıl": tek kod girişi (+ varsa şifre)
+// Sunucuya giden mesaj (sessionStorage "cv-duel") eskisiyle birebir aynı biçimde kalır.
 let DUEL_EP = "";
+const DU = { n: "10", s: "12", pw: "", mode: "choice", ep: "", open: false };
 function tDuel() {
-  const box = el("div");
+  const box = el("div"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
   box.append(head(t("nav_duel"), t("duelSub")));
-  const g = el("div", "grid2"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
-  // odaya gir
-  const j = el("div", "card"), code = el("input"), pw = el("input"), jb = el("button", "primary", t("join"));
-  code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.style.cssText = "font:800 28px var(--display);letter-spacing:.3em;text-align:center";
-  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30;
-  jb.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) return toast(t("codeHint")); goDuel({ t: "join", code: code.value.trim(), password: pw.value }); };
-  code.onkeydown = (e) => { if (e.key === "Enter") jb.click(); };
-  const jf = el("div"); jf.style.cssText = "display:grid;gap:10px;margin-top:14px"; jf.append(code, pw, jb);
-  j.append(el("h2", "", t("joinRoom")), el("p", "dim", t("joinSub")), jf);
-  // oda kur
-  const c = el("div", "card"), src = el("select"), n = el("input"), s = el("input"), cpw = el("input"), cb = el("button", "primary", t("createRoom"));
+  if (DUEL_EP) { if (VIDS.some((v) => (v.episode || "\u0000") === DUEL_EP && v.count >= 4)) DU.ep = DUEL_EP; DUEL_EP = ""; }  // Videolar'dan "Düello" ile gelindiyse kaynak o video
+  const enough = uniqWords().length >= 4, learn = () => (learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst");
+  const srcLabel = () => (DU.ep === "" ? t("allWords") : DU.ep === "\u0000" ? t("noVideo") : DU.ep);
+  const modeLabel = () => ({ choice: t("roomChoice"), speak: t("roomSpeak"), screen: t("roomScreen") }[DU.mode]);
+  const summaryText = () => [t("nQuestions", DU.n || "?"), (DU.s || "?") + " " + t("secShort"), modeLabel(), srcLabel()].concat(DU.pw ? [t("locked")] : []).join(" · ");
+
+  // ---- 1) Düello başlat
+  const sc = el("div", "card path"), sh = el("div", "ph1"), startRow = el("div", "startrow");
+  sh.append(svg(ICONS.duel), el("h2", "", t("createRoom")));
+  const go1 = ibtn("play", t("duelStart"), "primary lg go"), sum = el("div", "sum"), edit = ibtn("settings", t("duelEdit"), "");
+  go1.disabled = !enough; sum.textContent = summaryText();
+  go1.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: DU.ep === "\u0000" ? "" : DU.ep, n: +DU.n, seconds: +DU.s, password: DU.pw,
+    mode: DU.mode === "speak" ? "speak" : "choice", screen: DU.mode === "screen", learn: learn() });
+  startRow.append(go1, sum, edit);
+  sc.append(sh, el("p", "sub", enough ? t("duelStartSub") : t("needWordsText")), startRow);
+
+  // ---- ayar paneli (aynı kartın içinde, "Düzenle" ile açılır/kapanır)
+  const panel = el("div", "dpanel"), pid = "duel-panel";
+  panel.id = pid; panel.hidden = !DU.open;
+  edit.setAttribute("aria-expanded", String(DU.open)); edit.setAttribute("aria-controls", pid);
+  const refresh = () => { sum.textContent = summaryText(); };
+  const src = el("select"); src.setAttribute("aria-label", t("source"));
   src.append(new Option(t("allWords") + " · " + uniqWords().length, ""));
   VIDS.filter((v) => v.count >= 4).forEach((v) => src.append(new Option((v.episode || t("noVideo")) + " · " + v.count, v.episode || "\u0000")));
-  src.value = VIDS.some((v) => (v.episode || "") === DUEL_EP && v.count >= 4) ? (DUEL_EP || "\u0000") : "";
-  n.type = s.type = "number"; n.min = 4; n.max = 30; n.value = 10; s.min = 5; s.max = 60; s.value = 12; cpw.placeholder = t("roomPwCreate"); cpw.maxLength = 30;
-  const r2 = el("div", "row"), fn = f(t("questions"), n), fs = f(t("seconds"), s); fn.style.flex = fs.style.flex = "1"; r2.append(fn, fs); r2.style.alignItems = "flex-start";
-  cb.disabled = uniqWords().length < 4;
-  const rm = el("select"); rm.append(new Option(t("roomChoice"), "choice"), new Option(t("roomSpeak"), "speak"), new Option(t("roomScreen"), "screen"));
-  const noteSay = el("p", "dim small", t("sayNote")); noteSay.style.display = "none";
-  rm.onchange = () => { noteSay.style.display = rm.value === "choice" ? "none" : ""; noteSay.textContent = rm.value === "screen" ? t("scrDesc") : t("sayNote"); };
-  cb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: src.value === "\u0000" ? "" : src.value, n: +n.value, seconds: +s.value, password: cpw.value,
-    mode: rm.value === "speak" ? "speak" : "choice", screen: rm.value === "screen", learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
-  const cf = el("div"); cf.style.marginTop = "14px"; cf.append(f(t("source"), src), f(t("roomMode"), rm), noteSay, r2, f(t("roomPwCreateLabel"), cpw), cb);
-  c.append(el("h2", "", t("createRoom")), el("p", "dim", cb.disabled ? t("needWordsText") : t("createSub", langName(PAIR.src), langName(PAIR.dst))), cf);
-  const qc = el("div", "card"), qb = el("button", "primary", "⚔ " + t("quickRoom")), qr = el("div", "row"), qcode = el("input"), qj = el("button", "", t("join"));
-  qb.style.cssText = "width:100%;min-height:58px;font-size:18px"; qb.disabled = uniqWords().length < 4;
-  qb.onclick = () => goDuel({ t: "create", src: PAIR.src, dst: PAIR.dst, episode: "", n: 10, seconds: 12, password: "", mode: "choice", screen: false, learn: learnLang(PAIR.src, PAIR.dst) === PAIR.src ? "src" : "dst" });
-  qcode.placeholder = "0000"; qcode.inputMode = "numeric"; qcode.maxLength = 4; qcode.style.cssText = "flex:1 1 120px;font:800 22px var(--display);letter-spacing:.3em;text-align:center";
-  qj.onclick = () => { if (!/^\d{4}$/.test(qcode.value.trim())) return toast(t("codeHint")); goDuel({ t: "join", code: qcode.value.trim(), password: "" }); };
-  qcode.onkeydown = (e) => { if (e.key === "Enter") qj.click(); };
-  qr.style.marginTop = "12px"; qr.append(qcode, qj); qc.append(qb, qr);
-  if (qb.disabled) qc.append(el("p", "dim small", t("needWordsText")));
-  const mo = el("details", "gmore"); mo.append(el("summary", "", t("roomOpts")), g); g.style.marginTop = "10px";
-  g.append(j, c); box.append(qc, mo, leaderboard());
+  if (![...src.options].some((o) => o.value === DU.ep)) DU.ep = "";
+  src.value = DU.ep; src.onchange = () => { DU.ep = src.value; refresh(); };
+  const modes = el("div", "modepick"), noteSay = el("p", "note");
+  const paintNote = () => { noteSay.replaceChildren(); noteSay.hidden = DU.mode === "choice"; if (DU.mode !== "choice") noteSay.append(svg(ICONS.info), el("span", "", DU.mode === "screen" ? t("scrDesc") : t("sayNote"))); };
+  [["choice", t("roomChoice"), t("rmChoiceD")], ["speak", t("roomSpeak"), t("rmSpeakD")], ["screen", t("roomScreen"), t("rmScreenD")]].forEach(([k, n, d]) => {
+    const b = el("button", DU.mode === k ? "on" : ""); b.type = "button"; b.append(el("b", "", n), el("span", "", d)); b.setAttribute("aria-pressed", String(DU.mode === k));
+    b.onclick = () => { DU.mode = k; [...modes.children].forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); }); paintNote(); refresh(); };
+    modes.append(b);
+  });
+  paintNote();
+  const n = el("input"), s = el("input"), pw = el("input");
+  n.type = s.type = "number"; n.min = 4; n.max = 30; n.value = DU.n; s.min = 5; s.max = 60; s.value = DU.s; n.inputMode = s.inputMode = "numeric";
+  n.oninput = () => { DU.n = n.value; refresh(); }; s.oninput = () => { DU.s = s.value; refresh(); };
+  pw.placeholder = t("roomPwCreate"); pw.maxLength = 30; pw.value = DU.pw; pw.autocomplete = "off"; pw.oninput = () => { DU.pw = pw.value; refresh(); };
+  const grid = el("div", "formgrid");
+  const fm = f(t("roomMode"), modes); fm.classList.add("span2"); const fp = f(t("roomPwCreateLabel"), pw); fp.classList.add("span2");
+  const fsrc = f(t("source"), src); fsrc.classList.add("span2");
+  grid.append(fsrc, fm, noteSay, f(t("questions") + " (4–30)", n), f(t("seconds") + " (5–60)", s), fp);
+  noteSay.classList.add("span2");
+  const foot = el("div", "dfoot"), reset = ibtn("refresh", t("duelReset"), "ghost"), done = ibtn("check", t("duelDone"), "");
+  reset.onclick = () => { Object.assign(DU, { n: "10", s: "12", pw: "", mode: "choice", ep: "" }); render(); };
+  const close = () => { DU.open = false; panel.hidden = true; duo.classList.remove("open"); edit.setAttribute("aria-expanded", "false"); edit.focus(); };
+  done.onclick = close;
+  foot.append(reset, done);
+  panel.append(ttl("settings", t("duelSettings"), "h3"), el("p", "hint", t("duelPanelHint")), grid, foot);
+  panel.firstChild.style.marginTop = "2px";
+  const duo = el("div", "duo" + (DU.open ? " open" : ""));
+  edit.onclick = () => { DU.open = panel.hidden; panel.hidden = !DU.open; duo.classList.toggle("open", DU.open); edit.setAttribute("aria-expanded", String(DU.open)); };
+  sc.append(panel);
+
+  // ---- 2) Kodla katıl: tek kod girişi
+  const j = el("div", "card path"), jh = el("div", "ph1"), jr = el("div", "joinrow");
+  const code = el("input"), jpw = el("input"), jb = ibtn("arrowR", t("join"), "");
+  jh.append(svg(ICONS.key), el("h2", "", t("joinByCode")));
+  code.className = "codein"; code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.autocomplete = "off"; code.setAttribute("aria-label", t("room"));
+  code.oninput = () => { code.value = code.value.replace(/\D/g, "").slice(0, 4); };
+  jpw.placeholder = t("roomPwJoin"); jpw.maxLength = 30; jpw.autocomplete = "off"; jpw.setAttribute("aria-label", t("roomPwJoin"));
+  const pwWrap = el("div", "pwin"); pwWrap.append(jpw);
+  jb.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) return toast(t("codeHint")); goDuel({ t: "join", code: code.value.trim(), password: jpw.value }); };
+  code.onkeydown = jpw.onkeydown = (e) => { if (e.key === "Enter") jb.click(); };
+  jr.append(code, pwWrap, jb);
+  j.append(jh, el("p", "sub", t("joinSub")), jr);
+
+  duo.append(sc, j);
+  box.append(duo, leaderboard());
   return box;
 }
 function goDuel(msg) { try { sessionStorage.setItem("cv-duel", JSON.stringify(msg)); } catch (e) {} location.href = "/game"; }
@@ -915,7 +1002,7 @@ function leaderboard() {
     if (!rows.length) return list.replaceChildren(el("p", "dim", t("noScores")));
     const ul = el("ul", "players");
     rows.forEach((r, i) => {
-      const li = el("li"), nm = el("span", "nm", LBS === "country" ? flag(r.country) + countryName(r.country) : flag(r.country) + r.username);
+      const li = el("li", LBS !== "country" && r.username === me.username ? "me" : ""), nm = el("span", "nm", LBS === "country" ? flag(r.country) + countryName(r.country) : flag(r.country) + r.username);
       if (LBS !== "country" && r.username === me.username) nm.append(el("span", "tag", t("you")));
       li.append(el("span", "rk", i + 1), nm, el("span", "dim small", LBS === "country" ? t("playersN", r.players) : t(r.wins === 1 ? "winOne" : "winsN", r.wins)), el("b", "", r.score));
       ul.append(li);
@@ -931,16 +1018,16 @@ function tLeagues() {
   const box = el("div"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
   box.append(head(t("lgTitle"), t("lgSub")));
   const g = el("div", "grid2");
-  const c = el("div", "card"), nm = el("input"), cb = el("button", "primary", t("lgCreateBtn"));
+  const c = el("div", "card path"), nm = el("input"), cb = ibtn("plus", t("lgCreateBtn"), "primary");
   nm.placeholder = t("lgName"); nm.maxLength = 30;
   cb.onclick = async () => { try { const r = await api("/api/leagues", { name: nm.value }); LG.open = r.id; render(); } catch (e) { toast(e.message); } };
   nm.onkeydown = (e) => { if (e.key === "Enter") cb.click(); };
-  c.append(el("h2", "", t("lgCreate")), f(t("lgName"), nm), cb);
-  const j = el("div", "card"), cd = el("input"), jb = el("button", "", t("lgJoinBtn"));
-  cd.placeholder = "ABC123"; cd.maxLength = 8; cd.style.cssText = "text-transform:uppercase;letter-spacing:.2em;text-align:center;font-weight:700";
+  c.append(ttl("league", t("lgCreate")), f(t("lgName"), nm), cb);
+  const j = el("div", "card path"), cd = el("input"), jb = ibtn("arrowR", t("lgJoinBtn"), "");
+  cd.placeholder = "ABC123"; cd.maxLength = 8; cd.style.cssText = "text-transform:uppercase;letter-spacing:.2em;text-align:center;font:700 16px var(--mono)";
   jb.onclick = async () => { try { const r = await api("/api/leagues/join", { code: cd.value }); LG.open = r.id; toast(t("lgJoined", r.name)); render(); } catch (e) { toast(e.message); } };
   cd.onkeydown = (e) => { if (e.key === "Enter") jb.click(); };
-  j.append(el("h2", "", t("lgJoin")), f(t("lgCode"), cd), jb);
+  j.append(ttl("key", t("lgJoin")), f(t("lgCode"), cd), jb);
   g.append(c, j);
   const list = el("div"); list.style.marginTop = "16px";
   box.append(g, list);
@@ -951,11 +1038,12 @@ function tLeagues() {
   return box;
 }
 function leagueCard(l) {
-  const card = el("div", "card"), top = el("button", "ghost"), open = LG.open === l.id;
-  card.style.marginBottom = "12px"; top.style.cssText = "display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:0;background:none;border:0";
+  const card = el("div", "card"), top = el("button", "leagues-head"), open = LG.open === l.id;
+  card.style.marginBottom = "12px"; top.type = "button"; top.setAttribute("aria-expanded", String(open));
   const nmBox = el("div"); nmBox.style.flex = "1";
   nmBox.append(el("h2", "", l.name), el("p", "dim small", t("lgMembers", l.members) + (l.rank ? " · " + t("lgRank", l.rank) : "") + " · " + t("lgPts", l.pts)));
-  top.append(nmBox, el("span", "dim", open ? "▲" : "▼"));
+  const chev = svg(ICONS.chevD, "chev"); chev.style.cssText = "color:var(--dim);transition:transform .15s;" + (open ? "transform:rotate(180deg)" : "");
+  top.append(nmBox, chev);
   top.onclick = () => { LG.open = open ? null : l.id; render(); };
   card.append(top);
   if (open) {
@@ -963,28 +1051,30 @@ function leagueCard(l) {
     const paint = () => api("/api/leagues/" + l.id + "?period=" + LG.period).then((d) => {
       const seg = el("div", "seg");
       [[t("lgWeek"), "week"], [t("lgAll"), "all"]].forEach(([lb, v]) => { const b = el("button", LG.period === v ? "on" : "", lb); b.onclick = () => { LG.period = v; paint(); }; seg.append(b); });
-      const ul = el("ul", "players"), n = d.rows.length;
+      const ul = el("ul", "players");
       d.rows.forEach((r, i) => {
-        const li = el("li", r.me ? "me" : ""), nm = el("span", "nm", flag(r.country) + r.username + (i === 0 && r.pts > 0 ? " 👑" : n >= 3 && i === n - 1 ? " 🐢" : ""));
+        const li = el("li", r.me ? "me" : ""), nm = el("span", "nm", flag(r.country) + r.username);
+        if (i === 0 && r.pts > 0) { const cr = svg(ICONS.crown, "crown"); cr.setAttribute("aria-label", t("lgLeader")); cr.setAttribute("role", "img"); cr.removeAttribute("aria-hidden"); nm.append(cr); }
         if (r.me) nm.append(el("span", "tag", t("you")));
         if (r.owner) nm.append(el("span", "tag", t("lgOwner")));
         li.append(el("span", "rk", i + 1), nm, el("b", "", r.pts));
-        if (d.owner && !r.me) { const k = el("button", "ghost icon-sm", "×"); k.title = t("lgKick"); k.setAttribute("aria-label", t("lgKick") + " " + r.username); k.onclick = async () => { if (await ask(t("lgKick") + ": " + r.username + "?", "", t("lgKick"))) { try { await api("/api/leagues/kick", { id: l.id, username: r.username }); paint(); } catch (e) { toast(e.message); } } }; li.append(k); }
+        if (d.owner && !r.me) { const k = el("button", "ghost icon-sm"); k.append(svg(ICONS.x)); k.title = t("lgKick"); k.setAttribute("aria-label", t("lgKick") + " " + r.username); k.onclick = async () => { if (await ask(t("lgKick") + ": " + r.username + "?", "", t("lgKick"))) { try { await api("/api/leagues/kick", { id: l.id, username: r.username }); paint(); } catch (e) { toast(e.message); } } }; li.append(k); }
         ul.append(li);
       });
       const inv = el("div"); inv.style.cssText = "margin-top:16px;padding-top:14px;border-top:1px solid var(--line)";
-      const link = el("input"); link.readOnly = true; link.value = lgLink(d.code); link.onfocus = () => link.select();
-      const row = el("div", "row"), cp = el("button", "primary", t("lgCopyLink")), sh = el("button", "", t("lgShare"));
+      const link = el("input"); link.readOnly = true; link.value = lgLink(d.code); link.onfocus = () => link.select(); link.setAttribute("aria-label", t("lgInvite"));
+      const row = el("div", "row"), cp = ibtn("copy", t("lgCopyLink"), "primary"), sh = ibtn("share", t("lgShare"), "");
       const msg = t("lgInviteText", d.name, lgLink(d.code));
       cp.onclick = () => navigator.clipboard.writeText(lgLink(d.code)).then(() => toast(t("copied")), () => link.select());
       sh.onclick = async () => { try { if (navigator.share) await navigator.share({ text: msg }); else { await navigator.clipboard.writeText(msg); toast(t("copied")); } } catch (e) {} };
       row.append(cp, sh); row.style.marginTop = "10px";
-      inv.append(el("b", "", t("lgInvite") + " · " + d.code), link, row);
+      const ih = el("b", "", t("lgInvite")), ic = el("span", "mono dim small", " · " + d.code); ih.append(ic);
+      inv.append(ih, link, row); link.style.marginTop = "8px";
       const act = el("div", "row"); act.style.marginTop = "14px";
-      const lv = el("button", "", t("lgLeave"));
+      const lv = ibtn("logout", t("lgLeave"), "");
       lv.onclick = async () => { if (await ask(t("lgLeaveQ"), "", t("lgLeave"))) { try { await api("/api/leagues/leave", { id: l.id }); LG.open = null; render(); } catch (e) { toast(e.message); } } };
       act.append(lv);
-      if (d.owner) { const dl = el("button", "danger", t("lgDelete")); dl.onclick = async () => { if (await ask(t("lgDeleteQ"), "", t("lgDelete"))) { try { await api("/api/leagues/delete", { id: l.id }); LG.open = null; render(); } catch (e) { toast(e.message); } } }; act.append(dl); }
+      if (d.owner) { const dl = ibtn("trash", t("lgDelete"), "danger"); dl.onclick = async () => { if (await ask(t("lgDeleteQ"), "", t("lgDelete"))) { try { await api("/api/leagues/delete", { id: l.id }); LG.open = null; render(); } catch (e) { toast(e.message); } } }; act.append(dl); }
       body.replaceChildren(seg, el("div"), ul, el("p", "dim small", t("lgPtsInfo")), inv, act);
       seg.style.marginBottom = "10px";
     }).catch((e) => body.replaceChildren(el("p", "err", e.message)));
@@ -1011,21 +1101,67 @@ function recoveryModal(code) {
   c.append(h, el("p", "dim", t("recSub")), box, r); m.append(c); document.body.append(m);
 }
 function tSettings() {
-  const box = el("div");
-  const g = el("div", "grid2"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
-  // profil
-  const p = el("div", "card"), name = el("input"), cc = el("select"), save = el("button", "primary", t("save")), err = el("p", "err");
-  name.value = me.username; name.maxLength = 16;
-  cc.append(new Option("—", ""));
+  const box = el("div"), f = (l, x) => { const w = el("label", "f"); w.append(el("span", "", l), x); return w; };
+  const L = levelOf(G.xp), st = streakNow();
+  // satır: solda ad + açıklama, sağda denetim
+  const row = (label, desc, ...ctl) => { const r = el("div", "srow" + (ctl.some((x) => x.classList && x.classList.contains("toggle")) ? " inline" : "")), lab = el("div", "lab"), c = el("div", "ctl"); lab.append(el("b", "", label)); if (desc) lab.append(el("span", "", desc)); c.append(...ctl); r.append(lab, c); return r; };
+  const stack = (label, desc, ...kids) => { const r = el("div", "srow stack"), lab = el("div", "lab"); lab.append(el("b", "", label)); if (desc) lab.append(el("span", "", desc)); r.append(lab, ...kids); return r; };
+  const GROUPS_S = [];
+  const group = (id, icon, title, sub, rows, cls) => {
+    const s = el("section", "sgroup" + (cls ? " " + cls : "")), h = el("header"), list = el("div", "slist");
+    s.id = "sg-" + id; h.append(svg(ICONS[icon]), el("h2", "", title)); list.append(...rows);
+    s.append(h, el("p", "gsub", sub), list); GROUPS_S.push([id, title, cls]); return s;
+  };
+  const toggleBtn = (label, on, fn) => { const b = el("button", "toggle"); b.type = "button"; b.setAttribute("role", "switch"); b.setAttribute("aria-label", label); b.setAttribute("aria-checked", String(!!on)); b.onclick = () => fn(b); return b; };
+
+  // ---- üst: ben kimim
+  const hero = el("div", "card me"), who = el("div", "who"), chips = el("div", "chips");
+  chips.append(chip(ICO.flame, st ? t("streakDays", st) : t("streakStart"), st ? "fire" : ""), chip(ICO.star, t("lvl", L)));
+  if (me.country) chips.append(chip(null, flag(me.country) + countryName(me.country)));
+  chips.style.marginTop = "10px";
+  who.append(el("h1", "", me.username), chips, el("p", "ml", t("meStats", me.words || 0, me.wins || 0)));
+  const hr = el("div", "row"), hs = ibtn("share", t("shareProg"), ""), hi = ibtn("link", t("inviteCopyLong"), "");
+  hs.onclick = () => shareProgress();
+  hi.onclick = async () => { try { const d = await api("/api/invite"); try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } } catch (e) { toast(e.message); } };
+  hr.append(hs, hi);
+  hero.append(el("span", "av", (me.username || "?").charAt(0).toUpperCase()), who, hr);
+
+  // ---- Hesap
+  const name = el("input"), cc = el("select"), save = el("button", "primary", t("save")), err = el("p", "err"), pf = el("div", "formgrid");
+  name.value = me.username; name.maxLength = 16; name.autocomplete = "username"; name.setAttribute("aria-label", t("username"));
+  cc.append(new Option("—", "")); cc.setAttribute("aria-label", t("country"));
   COUNTRY_CODES.map((c) => [c, countryName(c)]).sort((a, b) => a[1].localeCompare(b[1], I18N.lang)).forEach(([c, n]) => cc.append(new Option(flag(c) + n, c)));
   cc.value = me.country || "";
   save.onclick = async () => { try { await api("/api/settings", { username: name.value.trim(), country: cc.value, avatar: "" }); me = await api("/api/me"); toast(t("saved")); render(); } catch (e) { err.textContent = e.message; } };
-  const h = el("h2", "", t("profile")); h.style.marginBottom = "14px";
-  p.append(h, f(t("username"), name), f(t("country"), cc), save, err);
-  // sesli okuma: ses seçimi
-  const vc = el("div", "card");
+  name.onkeydown = (e) => { if (e.key === "Enter") save.click(); };
+  pf.append(f(t("username"), name), f(t("country"), cc));
+  const sv = el("div", "row"); sv.append(save);
+  const out = ibtn("logout", t("logout"), "");
+  out.onclick = async () => { await api("/api/logout", {}); me = null; authView(); };
+  const gAccount = group("account", "user", t("account"), t("gAccountSub"), [
+    stack(t("profile"), "", pf, sv, err),
+    row(t("logout"), t("logoutSub"), out),
+  ]);
+
+  // ---- Dil ve tema
+  const ul = el("select"); I18N.list.forEach(([c, n]) => ul.append(new Option(n, c))); ul.value = I18N.lang; ul.setAttribute("aria-label", t("uiLang")); ul.onchange = () => I18N.set(ul.value);
+  const themeSeg = el("div", "seg"), paintTheme = () => [...themeSeg.children].forEach((b) => { const on = b.dataset.m === I18N.theme(); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  [["dark", t("themeDark"), "moon"], ["light", t("themeLight"), "sun"]].forEach(([m, label, ic]) => {
+    const b = ibtn(ic, label, ""); b.dataset.m = m; b.onclick = () => { I18N.setTheme(m); paintTheme(); mountTools(document.getElementById("tools")); }; themeSeg.append(b);
+  });
+  paintTheme();
+  const ps = pairSelect(); ps.setAttribute("aria-label", t("listLabel"));
+  const gLang = group("lang", "globe", t("gLangTheme"), t("gLangThemeSub"), [
+    row(t("uiLang"), "", ul),
+    row(t("themeName"), "", themeSeg),
+    row(t("listLabel"), t("listHelp"), ps),
+  ]);
+
+  // ---- Çalışma
+  const lang = learnLang(PAIR.src, PAIR.dst), studyRows = [];
   if (canSpeak()) {
-    const lang = learnLang(PAIR.src, PAIR.dst), sel = el("select"), tryB = el("button", "", t("voiceTry"));
+    const sel = el("select"), tryB = ibtn("speak", t("voiceTry"), "");
+    sel.setAttribute("aria-label", t("voiceTitle"));
     const fill = () => {
       const list = voicesFor(lang); sel.replaceChildren(new Option(t("voiceAuto"), ""));
       list.forEach((v) => sel.append(new Option(v.name + " (" + v.lang + ")", v.name)));
@@ -1035,35 +1171,43 @@ function tSettings() {
     fill(); try { speechSynthesis.addEventListener("voiceschanged", fill, { once: true }); } catch (e) {}
     sel.onchange = () => { try { sel.value ? localStorage.setItem("cv-voice-" + lang, sel.value) : localStorage.removeItem("cv-voice-" + lang); } catch (e) {} };
     tryB.onclick = () => { if (!speak(lang === "en" ? "Hello, this is how I sound." : (V.words[0] ? V.words[0][LF()] : "Hello"), lang)) toast(t("noVoice")); };
-    const hv = el("h2", "", t("voiceTitle")); hv.style.marginBottom = "6px";
-    vc.append(hv, el("p", "dim small", t("voiceSub", langName(lang))), f(t("voiceTitle"), sel), tryB);
-  } else vc.append(el("h2", "", t("voiceTitle")), el("p", "dim small", t("noVoice")));
-  // eklenti
-  const x = el("div", "card"), key = el("code"), gen = el("button", "primary", t("genKey")), cp = el("button", "hide", t("copy"));
-  key.style.cssText = "display:block;word-break:break-all;padding:10px;background:var(--bg2);border-radius:8px;margin:12px 0;font-size:13px";
-  key.textContent = t("keyHint");
-  gen.onclick = async () => { const k = (await api("/api/ext-key", {})).key; key.textContent = k; cp.classList.remove("hide"); cp.onclick = () => { navigator.clipboard.writeText(k).then(() => toast(t("copied"))); }; };
-  const steps = el("ol", "dim small"); steps.style.cssText = "margin:14px 0 0;padding-left:18px;line-height:1.7";
-  ["ext1", "ext2", "ext3"].forEach((k) => steps.append(el("li", "", t(k))));
-  const r = el("div", "row"); r.append(gen, cp);
-  if (document.documentElement.dataset.cvExt) x.append(el("h2", "", t("extension")), el("p", "dim", t("extLinked")));
-  else x.append(el("h2", "", t("extension")), el("p", "dim", t("extSub")), key, r, steps);
-  // hesap
-  const a = el("div", "card"), out = el("button", "", t("logout")), del = el("button", "danger", t("deleteAccount"));
-  out.onclick = async () => { await api("/api/logout", {}); me = null; authView(); };
-  del.onclick = () => {
-    const m = el("div", "modal"), c = el("div", "card"), pw = el("input"), e = el("p", "err"), ok = el("button", "danger", t("deleteAccount")), no = el("button", "", t("cancel"));
-    pw.type = "password"; pw.placeholder = t("password");
-    if (me.has_password === false) { pw.type = "text"; pw.placeholder = me.username; pw.autocomplete = "off"; }
-    ok.onclick = async () => { try { await api("/api/delete-account", { password: pw.value }); m.remove(); me = null; toast(t("accountDeleted")); authView(); } catch (er) { e.textContent = er.message; } };
-    no.onclick = () => m.remove(); const rr = el("div", "row"); rr.append(ok, no);
-    pw.style.marginTop = "14px"; c.append(el("h2", "", t("deleteAccount")), el("p", "dim", t("deleteAccountSub") + (me.has_password === false ? " " + t("typeName") : "")), pw, e, rr); m.append(c); document.body.append(m); pw.focus();
-  };
-  const rr = el("div", "row"); rr.style.marginTop = "14px"; rr.append(out, del);
-  a.append(el("h2", "", t("account")), el("p", "dim", t("accountSub")), rr); a.style.marginTop = "16px";
-  // güvenlik: parola değiştir + kurtarma kodu
-  const sec = el("div", "card"), cur = pwField(t("currentPw"), "current-password"), n1 = pwField(t("newPassword"), "new-password"), n2 = pwField(t("password2"), "new-password");
-  const sb = el("button", "primary", t("changePassword")), serr = el("p", "err"), sf = el("div"); sf.style.cssText = "display:grid;gap:10px;margin-top:14px";
+    const r = row(t("voiceTitle"), t("voiceSub", langName(lang)), sel, tryB); r.querySelector(".ctl").style.flexWrap = "nowrap"; sel.style.flex = "1"; tryB.style.flex = "none";
+    studyRows.push(r);
+  } else studyRows.push(row(t("voiceTitle"), t("noVoice")));
+  studyRows.push(row(t("soundFx"), t("soundFxSub"), toggleBtn(t("soundFx"), !FX.isMuted(), (b) => { FX.setMuted(!FX.isMuted()); b.setAttribute("aria-checked", String(!FX.isMuted())); if (!FX.isMuted()) FX.play("correct", 1); })));
+  const gStudy = group("study", "practice", t("gStudy"), t("gStudySub"), studyRows);
+
+  // ---- Eklenti
+  let extRow;
+  if (document.documentElement.dataset.cvExt) extRow = row(t("extension"), t("extLinked"));
+  else {
+    const key = el("code", "keybox"), gen = ibtn("key", t("genKey"), "primary"), cp = ibtn("copy", t("copy"), "hide"), r = el("div", "row"), steps = el("ol", "steps2");
+    key.textContent = t("keyHint");
+    gen.onclick = async () => { const k = (await api("/api/ext-key", {})).key; key.textContent = k; cp.classList.remove("hide"); cp.onclick = () => { navigator.clipboard.writeText(k).then(() => toast(t("copied"))); }; };
+    ["ext1", "ext2", "ext3"].forEach((k) => steps.append(el("li", "", t(k))));
+    r.append(gen, cp);
+    extRow = stack(t("extension"), t("extSub"), key, r, steps);
+  }
+  const gExt = group("ext", "plug", t("extension"), t("gExtSub"), [extRow]);
+
+  // ---- Paylaşım ve davet
+  const ivb = ibtn("copy", t("inviteCopy"), "primary"), ivn = el("span", "dim small"), ivr = el("div", "chips");
+  api("/api/invite").then((d) => {
+    ivn.textContent = t("inviteCount", d.count);
+    d.badges.forEach((b) => ivr.append(chip(ICO.star, t("bdg_" + b))));
+    ivb.onclick = async () => { try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } };
+  }).catch(() => {});
+  const inv = row(t("inviteTitle"), t("inviteSub"), ivb); inv.querySelector(".lab").append(ivn, ivr); ivr.style.marginTop = "8px";
+  const pubT = toggleBtn(t("publicTitle"), false, async (b) => { try { paintPub(await api("/api/profile-public", { on: b.getAttribute("aria-checked") !== "true" })); } catch (e) { toast(e.message); } });
+  const pubL = el("a", "btn hide"); pubL.append(svg(ICONS.external), document.createTextNode(t("publicView")));
+  const paintPub = (d) => { pubT.setAttribute("aria-checked", String(!!d.on)); pubL.href = d.url; pubL.target = "_blank"; pubL.rel = "noopener"; pubL.classList.toggle("hide", !d.on); };
+  api("/api/profile-public").then(paintPub).catch(() => {});
+  const pubRow = row(t("publicTitle"), t("publicSub"), pubL, pubT);
+  const gShare = group("share", "share", t("gShare"), t("gShareSub"), [inv, pubRow]);
+
+  // ---- Güvenlik
+  const cur = pwField(t("currentPw"), "current-password"), n1 = pwField(t("newPassword"), "new-password"), n2 = pwField(t("password2"), "new-password");
+  const sb = el("button", "primary", t("changePassword")), serr = el("p", "err"), sf = el("div", "form");
   sb.onclick = async () => {
     serr.textContent = "";
     if (n1.inp.value !== n2.inp.value) { serr.textContent = t("pwMismatch"); return; }
@@ -1071,40 +1215,40 @@ function tSettings() {
     catch (e) { serr.textContent = e.message; }
   };
   if (me.has_password === false) cur.wrap.style.display = "none"; // Google ile açılan hesap: ilk parolayı belirler
-  sf.append(cur.wrap, n1.wrap, meterFor(n1.inp), n2.wrap, sb, serr); sec.append(el("h2", "", t("security")), sf);
-  const rc = el("div", "card"), rb = el("button", me.has_recovery ? "" : "primary", t("newRecovery")), rr2 = el("div"); rr2.style.marginTop = "14px";
+  const sw = el("div", "row"); sw.append(sb);
+  sf.append(cur.wrap, n1.wrap, meterFor(n1.inp), n2.wrap, sw, serr);
+  const rb = ibtn("shield", t("newRecovery"), "");
   rb.onclick = async () => {
     const pw = await askPassword(t("newRecovery"));
     if (pw === null) return;
     try { const r = await api("/api/new-recovery", { password: pw }); me.has_recovery = true; recoveryModal(r.recovery); } catch (e) { toast(e.message); }
   };
-  rr2.append(rb); rc.append(el("h2", "", t("recoveryCode")), el("p", "dim", me.has_recovery ? t("recoveryHas") : t("recoveryNone")), rr2); rc.firstChild.style.marginBottom = "8px";
-  // davet + herkese açık profil
-  const iv = el("div", "card"), ivb = el("div", "row"), ivc = el("button", "primary", t("inviteCopy")), ivn = el("p", "dim small"), ivr = el("div", "chips");
-  iv.append(el("h2", "", "🤝 " + t("inviteTitle")), el("p", "dim", t("inviteSub")), ivb, ivn, ivr); ivb.style.margin = "12px 0"; ivb.append(ivc);
-  api("/api/invite").then((d) => {
-    ivn.textContent = t("inviteCount", d.count);
-    d.badges.forEach((b) => ivr.append(chip(ICO.star, t("bdg_" + b))));
-    ivc.onclick = async () => { try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } };
-  }).catch(() => {});
-  const pu = el("div", "card"), pub = el("button", "", "…"), pul = el("a", "hide", t("publicView")), pr = el("div", "row");
-  pu.append(el("h2", "", t("publicTitle")), el("p", "dim", t("publicSub")), pr); pr.style.marginTop = "12px"; pr.append(pub, pul);
-  const paintPub = (d) => { pub.textContent = d.on ? t("publicOn") : t("publicOff"); pub.className = d.on ? "primary" : ""; pul.href = d.url; pul.target = "_blank"; pul.className = d.on ? "" : "hide"; pub.onclick = async () => paintPub(await api("/api/profile-public", { on: !d.on })); };
-  api("/api/profile-public").then(paintPub).catch(() => {});
-  const g3 = el("div", "grid2"); g3.style.marginTop = "16px"; g3.append(iv, pu);
-  const g2 = el("div", "grid2"); g2.style.marginTop = "16px"; g2.append(sec, rc);
-  g.append(p, x); vc.style.marginTop = "16px";
-  // üstte profil özeti ve iki ana eylem; geri kalan her şey "Tüm ayarlar" altında
-  const hero = el("div", "card"), L2 = levelOf(G.xp), st2 = streakNow(), hc = el("div", "chips");
-  hc.append(chip(ICO.flame, st2 ? t("streakDays", st2) : t("streakStart"), st2 ? "fire" : ""), chip(ICO.star, t("lvl", L2)));
-  hero.append(el("h2", "", me.username), hc);
-  const hr = el("div", "row"); hr.style.marginTop = "14px";
-  const hs = el("button", "primary", "📤 " + t("shareProg")); hs.onclick = () => shareProgress();
-  const hi = el("button", "", "🤝 " + t("inviteCopy"));
-  hi.onclick = async () => { try { const d = await api("/api/invite"); try { await navigator.clipboard.writeText(d.link); toast(t("inviteCopied")); } catch (e) { toast(d.link); } } catch (e) { toast(e.message); } };
-  hr.append(hs, hi); hero.append(hr);
-  const all2 = el("details", "gmore"); all2.append(el("summary", "", t("setAll")), g, vc, g3, g2, a);
-  box.append(hero, all2);
+  const gSec = group("security", "shield", t("security"), t("gSecuritySub"), [
+    stack(t("changePassword"), "", sf),
+    row(t("recoveryCode"), me.has_recovery ? t("recoveryHas") : t("recoveryNone"), rb),
+  ]);
+
+  // ---- Tehlikeli bölge
+  const del = ibtn("trash", t("deleteAccount"), "danger");
+  del.onclick = () => {
+    const m = el("div", "modal"), c = el("div", "card"), pw = el("input"), e = el("p", "err"), ok = el("button", "danger", t("deleteAccount")), no = el("button", "", t("cancel"));
+    pw.type = "password"; pw.placeholder = t("password"); pw.setAttribute("aria-label", t("password"));
+    if (me.has_password === false) { pw.type = "text"; pw.placeholder = me.username; pw.autocomplete = "off"; }
+    ok.onclick = async () => { try { await api("/api/delete-account", { password: pw.value }); m.remove(); me = null; toast(t("accountDeleted")); authView(); } catch (er) { e.textContent = er.message; } };
+    no.onclick = () => m.remove(); m.onclick = (ev) => { if (ev.target === m) m.remove(); }; const rr = el("div", "row"); rr.append(ok, no);
+    pw.style.marginTop = "14px"; c.append(el("h2", "", t("deleteAccount")), el("p", "dim", t("deleteAccountSub") + (me.has_password === false ? " " + t("typeName") : "")), pw, e, rr); m.append(c); document.body.append(m); pw.focus();
+  };
+  const gDanger = group("danger", "danger", t("gDanger"), t("gDangerSub"), [row(t("deleteAccount"), t("deleteAccountShort"), del)], "danger");
+
+  // ---- bölüm dizini: her ayar grubuna tek dokunuşla git
+  const jump = el("nav", "jump"); jump.setAttribute("aria-label", t("jumpTo"));
+  GROUPS_S.forEach(([id, title, cls]) => {
+    const a = el("a", cls || "", title); a.href = "#sg-" + id;
+    a.onclick = (e) => { e.preventDefault(); const s = document.getElementById("sg-" + id); if (s) { s.scrollIntoView({ behavior: FX.reduce ? "auto" : "smooth", block: "start" }); } };
+    jump.append(a);
+  });
+  const eb = el("p", "eyebrow", t("settingsLabel")); eb.style.margin = "28px 0 0";
+  box.append(hero, eb, jump, gAccount, gLang, gStudy, gExt, gShare, gSec, gDanger);
   return box;
 }
 

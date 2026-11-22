@@ -6,12 +6,14 @@
 <title>CineVocab · Daily</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
-<style>.stage{max-width:640px;margin:0 auto}.center{text-align:center}</style>
+<style>.stage{max-width:640px;margin:0 auto}
+.sqs { display:inline-flex; gap:4px; align-items:center; flex-wrap:wrap; justify-content:center; } .sqs i { width:14px; height:14px; border-radius:3px; background:var(--line2); display:block; } .sqs i.ok { background:var(--ok); } .sqs i.no { background:var(--bad); }
+.grid-sq { margin:14px 0; } .grid-sq .sqs { gap:6px; } .grid-sq .sqs i { width:22px; height:22px; border-radius:5px; }</style>
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0e1e24">
+<meta name="theme-color" content="#0B0B0A">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
@@ -20,8 +22,8 @@
 <header class="top"><div class="in">
   <a class="brand" href="/"><i></i>CineVocab</a>
   <div class="grow"></div>
-  <a href="/account" id="back" class="dim small" style="text-decoration:none"></a>
-  <div id="tools" class="row" style="gap:6px"></div>
+  <a href="/account#practice" id="back"></a>
+  <div id="tools"></div>
 </div></header>
 <main class="wrap"><div class="stage" id="app"></div></main>
 <script src="/static/common.js?v={{ ASSET_V }}"></script>
@@ -55,21 +57,23 @@ async function home(err) {
   catch (e) { if (e.status === 401) { location = "/account"; return; } shell(headCard(), el("div", "card", e.message || t("dcLoadErr"))); return; }
   if (!info.ready) {
     const c = el("div", "card center"); c.append(el("h2", "", t("dcNum", info.num)), el("p", "dim", t("dcNo")));
-    const b = el("a", "", "←"); b.href = "/account"; c.append(b);
+    const b = el("a", "btn"); b.append(svg(ICONS.chevL), document.createTextNode(t("backToPanel"))); b.href = "/account#practice"; b.style.marginTop = "16px"; c.append(b);
     return shell(headCard(), c);
   }
   if (info.done) return result(info.result, true);
   const c = el("div", "card center daily-card"), chips = el("div", "chips"); chips.style.justifyContent = "center";
   chips.append(chip(t("dcNum", info.num)));
-  if (info.streak) chips.append(chip("🔥 " + t("dcStreakN", info.streak)));
-  const go = el("button", "primary go-btn", info.started ? t("dcResume") : t("dcPlay"));
+  if (info.streak) chips.append(chip(t("dcStreakN", info.streak), "flame"));
+  const go = ibtn("play", info.started ? t("dcResume") : t("dcPlay"), "primary go-btn");
   go.style.cssText = "width:100%;margin-top:18px";
   go.onclick = () => { FX.play("go"); play(); };
   c.append(el("h2", "", t("dcTitle")), chips, el("p", "dim", t("dcCard")), go);
   shell(headCard(), c, el("div"));
   board(app);
 }
-function chip(text) { return el("span", "chip", text); }
+function chip(text, icon) { const c = el("span", "chip" + (icon ? " fire" : "")); if (icon) c.append(svg(ICONS[icon])); c.append(document.createTextNode(text)); return c; }
+// 🟩/🟥 dizisini renkli karelere çevirir (sunucudan gelen ızgara metni ve paylaşım metni değişmez)
+function sqs(chars) { const w = el("span", "sqs"); [...chars].forEach((ch) => { if (ch === "🟩" || ch === "🟥") w.append(el("i", ch === "🟩" ? "ok" : "no")); }); return w; }
 
 async function play() {
   let st;
@@ -82,7 +86,7 @@ async function play() {
     clearT();
     if (i >= Q.length) return home();
     const q = Q[i], card = el("div", "card qcard in"), hud = el("div", "hud"), scEl = el("span", "sc", String(score));
-    hud.append(el("span", "dim small", t("qOf", i + 1, Q.length)), el("span", "dim small", grid.join("")), scEl);
+    hud.append(el("span", "dim small", t("qOf", i + 1, Q.length)), sqs(grid.join("")), scEl);
     const bar = el("div", "tbar"), fill = el("i"); bar.append(fill);
     const og = el("div", "opts"), btns = [];
     let locked = false;
@@ -133,10 +137,10 @@ function result(r, already) {
   view = "result"; clearT(); lastResult = r;
   const c = el("div", "card center daily-card"), big = el("div", "big", String(r.score));
   c.append(el("p", "dim small", t("dcNum", r.num) + " · " + pairLabel()), big, el("p", "dim", t("result", r.correct, r.total)));
-  c.append(el("div", "grid-emoji", r.grid));
+  const gv = el("div", "grid-sq"); gv.append(sqs(r.grid)); c.append(gv);
   if (r.rank) c.append(el("p", "", t("dcRank", r.rank, r.players)));
-  if (r.streak >= 2) { const ch = el("div", "chips"); ch.style.justifyContent = "center"; ch.append(chip("🔥 " + t("dcStreakN", r.streak))); c.append(ch); }
-  const sh = el("button", "primary", t("dcShare")); sh.style.cssText = "width:100%;margin-top:16px"; sh.onclick = () => share(r);
+  if (r.streak >= 2) { const ch = el("div", "chips"); ch.style.justifyContent = "center"; ch.append(chip(t("dcStreakN", r.streak), "flame")); c.append(ch); }
+  const sh = ibtn("share", t("dcShare"), "primary"); sh.style.cssText = "width:100%;margin-top:16px"; sh.onclick = () => share(r);
   c.append(sh, el("p", "dim small", already ? t("dcPlayed") + " " + t("dcNext") : t("dcNext")));
   c.lastChild.style.marginTop = "12px";
   shell(headCard(), c, el("div"));

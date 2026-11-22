@@ -15,19 +15,17 @@
 <meta property="og:image" content="{{ site }}/static/icons/icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0e1e24">
+<meta name="theme-color" content="#0B0B0A">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <style>
   .lp { max-width:760px; margin:0 auto; padding:6vh 0 40px }
   .lp h1 { font-size:clamp(32px,5.5vw,54px); line-height:1.04; letter-spacing:-.03em }
   .lp .lead { font-size:18px; color:var(--dim); margin:18px 0 26px; max-width:620px }
-  .btn { display:inline-flex; align-items:center; min-height:46px; padding:0 22px; border-radius:11px; font-weight:700; text-decoration:none; border:1px solid var(--line2); color:var(--ink) }
-  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent) }
-  .sub { background:#000; border-radius:14px; padding:22px 20px; margin:12px 0 0; text-align:center }
-  .sub b { display:block; font:700 clamp(20px,3.4vw,28px) var(--display); color:#fff }
+  .sub { background:var(--sub-bg); border:1px solid var(--line); border-radius:var(--r-card); padding:22px 20px; margin:12px 0 0; text-align:center }
+  .sub b { display:block; font:700 clamp(20px,3.4vw,28px) var(--display); color:var(--sub-ink) }
   .sub span { display:block; margin-top:8px; font-size:clamp(16px,2.6vw,20px); color:var(--sub-tr) }
   .lp section { margin-top:44px } .lp h2 { margin-bottom:12px }
   .lp ol { padding-left:20px; line-height:1.8 } .lp li + li { margin-top:4px }
@@ -42,15 +40,15 @@
 <header class="top"><div class="in">
   <a class="brand" href="/"><i></i>CineVocab</a>
   <div class="grow"></div>
-  <a class="btn" href="/account" style="min-height:38px;padding:0 16px">{{ 'Giriş' if d.hl == 'tr' else 'Log in' }}</a>
+  <a class="btn" href="/account">{{ 'Giriş' if d.hl == 'tr' else 'Log in' }}</a>
 </div></header>
 <main class="wrap">
   <article class="lp">
     <h1>{{ d.h1 }}</h1>
     <p class="lead">{{ d.lead }}</p>
     <div class="row">
-      <a class="btn primary" href="https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=seo_{{ d.code }}">{{ d.cta }}</a>
-      <a class="btn" href="{{ d.cta2_url }}">{{ d.cta2 }}</a>
+      <a class="btn primary lg" href="https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjpjgijkjplebkl?utm_source=seo_{{ d.code }}">{{ d.cta }}</a>
+      <a class="btn lg" href="{{ d.cta2_url }}">{{ d.cta2 }}</a>
     </div>
     <section>
       <h2>{{ d.ex_h }}</h2>

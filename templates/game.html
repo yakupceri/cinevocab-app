@@ -6,33 +6,33 @@
 <title>CineVocab · Duel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <style>
   .stage { max-width:640px; margin:0 auto; }
-  .code { font:800 clamp(56px,16vw,92px)/1 var(--display); letter-spacing:.14em; text-align:center; padding-left:.14em; margin:8px 0 4px; }
-  .center { text-align:center; }
-  .opts button { position:relative; text-align:left; display:flex; gap:12px; align-items:center; }
-  .opts button .k { width:24px; height:24px; border-radius:6px; background:var(--bg2); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; color:var(--dim); flex:none; }
-  .opts button.pick { border-color:var(--accent); background:var(--accent-soft); }
-  .d { color:var(--ok); margin-left:10px; font-size:14px; font-weight:700; } .d.x { color:var(--bad); }
-  .scr-code { font:800 clamp(80px,18vw,200px)/1 var(--display); letter-spacing:.12em; text-align:center; padding-left:.12em; }
-  .scr-word { font:800 clamp(48px,9vw,120px)/1.05 var(--display); text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
+  .d { color:var(--ok); margin-left:10px; font:700 13px var(--mono); display:inline-flex; align-items:center; gap:3px; } .d.x { color:var(--bad); }
+  .timer.hot i { background:var(--bad) !important; } .timer { height:8px; background:var(--line); border-radius:var(--r-pill); overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
+  /* oda kodu */
+  .lobby h2.sec { font-size:15px; margin:26px 0 4px; text-align:left; display:flex; align-items:baseline; justify-content:space-between; }
+  .lobby h2.sec span { font:500 12px var(--mono); color:var(--faint); }
+  .lobby .pl { text-align:left; }
+  .roomcode.xl { margin:18px 0; } .roomcode.xl .dg { width:clamp(72px,13vw,160px); font-size:clamp(64px,11vw,140px); border-radius:var(--r-card); }
+  .roomcode .dg { width:clamp(54px,17vw,92px); aspect-ratio:3/4; display:grid; place-items:center; background:var(--bg); border:1px solid var(--line2); border-radius:var(--r-card); font:700 clamp(40px,12vw,68px)/1 var(--mono); color:var(--accent); font-variant-numeric:tabular-nums; }
+  /* büyük ekran (sunum) modu: dört şık tek renk, harfle ayrılır */
+  .scr-word { font:700 clamp(48px,9vw,120px)/1.05 var(--display); letter-spacing:-.03em; text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
   .scr-opts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .scr-opts .o { position:relative; border-radius:14px; padding:22px 24px; font:700 clamp(22px,3.6vw,44px)/1.1 var(--display); color:#fff; display:flex; align-items:center; gap:16px; overflow:hidden; }
-  .scr-opts .o b { font-size:.7em; opacity:.85; border:2px solid rgba(255,255,255,.6); border-radius:8px; width:1.5em; height:1.5em; display:grid; place-items:center; flex:none; }
-  .scr-opts .o.c0 { background:#c0392b; } .scr-opts .o.c1 { background:#2a6fb0; } .scr-opts .o.c2 { background:#b8860b; } .scr-opts .o.c3 { background:#2e8b57; }
-  .scr-opts .o.dim { opacity:.28; } .scr-opts .o.right { outline:5px solid var(--ok); }
-  .scr-opts .o .n { margin-left:auto; font-size:.9em; }
+  .scr-opts .o { position:relative; border-radius:var(--r-card); padding:22px 24px; background:var(--panel2); border:1px solid var(--line2); font:700 clamp(22px,3.6vw,44px)/1.1 var(--display); color:var(--ink); display:flex; align-items:center; gap:16px; overflow:hidden; }
+  .scr-opts .o b { font:700 .6em var(--mono); color:var(--dim); border:1.5px solid var(--line2); border-radius:var(--r-ctl); width:1.9em; height:1.9em; display:grid; place-items:center; flex:none; }
+  .scr-opts .o.dim { opacity:.35; } .scr-opts .o.right { border-color:var(--ok); background:var(--ok-soft); box-shadow:inset 0 0 0 2px var(--ok); }
+  .scr-opts .o .n { margin-left:auto; font:700 .8em var(--mono); color:var(--dim); }
   .scr-bar { display:flex; align-items:center; gap:14px; } .scr-bar .grow { flex:1; }
   .scr-chips { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
-  .scr-chips .pc { font-size:20px; padding:8px 16px; }
+  .scr-chips .pc { font-size:20px; padding:8px 18px 8px 8px; }
   .scr-top { margin-top:20px; display:grid; gap:6px; }
-  .timer.hot i { background:var(--bad) !important; } .timer { height:8px; background:var(--line); border-radius:3px; overflow:hidden; } .timer i { display:block; height:100%; width:100%; background:var(--accent); }
 </style>
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0e1e24">
+<meta name="theme-color" content="#0B0B0A">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
@@ -41,8 +41,8 @@
 <header class="top"><div class="in">
   <a class="brand" href="/"><i></i>CineVocab</a>
   <div class="grow"></div>
-  <a href="/account" id="back" class="dim small" style="text-decoration:none"></a>
-  <div id="tools" class="row" style="gap:6px"></div>
+  <a href="/account#duel" id="back"></a>
+  <div id="tools"></div>
 </div></header>
 <main class="wrap"><div class="stage" id="app"></div></main>
 <script src="/static/common.js?v={{ ASSET_V }}"></script>
@@ -75,18 +75,20 @@ async function home(error, auto) {
   if (auto) { try { saved = JSON.parse(sessionStorage.getItem("cv-duel") || "null"); sessionStorage.removeItem("cv-duel"); } catch (e) {} }
   if (saved && saved.t) { connect(saved); return; }
 
-  const code = el("input"), pw = el("input"), join = el("button", "primary", t("join"));
-  code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.style.cssText = "font:800 28px var(--display);letter-spacing:.3em;text-align:center";
-  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30;
+  const code = el("input"), pw = el("input"), join = el("button", "primary lg", t("join"));
+  code.className = "codein"; code.placeholder = "0000"; code.inputMode = "numeric"; code.maxLength = 4; code.autocomplete = "off"; code.setAttribute("aria-label", t("room"));
+  code.oninput = () => { code.value = code.value.replace(/\D/g, "").slice(0, 4); };
+  pw.placeholder = t("roomPwJoin"); pw.maxLength = 30; pw.autocomplete = "off"; pw.setAttribute("aria-label", t("roomPwJoin"));
   join.onclick = () => { if (!/^\d{4}$/.test(code.value.trim())) { errBox.textContent = t("codeHint"); return; } connect({ t: "join", code: code.value.trim(), password: pw.value }); };
-  code.onkeydown = (e) => { if (e.key === "Enter") join.click(); };
-  const card = el("div", "card"), form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:14px";
+  code.onkeydown = pw.onkeydown = (e) => { if (e.key === "Enter") join.click(); };
+  const card = el("div", "card"), form = el("div"); form.style.cssText = "display:grid;gap:10px;margin-top:16px";
   errBox.textContent = error || "";
   form.append(code, pw, join, errBox);
-  const mk = el("a"); mk.href = "/account"; mk.className = "dim small"; mk.textContent = t("createInPanel"); mk.style.cssText = "display:block;text-align:center;margin-top:14px";
-  card.append(el("h2", "", t("joinRoom")), el("p", "dim", t("joinSub")), form, mk);
+  const mk = el("a", "btn block"); mk.href = "/account#duel"; mk.append(svg(ICONS.duel), document.createTextNode(t("createInPanel"))); mk.style.marginTop = "6px";
+  const jh = el("div", "ttl"); jh.append(svg(ICONS.key), el("h2", "", t("joinByCode")));
+  card.append(jh, el("p", "dim", t("joinSub")), form);
   const h = el("div", "head"); const l = el("div"); l.append(el("h1", "", t("gameTitle")), el("p", "", t("gameSub"))); h.append(l);
-  app.replaceChildren(h, card);
+  app.replaceChildren(h, card, el("div")); app.lastChild.style.marginTop = "12px"; app.lastChild.append(mk);
 }
 
 const hue = (n) => { let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
@@ -101,12 +103,12 @@ function playerList(rows, opts = {}) {
     const nm = el("span", "nm", p.name);
     if (p.id === myId) nm.append(el("span", "tag", t("you")));
     if (opts.host && p.id === opts.host) nm.append(el("span", "tag", t("host")));
-    if (opts.delta && p.id in prevRank && prevRank[p.id] !== i) nm.append(el("span", prevRank[p.id] > i ? "rank-up" : "rank-dn", prevRank[p.id] > i ? "▲" : "▼"));
-    if (opts.delta && p.streak >= 2) nm.append(el("span", "fire-n", "🔥 " + t("inARow", p.streak)));
+    if (opts.delta && p.id in prevRank && prevRank[p.id] !== i) { const up = prevRank[p.id] > i, ar = el("span", up ? "rank-up" : "rank-dn"); ar.append(svg(up ? ICONS.arrowUp : ICONS.arrowDown)); nm.append(ar); }
+    if (opts.delta && p.streak >= 2) { const fn = el("span", "fire-n"); fn.append(svg(ICONS.flame), document.createTextNode(t("inARow", p.streak))); nm.append(fn); }
     li.append(nm);
     if (p.score !== undefined) {
       const r = el("span"), sc = el("b", "", p.score); r.append(sc);
-      if (opts.delta && p.delta !== undefined) r.append(el("span", "d" + (p.ok ? "" : " x"), p.ok ? "+" + p.delta : "✗"));
+      if (opts.delta && p.delta !== undefined) { const dl = el("span", "d" + (p.ok ? "" : " x")); if (p.ok) dl.textContent = "+" + p.delta; else dl.append(svg(ICONS.x, "sm")); r.append(dl); }
       li.append(r);
       if (opts.delta && p.ok && p.delta) { FX.count(sc, p.score, 700, null, p.score - p.delta); }
     }
@@ -121,24 +123,35 @@ function strip(players) {
   return s;
 }
 
+// Oda kodu: dört büyük hane + belirgin "Kodu kopyala" düğmesi
+function codeTiles(code, cls) {
+  const box = el("div", "roomcode" + (cls ? " " + cls : ""));
+  box.setAttribute("role", "img"); box.setAttribute("aria-label", t("room") + " " + String(code).split("").join(" "));
+  String(code).split("").forEach((ch) => { const d = el("span", "dg", ch); d.setAttribute("aria-hidden", "true"); box.append(d); });
+  return box;
+}
 function lobby(info) {
   mode = "lobby";
-  const card = el("div", "card center"), start = el("button", "primary", t("startGame")), copy = el("button", "", t("copyCode")), leave = el("button", "ghost", t("leave"));
+  const card = el("div", "card center lobby"), start = ibtn("play", t("startGame"), "primary lg"), copy = ibtn("copy", t("copyCode"), "copybig"), leave = ibtn("logout", t("leave"), "ghost");
   start.onclick = () => send({ t: "start" });
-  copy.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(info.code); copy.textContent = t("copied"); setTimeout(() => (copy.textContent = t("copyCode")), 1500); };
+  copy.onclick = () => {
+    const ok = () => { copy.replaceChildren(svg(ICONS.check), document.createTextNode(t("copied"))); setTimeout(() => copy.replaceChildren(svg(ICONS.copy), document.createTextNode(t("copyCode"))), 1500); };
+    try { navigator.clipboard.writeText(info.code).then(ok, () => toast(info.code)); } catch (e) { toast(info.code); }
+  };
   leave.onclick = () => { room = null; ws.close(); home(); };
   const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
   if (info.locked) meta.push(t("locked"));
   if (info.mode === "speak") meta.push(t("roomSpeak"));
-  const m = el("p", "dim small", meta.join(" · "));
-  const pl = el("div"); pl.style.cssText = "text-align:left;margin-top:18px"; pl.append(playerList(info.players, { host: info.host }));
-  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:18px";
-  act.append(copy, leave);
-  card.append(el("p", "dim small", t("room")), el("div", "code", info.code), m, el("p", "dim", t("shareCode")));
+  const m = el("p", "metaline2", meta.join(" · "));
+  const pl = el("div", "pl"), sec = el("h2", "sec", t("playersTitle")); sec.append(el("span", "", String(info.players.length)));
+  pl.append(sec, playerList(info.players, { host: info.host }));
+  card.append(el("p", "eyebrow", t("room")), codeTiles(info.code), copy, el("p", "dim small", t("shareCode")), m);
+  card.lastChild.style.marginTop = "16px"; card.children[3].style.marginTop = "12px";
   if (info.mode === "speak") card.append(el("p", "dim small", t("sayLobbyNote")));
   card.append(pl);
-  if (info.host === myId) { start.disabled = info.players.length < 1; start.style.cssText = "width:100%;margin-top:16px"; card.append(start); }
-  else { const w = el("p", "dim", t("waitHost")); w.style.marginTop = "16px"; card.append(w); }
+  if (info.host === myId) { start.disabled = info.players.length < 1; start.style.cssText = "width:100%;margin-top:18px"; card.append(start); }
+  else { const w = el("p", "dim", t("waitHost")); w.style.marginTop = "18px"; card.append(w); }
+  const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:10px"; act.append(leave);
   errBox.textContent = ""; card.append(act, errBox);
   app.replaceChildren(card);
 }
@@ -380,15 +393,15 @@ const isScreen = () => !!(room && room.screen && room.host === myId);
 const SCR_LETTERS = ["A", "B", "C", "D"];
 function sLobby(info) {
   mode = "lobby";
-  const card = el("div", "card center"), start = el("button", "primary", t("scrStart")), leave = el("button", "ghost", t("leave"));
-  start.style.cssText = "font-size:22px;padding:14px 36px"; start.disabled = !info.players.length;
+  const card = el("div", "card center"), start = ibtn("play", t("scrStart"), "primary lg"), leave = ibtn("logout", t("leave"), "ghost");
+  start.style.cssText = "font-size:20px;padding:0 36px;min-height:60px"; start.disabled = !info.players.length;
   start.onclick = () => send({ t: "start" });
   leave.onclick = () => { room = null; ws.close(); home(); };
   const meta = [info.episode || t("allWords"), langName(info.src || "tr") + " → " + langName(info.dst || "en"), t("nQuestions", info.n || 10), (info.seconds || 12) + " " + t("secShort")];
   if (info.locked) meta.push(t("locked"));
   const chips = el("div", "scr-chips");
   info.players.forEach((p) => { const c = el("div", "pc"); c.append(avatar(p.name), el("span", "", p.name.slice(0, 16))); chips.append(c); });
-  card.append(el("p", "dim", t("scrJoinAt", location.host + "/game")), el("div", "scr-code", info.code), el("p", "dim small", meta.join(" · ")),
+  card.append(el("p", "dim", t("scrJoinAt", location.host + "/game")), codeTiles(info.code, "xl"), el("p", "metaline2", meta.join(" · ")),
     el("p", "", info.players.length ? t("scrPlayers", info.players.length) : t("scrWaiting")), chips);
   const act = el("div", "row"); act.style.cssText = "justify-content:center;margin-top:24px"; act.append(start, leave);
   errBox.textContent = ""; card.append(act, errBox);
