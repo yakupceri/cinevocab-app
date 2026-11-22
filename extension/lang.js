@@ -216,7 +216,20 @@
   // Yaygın (öğrenmeye değmeyen) kelime mi? hasStop: bu dilin listesi var mı?
   const isStop = (w, l) => !!(SETS[l] && SETS[l].has(w));
   const hasStop = (l) => !!SETS[l];
-  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui, add, isStop, hasStop };
+  // Kurulumda dil çifti: çeviriler tarayıcı dilinde, altyazı İngilizce (tarayıcı İngilizceyse İspanyolca).
+  // NOT: background.js onInstalled içinde aynı kural satır içi yazılı (servis çalışanı bu dosyayı yüklemiyor); ikisi birlikte değişir.
+  const LANG_CODES = Object.keys(NAMES.en);
+  function defaultPair(uiLang) {
+    const u = String(uiLang || "en").slice(0, 2).toLowerCase();
+    const dst = LANG_CODES.includes(u) ? u : "en";
+    return { src: dst === "en" ? "es" : "en", dst };
+  }
+  // Altyazılı örnek video araması (YouTube, "altyazı" filtreli). Easy Languages kanalları sokak röportajı yapar.
+  function startUrl(src) {
+    const name = NAMES.en[src] || "English";
+    return "https://www.youtube.com/results?search_query=" + encodeURIComponent("easy " + name + " street interviews") + "&sp=EgIoAQ%253D%253D";
+  }
+  root.CVL = { foreign, detect, verdict, Guard, t, langName, ui, add, isStop, hasStop, defaultPair, startUrl, LANG_CODES };
   if (typeof module !== "undefined") module.exports = root.CVL;
   /* 2.0.3: videonun üstünde yol gösteren kutular */
   Object.assign(S.en, {"askStart": "CineVocab is off. Translate these subtitles?", "startNow": "Start translating", "notNow": "Not now", "ccOff": "No subtitles yet. Turn on subtitles (CC) in the player and the words appear here.", "ccOn": "Turn on subtitles", "noCc": "This video seems to have no subtitles. Try another video with subtitles (CC)."});
@@ -256,5 +269,25 @@
   Object.assign(S.pt, {"switchTo": "Mudar para {0}"});
   Object.assign(S.hi, {"switchTo": "{0} चुनें"});
   Object.assign(S.id, {"switchTo": "Ganti ke {0}"});
+  /* 2.1: kelimeyi tut (hesapsız), kutudaki ipucu */
+  Object.assign(S.en, {"ovHint": "Click a word to keep it · drag the box anywhere", "keptN": "{0} kept", "firstKept": "First word kept. Find it under the CineVocab icon, in Words."});
+  Object.assign(S.tr, {"ovHint": "Kelimeye tıkla, kaydedilsin · kutuyu istediğin yere sürükle", "keptN": "{0} kaydedildi", "firstKept": "İlk kelime kaydedildi. CineVocab simgesinde Kelimeler sekmesinde bulursun."});
+  Object.assign(S.es, {"ovHint": "Haz clic en una palabra para guardarla · arrastra el cuadro adonde quieras", "keptN": "{0} guardadas", "firstKept": "Primera palabra guardada. La encuentras en el icono de CineVocab, en Palabras."});
+  Object.assign(S.fr, {"ovHint": "Clique sur un mot pour le garder · fais glisser la boîte où tu veux", "keptN": "{0} gardés"});
+  Object.assign(S.it, {"ovHint": "Clicca una parola per tenerla · trascina il riquadro dove vuoi", "keptN": "{0} tenute"});
+  Object.assign(S.de, {"ovHint": "Klicke ein Wort an, um es zu behalten · zieh das Feld, wohin du willst", "keptN": "{0} gemerkt"});
+  Object.assign(S.pt, {"ovHint": "Clique em uma palavra para guardá-la · arraste a caixa para onde quiser", "keptN": "{0} guardadas"});
+  Object.assign(S.hi, {"ovHint": "शब्द को सहेजने के लिए उस पर क्लिक करें · बॉक्स को कहीं भी खींचें", "keptN": "{0} सहेजे"});
+  Object.assign(S.id, {"ovHint": "Klik kata untuk menyimpannya · seret kotak ke mana saja", "keptN": "{0} tersimpan"});
+  /* 2.1: ilk tutulan kelime notu (kutuda görünür), 9 dil */
+  Object.assign(S.en, {"firstKept": "First word kept. It is listed in the CineVocab popup (puzzle icon), under Words."});
+  Object.assign(S.tr, {"firstKept": "İlk kelime kaydedildi. CineVocab penceresinde (yapboz simgesi), Kelimeler sekmesinde."});
+  Object.assign(S.es, {"firstKept": "Primera palabra guardada. La verás en la ventana de CineVocab (icono de puzle), en Palabras."});
+  Object.assign(S.fr, {"firstKept": "Premier mot gardé. Il est dans la fenêtre CineVocab (icône puzzle), sous Mots."});
+  Object.assign(S.it, {"firstKept": "Prima parola tenuta. La trovi nella finestra di CineVocab (icona puzzle), in Parole."});
+  Object.assign(S.de, {"firstKept": "Erstes Wort gemerkt. Du findest es im CineVocab-Fenster (Puzzle-Symbol) unter Wörter."});
+  Object.assign(S.pt, {"firstKept": "Primeira palavra guardada. Ela está na janela do CineVocab (ícone de quebra-cabeça), em Palavras."});
+  Object.assign(S.hi, {"firstKept": "पहला शब्द सहेज लिया। वह CineVocab विंडो (पज़ल आइकन) में शब्द टैब में मिलेगा।"});
+  Object.assign(S.id, {"firstKept": "Kata pertama tersimpan. Lihat di jendela CineVocab (ikon puzzle), di Kata."});
 })(typeof self !== "undefined" ? self : globalThis);
 

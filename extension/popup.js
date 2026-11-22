@@ -3,7 +3,10 @@ const STORE_URL = "https://chromewebstore.google.com/detail/glhogfbfbjifiihgffjp
 const LANGS = ["tr", "en", "fr", "it", "de", "es", "pt", "ru", "ar", "ro", "ja", "hi", "id", "pl", "nl", "ko"];
 const PATHS = { panel: "/account", words: "/account#words", practice: "/account#practice", duel: "/account#duel", daily: "/daily" };
 const $ = (id) => document.getElementById(id);
+const BANK = typeof CVBank !== "undefined" ? CVBank : { list: () => [], add: (b) => b, remove: (b) => b, clock: () => "" };
+const SRS = typeof CVSrs !== "undefined" ? CVSrs : null; // cihazdaki tekrar (srs.js); yoksa Pratik sekmesi eski giriş kartına döner
 const T = CVL.t;
+document.documentElement.lang = CVL.ui();
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function icon(d) { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", d); s.append(p); return s; }
 const IC = { check: "M5 12.5l4.5 4.5L19 7.500", eye: "M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", duel: "M6 3l12 12M14 19l5-5M18 3L6 15M5 14l5 5M3 21l3-3M21 21l-3-3", day: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4" };
@@ -58,7 +61,8 @@ document.querySelectorAll("#tabs button").forEach((b) => { b.lastElementChild.te
 function paint() {
   $("sw").setAttribute("aria-checked", String(!!st.enabled));
   $("state").textContent = st.enabled ? T("status_on") : T("stOff");
-  $("hint").textContent = st.enabled ? T("tapOff") : T("startNow");
+  $("hint").textContent = st.enabled ? T("tapOff") : T("offHint");
+  $("stateCard").dataset.on = String(!!st.enabled);
   steps();
   $("src").value = st.src; $("dst").value = st.dst;
 }
@@ -181,10 +185,12 @@ $("boxReset").onclick = () => { chrome.storage.local.set({ box: null }); toast(T
   $("ytT").textContent = T("ytT"); $("ytS").textContent = T("ytS"); $("lYtN").textContent = T("ytN"); go.textContent = T("ytGo");
   const say = (cls, text) => { msg.className = "note " + cls; msg.textContent = text; };
   let tabId = null;
+  const vis = () => { card.hidden = tabId == null || !st.key; }; // hesap gerektiren özellik: hesapsızken gösterme
+  window.cvYtVis = vis;
   try {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const t = tabs && tabs[0];
-      if (t && t.id != null && /^https:\/\/www\.youtube\.com\/(watch|shorts)/.test(t.url || "")) { tabId = t.id; card.hidden = false; }
+      if (t && t.id != null && /^https:\/\/www\.youtube\.com\/(watch|shorts)/.test(t.url || "")) { tabId = t.id; vis(); }
     });
   } catch (e) {}
 
@@ -227,9 +233,11 @@ function setTab(name) {
 }
 function render() {
   const inn = !!st.key;
+  if (window.cvYtVis) window.cvYtVis();
   $("signin").hidden = inn; $("avatar").hidden = !inn; $("streak").hidden = !(inn && home);
   if (inn) { const a = $("avatar"); a.replaceChildren(); if (home && home.avatar) { const i = el("img"); i.src = home.avatar; i.alt = ""; a.append(i); } else a.textContent = ((home && home.username) || "?").slice(0, 1).toLocaleUpperCase(); a.title = (home && home.username) || ""; }
   if (home) $("streakN").textContent = home.streak;
+  if (!inn) { $("streak").hidden = !(localStreak > 0); $("streakN").textContent = localStreak; } // hesapsız: cihazdaki tekrar serisi
   if (tab === "words") renderWords(); else if (tab === "practice") renderPractice(); else if (tab === "me") renderMe();
 }
 $("signin").onclick = () => showAuth(); $("avatar").onclick = () => setTab("me");
@@ -242,10 +250,52 @@ function guestCard(view, title) {
 function loading(view) { view.replaceChildren(el("p", "empty", "…")); }
 
 // ---------- Kelimeler ----------
+// Hesapsız kullanıcı: videoda tıkladığı kelimeler cihazdaki defterden (chrome.storage.local "bank") gelir.
+// Sunucuya hiçbir şey gitmez. Hesap açınca sunucudaki liste gösterilir (aşağıda).
+function dropKept(pair, it) {
+  chrome.storage.local.get(["bank", "stars"], (q) => {
+    const stars = (q && q.stars) || {};
+    stars[pair] = (stars[pair] || []).filter((x) => x !== it.w); // videodaki kutuda da işaret kalksın
+    chrome.storage.local.set({ bank: BANK.remove(q && q.bank, pair, it.w), stars });
+    toast(T("bankRemoved"), T("undo"), () => chrome.storage.local.get(["bank", "stars"], (z) => {
+      const s2 = (z && z.stars) || {}; s2[pair] = [...new Set([...(s2[pair] || []), it.w])];
+      chrome.storage.local.set({ bank: BANK.add(z && z.bank, pair, it, it.ts), stars: s2 });
+    }));
+  });
+}
+function renderBank(v) {
+  chrome.storage.local.get("bank", (r) => {
+    if (tab !== "words" || st.key) return; // bu arada sekme değişti ya da giriş yapıldı
+    const pair = st.src + ">" + st.dst, items = BANK.list(r && r.bank, pair);
+    const head = el("div", "sec");
+    head.append(el("b", "", T("bankHead")), el("span", "", String(items.length)));
+    const kids = [head];
+    if (items.length) {
+      const list = el("ul", "wl");
+      for (const it of items) {
+        const li = el("li"), w = el("div", "w"), k = el("button", "k");
+        w.append(el("b", "", it.w), el("span", "", it.t || "—"));
+        if (it.ep) li.title = it.ep; // hangi videodan
+        k.title = T("bankDel"); k.setAttribute("aria-label", T("bankDel")); k.append(icon("M6 6l12 12M18 6L6 18"));
+        k.onclick = () => dropKept(pair, it);
+        li.append(el("span", "tc", BANK.clock(it.vt)), w, k);
+        list.append(li);
+      }
+      kids.push(list);
+    } else kids.push(el("p", "empty", T("bankEmpty")));
+    if (items.length >= 3) { // hesap teklifi yalnızca birkaç kelime biriktikten sonra, sakin bir kartla
+      const card = el("div", "card"), btn = el("button", "btn", T("bankBack"));
+      btn.style.marginTop = "10px"; btn.onclick = () => showAuth();
+      card.append(el("p", "note", T("bankSub")), btn);
+      kids.push(card);
+    }
+    v.replaceChildren(...kids);
+  });
+}
 let wq = "", wMode = "recent";
 function renderWords() {
   const v = $("v-words");
-  if (!st.key) return guestCard(v, T("guestWords"));
+  if (!st.key) return renderBank(v);
   if (!home) return loading(v);
   const stats = el("div", "stats");
   for (const [k, n, hot] of [["due", home.due, true], ["newW", home.new], ["mastered", home.mastered]]) { const s = el("div", "stat" + (hot && n ? " hot" : "")); s.append(el("b", "", n), el("span", "", T(k))); stats.append(s); }
@@ -263,7 +313,11 @@ function renderWords() {
         k.onclick = async () => {
           const i = stars.indexOf(r); if (i < 0) return;
           stars.splice(i, 1); renderWords();
-          try { await api("/api/star", { body: { src: st.src, dst: st.dst, word: r.w, on: false } }); syncStars(); } catch (e) { stars.splice(i, 0, r); renderWords(); toast(errText(e)); }
+          try {
+            await api("/api/star", { body: { src: st.src, dst: st.dst, word: r.w, on: false } });
+            await new Promise((res) => chrome.storage.local.get("bank", (q) => chrome.storage.local.set({ bank: BANK.remove(q && q.bank, st.src + ">" + st.dst, r.w) }, res)));
+            syncStars();
+          } catch (e) { stars.splice(i, 0, r); renderWords(); toast(errText(e)); }
         };
       } else {
         k.title = T("known"); k.setAttribute("aria-label", T("known")); k.append(icon(IC.check));
@@ -286,7 +340,143 @@ function renderWords() {
 // Video üstündeki kutu yıldızları cihazdaki listeden boyar: hesaptaki listeyle eşitle
 function syncStars() {
   if (!home || !home.starred) return;
-  chrome.storage.local.get("stars", (r) => { const all = (r && r.stars) || {}; all[st.src + ">" + st.dst] = home.starred.map((x) => x.w); chrome.storage.local.set({ stars: all }); });
+  chrome.storage.local.get(["stars", "bank"], (r) => {
+    const pair = st.src + ">" + st.dst, all = (r && r.stars) || {};
+    // hesaptaki liste + cihazda tutulanlar: taşınmamış ya da yıldız olarak yazılmamış kelimelerin kutudaki işareti kaybolmasın
+    all[pair] = [...new Set([...home.starred.map((x) => x.w), ...BANK.list(r && r.bank, pair).map((x) => x.w)])];
+    chrome.storage.local.set({ stars: all });
+  });
+}
+
+// ---------- Hesapsız tekrar: cihazdaki kelimelerle ----------
+// Kelimeler kutuda tutulunca cihazdaki deftere (bank.js) girer; burada aralıklı tekrarla (srs.js) geri gelir. Sunucuya hiçbir şey gitmez.
+// Ödüller yalnızca doğru bilmeye bağlı: üst üste doğru, "öğrenildi" anı (3. kutu), kusursuz tur, gün serisi.
+let lq = null, localStreak = 0;
+const NEED = 4; // 4 şıklı soru için en az 4 çevirisi olan kelime
+function loadLocal() { try { chrome.storage.local.get("reviewDays", (r) => { localStreak = SRS ? SRS.streak(r && r.reviewDays, SRS.dayOf()) : 0; render(); }); } catch (e) {} }
+const whenText = (d) => (d <= 0 ? T("lpNow") : d === 1 ? T("lpTomorrow") : T("lpInDays", d));
+
+function renderLocalPractice(v) {
+  if (lq) return lq.done ? localResult(v) : localQuestion(v);
+  chrome.storage.local.get(["bank", "reviewDays"], (r) => {
+    if (tab !== "practice" || st.key || lq) return;
+    const pair = st.src + ">" + st.dst, items = BANK.list(r && r.bank, pair), day = SRS.dayOf(), s = SRS.stats(items, day);
+    const c = el("div", "go");
+    if (s.usable < NEED) {
+      const bar = el("div", "bar"), fi = el("i"); fi.style.width = Math.round((s.usable / NEED) * 100) + "%"; bar.append(fi); bar.style.margin = "12px 0";
+      c.append(el("h2", "", T("pTitle")), el("p", "", T("lpNeed")), bar, el("p", "lp-line", T("lpOf", s.usable, NEED)));
+      return v.replaceChildren(c);
+    }
+    const streak = SRS.streak(r && r.reviewDays, day), b = el("button", "btn p", s.ready > 0 ? T("lpStart") : T("lpAnyway"));
+    b.onclick = () => startLocal(items, pair, day);
+    c.append(el("div", "lp-lab", T("lpReady")), el("div", "lp-num", String(s.ready)),
+      el("p", "lp-line", T("lpLine", s.learned, s.kept) + (streak > 0 ? " · " + T("lpStreak", streak) : "")));
+    if (!s.ready) c.append(el("p", "lp-line", T("lpNothing")));
+    c.append(b);
+    v.replaceChildren(c);
+  });
+}
+
+function startLocal(items, pair, day) {
+  const sel = SRS.pickSession(items, day, 8), pool = [...new Set(items.filter(SRS.usable).map((x) => x.t))];
+  const qs = sel.picks.map((p) => {
+    const it = p.it, others = pool.filter((t) => t !== it.t);
+    const type = (!SRS.isNew(it) && SRS.boxOf(it) >= SRS.TYPE_FROM_BOX) || others.length < 3; // 2. kutudan sonra yazarak (ipuçlu hatırlama)
+    return { it, counts: p.counts, type, opts: type ? null : shuffle([it.t, ...shuffle(others.slice()).slice(0, 3)]), retry: false };
+  });
+  lq = { pair, day, qs, i: 0, run: 0, learned: [], fb: null, done: false, seen: new Set(), right: 0, streakBefore: 0 };
+  chrome.storage.local.get("reviewDays", (r) => { lq.streakBefore = SRS.streak(r && r.reviewDays, day); renderPractice(); });
+}
+
+function localTop(v) {
+  const bar = el("div", "bar"), fi = el("i"); fi.style.width = Math.round((lq.i / lq.qs.length) * 100) + "%"; bar.append(fi);
+  const top = el("div", "row"), x = el("button", "btn sm", "✕"), bw = el("div", "grow");
+  x.setAttribute("aria-label", T("pQuit")); x.onclick = () => finishLocal(true); bw.append(bar); top.append(bw, x);
+  return top;
+}
+function localQuestion(v) {
+  const q = lq.qs[lq.i], it = q.it, top = localTop(v);
+  if (lq.fb) return localFeedback(v, top, q);
+  const kids = [top, el("div", "qw", it.w), el("div", "qh", q.type ? T("lpType", CVL.langName(st.dst)) : T("pQ", CVL.langName(st.dst)))];
+  if (q.type) {
+    const inp = el("input"), go = el("button", "btn p", T("lpCheck")), dk = el("button", "link", T("lpDunno"));
+    inp.type = "text"; inp.autocomplete = "off"; inp.spellcheck = false; inp.setAttribute("aria-label", T("lpType", CVL.langName(st.dst)));
+    go.style.marginTop = "10px"; go.onclick = () => submitLocal(inp.value); dk.onclick = () => submitLocal("");
+    inp.onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+    kids.push(inp, go, dk); v.replaceChildren(...kids); inp.focus();
+  } else {
+    kids.push(...q.opts.map((o) => { const b = el("button", "ans", o); b.onclick = () => submitLocal(o); return b; }));
+    v.replaceChildren(...kids);
+  }
+}
+function submitLocal(value) {
+  if (!lq || lq.fb || lq.done) return;
+  const q = lq.qs[lq.i], it = q.it;
+  let ok, close = false;
+  if (q.type) { const c = SRS.check(value, it.t); ok = c.ok; close = c.close; } else ok = value === it.t;
+  let learnedNow = false;
+  if (!q.retry && !lq.seen.has(it.w)) { // yalnızca ilk deneme kutuyu etkiler; aynı oturumdaki tekrar denemesi etkilemez
+    lq.seen.add(it.w);
+    const ns = SRS.answer(it, ok, lq.day, q.counts);
+    learnedNow = !SRS.isLearned(it) && SRS.isLearned(ns);
+    if (learnedNow) lq.learned.push(it.w);
+    if (ok) lq.right++;
+    chrome.storage.local.get(["bank", "reviewDays"], (r) => { // her cevapta yazılır: pencere kapansa da ilerleme kaybolmaz
+      const days = [...new Set([...((r && r.reviewDays) || []), lq.day])].sort((a, b) => a - b).slice(-90);
+      chrome.storage.local.set({ bank: BANK.update(r && r.bank, lq.pair, it.w, { box: ns.box, due: ns.due, right: ns.right, wrong: ns.wrong, last: ns.last }), reviewDays: days });
+    });
+  }
+  lq.run = ok ? lq.run + 1 : 0;
+  if (!ok && !q.retry) lq.qs.push({ ...q, retry: true }); // yanlış bilinen kelime turun sonunda bir kez daha sorulur
+  lq.fb = { ok, close, learnedNow, run: lq.run };
+  renderPractice();
+  if (ok && !learnedNow && !close) { const idx = lq.i; setTimeout(() => { if (lq && !lq.done && lq.i === idx && lq.fb) nextLocal(); }, 650); }
+}
+function nextLocal() {
+  if (!lq || lq.done) return;
+  lq.fb = null; lq.i++;
+  if (lq.i >= lq.qs.length) finishLocal(false); else renderPractice();
+}
+function localFeedback(v, top, q) {
+  const it = q.it, f = lq.fb, from = [it.ep, BANK.clock(it.vt)].filter(Boolean).join(" · ");
+  if (f.ok && f.learnedNow) { // "öğrenildi" anı: sakin ama net. Gerçek bilgi: aralıklı tekrarla yine hatırladı, sonraki tekrar ne zaman
+    const c = el("div", "fb-center");
+    c.append(el("div", "lp-lab", T("lpLearnedTag")), el("div", "lw lw-xl", it.w), el("p", "lp-line", T("lpLearnedLine", whenText(SRS.INTERVALS[SRS.LEARNED_BOX]))));
+    const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal;
+    return v.replaceChildren(...[top, c, from ? el("p", "src", T("lpFrom", from)) : null, b].filter(Boolean));
+  }
+  const kids = [top, el("div", "qw", it.w)];
+  if (f.ok) {
+    kids.push(el("div", "fb-ok", T("lpRight") + (f.run >= 3 ? " · " + T("lpRow", f.run) : "")));
+    if (f.close) kids.push(el("div", "fb-is", it.t), el("p", "src", T("lpClose", it.t)));
+  } else kids.push(el("div", "fb-is", it.t));
+  if (from && !f.ok) kids.push(el("p", "src", T("lpFrom", from)));
+  if (!f.ok || f.close || f.learnedNow) { const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal; kids.push(b); }
+  v.replaceChildren(...kids);
+}
+function finishLocal(quit) {
+  if (!lq || lq.done) return;
+  if (quit && lq.seen.size === 0) { lq = null; return renderPractice(); }
+  lq.done = true;
+  chrome.storage.local.get(["bank", "reviewDays"], (r) => {
+    const items = BANK.list(r && r.bank, lq.pair), s = SRS.stats(items, lq.day);
+    lq.streakAfter = SRS.streak(r && r.reviewDays, lq.day);
+    lq.ready = s.ready;
+    const dues = items.filter((x) => SRS.usable(x) && !SRS.isNew(x) && x.due > lq.day).map((x) => x.due - lq.day);
+    lq.nextIn = dues.length ? Math.min(...dues) : null;
+    renderPractice();
+  });
+}
+function localResult(v) {
+  const total = lq.seen.size, again = el("button", "btn p", T("lpAgain")), back = el("button", "link", T("pBack"));
+  again.onclick = () => { lq = null; renderPractice(); }; back.onclick = again.onclick;
+  const kids = [el("div", "big", lq.right + "/" + total), el("div", "bigs", total && lq.right === total ? T("lpPerfect") : T("lpDone"))];
+  if (lq.learned.length) { const c = el("div", "go"); c.append(el("div", "lp-lab", T("lpLearnedH"))); for (const w of lq.learned) c.append(el("span", "lw", w)); c.style.margin = "0 0 14px"; kids.push(c); }
+  if (lq.streakAfter >= 2 && lq.streakAfter > lq.streakBefore) kids.push(el("p", "lp-line", T("lpDayN", lq.streakAfter)));
+  if (lq.ready) kids.push(el("p", "lp-line", T("lpMore", lq.ready)));
+  else if (lq.nextIn != null) kids.push(el("p", "lp-line", T("lpNext", whenText(lq.nextIn))));
+  kids.push(again, back);
+  v.replaceChildren(...kids);
 }
 
 // ---------- Pratik (açılır pencerenin içinde hızlı tur) ----------
@@ -295,7 +485,7 @@ const N_Q = 8;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function renderPractice() {
   const v = $("v-practice");
-  if (!st.key) return guestCard(v, T("guestPractice"));
+  if (!st.key) return SRS ? renderLocalPractice(v) : guestCard(v, T("guestPractice"));
   if (quiz) return quiz.done ? renderResult(v) : renderQuestion(v);
   if (!home) return loading(v);
   const go = el("div", "go"), b = el("button", "btn p", T("pStart")), ok = home.recent.length >= 4;
@@ -512,10 +702,15 @@ chrome.storage.local.get(["enabled", "src", "dst", "key", "det", "home", "gcid",
   if (st.key) { if (r.pickName) showName(r.pickName); return loadHome(); }
   // Sitede zaten giriş yapılmışsa sessizce bağlan (kullanıcı eklentiden çıkış yapmadıysa)
   if (!noAuto) { try { const k = await api("/api/ext-key", { post: true, cookie: true, auth: false }); if (k && k.key && !st.key) return setKey(k.key); } catch (e) {} }
-  if (!r.authSkip && !st.key) showAuth();
+  // 2.1: giriş formu artık ilk ekran değil. Hesapsız kullanıcı Kelimeler sekmesinde cihazdaki defterini görür,
+  // hesap açma teklifi orada ve "Giriş yap" düğmesinde durur.
 });
 chrome.storage.onChanged.addListener((ch, area) => {
   if (area !== "local") return;
   if (ch.det) showDet(ch.det.newValue);
+  if (ch.bank && tab === "words" && !st.key) renderWords(); // videoda yeni kelime tutuldu ya da burada kaldırıldı
+  if (ch.bankSyncTs && st.key) { home = null; loadHome(); } // cihazdaki kelimeler hesaba taşındı
+  if (ch.reviewDays) loadLocal(); // seri değişti
   if (ch.key && ch.key.newValue && ch.key.newValue !== st.key) { st.key = ch.key.newValue; home = null; $("auth").hidden = true; render(); loadHome(); }
 });
+if (SRS) loadLocal();

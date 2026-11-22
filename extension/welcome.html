@@ -2,29 +2,51 @@
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab</title>
 <style>
-  :root { color-scheme: dark light; --bg:#06141a; --panel:#0f2a31; --line:#24474f; --ink:#f6efdf; --dim:#a9bdb7; --acc:#ff8a3d; --on:#1a0f05; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f6f1e7; --panel:#fffaf0; --line:#e2d8c4; --ink:#1b2a2e; --dim:#5b6b6e; --acc:#d9590f; --on:#fff; } }
+  @font-face { font-family:"CV Display"; font-weight:800; src:url(fonts/d800.woff) format("woff"); }
+  @font-face { font-family:"CV Display"; font-weight:700; src:url(fonts/d700.woff) format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:500; src:url(fonts/t500.woff) format("woff"); }
+  @font-face { font-family:"CV Text"; font-weight:600 700; src:url(fonts/t600.woff) format("woff"); }
+  /* Gece Seansı: zemin sıcak siyah, tek vurgu altyazı sarısı */
+  :root { color-scheme:dark light; --bg:#0B0B0A; --panel:#151513; --line:rgba(237,232,218,.14); --ink:#EDE8DA; --dim:#8C877A; --acc:#F0CB4A; --on:#1A1500;
+    --display:"CV Display","CV Text",system-ui,sans-serif; --text:"CV Text",system-ui,"Segoe UI",sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace; }
+  @media (prefers-color-scheme: light) { :root { --bg:#F4F3EE; --panel:#FFFFFF; --line:rgba(23,23,20,.16); --ink:#171714; --dim:#615E54; --acc:#8A6A00; --on:#FFFFFF; } }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font:17px/1.55 system-ui,"Segoe UI",sans-serif; display:flex; justify-content:center; padding:48px 20px; }
-  main { width:100%; max-width:640px; }
-  .brand { display:flex; align-items:center; gap:10px; font:700 22px Georgia,serif; }
-  .brand i { width:30px; height:19px; border-radius:5px; background:var(--acc); }
-  h1 { font:700 36px/1.15 Georgia,"Times New Roman",serif; letter-spacing:-.01em; margin:28px 0 8px; }
-  .sub { color:var(--dim); margin:0 0 28px; }
-  ol { list-style:none; counter-reset:s; margin:0; padding:0; }
-  li { counter-increment:s; display:flex; gap:14px; padding:16px; margin-bottom:12px; background:var(--panel); border:1px solid var(--line); border-radius:14px; }
-  li::before { content:counter(s); flex:none; width:30px; height:30px; border-radius:50%; background:var(--acc); color:var(--on); font-weight:800; display:grid; place-items:center; }
-  h2 { font-size:17px; margin:30px 0 12px; }
-  .try { display:flex; flex-wrap:wrap; gap:10px; }
-  .try a { padding:11px 18px; border-radius:999px; border:1px solid var(--acc); color:var(--ink); text-decoration:none; font-weight:700; }
-  .try a:hover, .try a:focus-visible { background:var(--acc); color:var(--on); outline:none; }
-  .note { margin-top:28px; color:var(--dim); font-size:15px; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font:500 17px/1.55 var(--text); display:flex; justify-content:center; padding:48px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left)); }
+  main { width:100%; max-width:600px; }
+  .brand { display:flex; align-items:center; gap:10px; font:800 18px var(--display); letter-spacing:.01em; }
+  .brand img { width:30px; height:30px; display:block; }
+  h1 { font:800 44px/1.04 var(--display); letter-spacing:-.02em; margin:30px 0 12px; text-wrap:balance; }
+  .sub { color:var(--dim); margin:0 0 26px; max-width:46ch; }
+  ol { list-style:none; margin:0 0 26px; padding:0; }
+  li { display:grid; grid-template-columns:52px 1fr; gap:10px; padding:11px 0; border-top:1px solid var(--line); }
+  li:last-child { border-bottom:1px solid var(--line); }
+  li .tc { font:500 13px var(--mono); color:var(--acc); padding-top:3px; }
+  .pair { display:grid; grid-template-columns:1fr 40px 1fr; gap:10px; align-items:end; margin-bottom:16px; }
+  label { display:block; margin-bottom:6px; font:500 11px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+  select { width:100%; height:44px; padding:0 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); font:600 16px var(--text); }
+  .swap { width:40px; height:44px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--dim); cursor:pointer; display:grid; place-items:center; }
+  .swap:hover { color:var(--ink); } .swap svg { width:18px; height:18px; }
+  .go { display:block; width:100%; min-height:52px; padding:12px 18px; border:0; border-radius:8px; background:var(--acc); color:var(--on); font:800 18px var(--display); cursor:pointer; }
+  .go:hover { filter:brightness(1.06); }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:3px; }
+  .fine { margin:18px 0 0; font-size:13.5px; line-height:1.5; color:var(--dim); max-width:62ch; }
+  .fine a { color:inherit; text-underline-offset:3px; }
+  @media (max-width:560px) { h1 { font-size:34px; } .pair { grid-template-columns:1fr; } .swap { width:100%; height:36px; } }
 </style></head>
 <body><main>
-  <div class="brand"><img src="icons/icon128.png" alt="" width="34" height="34">CineVocab</div>
+  <div class="brand"><img src="icons/icon128.png" alt="">CineVocab</div>
   <h1 id="title"></h1><p class="sub" id="sub"></p>
-  <ol><li id="s1"></li><li id="s2"></li><li id="s3"></li></ol>
-  <h2 id="tryTitle"></h2>
-  <div class="try" id="try"></div>
-  <p class="note" id="note"></p>
-</main><script src="welcome.js"></script></body></html>
+  <ol>
+    <li><span class="tc">1</span><span id="s1"></span></li>
+    <li><span class="tc">2</span><span id="s2"></span></li>
+  </ol>
+  <div class="pair">
+    <div><label for="src" id="lSrc"></label><select id="src"></select></div>
+    <button class="swap" id="swap" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg></button>
+    <div><label for="dst" id="lDst"></label><select id="dst"></select></div>
+  </div>
+  <button class="go" id="go" type="button"></button>
+  <p class="fine"><span id="fine"></span> <a id="priv" href="https://cinevocab.up.railway.app/privacy" target="_blank" rel="noopener"></a></p>
+</main>
+<script src="lang.js"></script>
+<script src="welcome.js"></script></body></html>

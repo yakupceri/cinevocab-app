@@ -6,3 +6,12 @@ __pycache__/
 venv/
 .DS_Store
 *.sqlite3
+
+# Gelistirme araclari (siteye ve eklentiye girmez)
+dev/node_modules/
+dev/.venv/
+dev/out/
+dev/.pytest_cache/
+.claude/ofis/durum.json*
+.claude/ofis/.durum.lock
+.claude/settings.local.json

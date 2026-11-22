@@ -2,8 +2,11 @@ window.__cvLoaded = true; // aynı çerçeveye iki kez yüklenmesin
 const IS_YT = location.hostname.endsWith("youtube.com");
 let SRC = "tr";
 let DST = "en";
-let ENABLED = false; // ayar okunana kadar kapalı. Yeni kurulumda ayar AÇIK gelir (background.js); kapalıyken hiçbir şey çevrilmez
+let ENABLED = false; // ayar okunana kadar kapalı. Yeni kurulumda da kapalı başlar (welcome düğmesi açar); kapalıyken hiçbir şey çevrilmez
 const guard = new CVL.Guard(); // altyazı dili kontrolü
+// "Bu sitede aç" ile eski sürümde kaydedilmiş betik listesi bank.js'i içermeyebilir (background.js güncellemede listeyi yeniler).
+// O zamana kadar hata vermesin: defter yoksa "tut" yalnızca yıldız olarak çalışır.
+const BANK = typeof CVBank !== "undefined" ? CVBank : { list: () => [], add: (b) => b, remove: (b) => b };
 const knownCache = new Set(); // "biliyorum" dediğin kelimeler (çevirisi gösterilmez)
 const IS_UDEMY = location.hostname.endsWith("udemy.com");
 const IS_NETFLIX = location.hostname.endsWith("netflix.com");
@@ -21,49 +24,53 @@ const ovStyle = document.createElement("style");
 ovStyle.textContent = `
 :host { font:16px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
 .wrap { position:relative; --s:1; --op:.85; font-family:"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; text-align:left; direction:ltr; }
-.box { position:relative; box-sizing:border-box; width:var(--bw, max-content); max-width:min(var(--mw, calc(640px * var(--s))), 96vw); padding:.7em 1em; border-radius:.8em; font-size:calc(16px * var(--s)); line-height:1.4; color:#f6efdf; background:rgba(6,20,26,var(--op)); border:1px solid rgba(246,239,223,.16); box-shadow:0 6px 24px rgba(0,0,0,.4); pointer-events:auto; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; }
+.box { position:relative; box-sizing:border-box; width:var(--bw, max-content); max-width:min(var(--mw, calc(640px * var(--s))), 96vw); padding:.7em 1em; border-radius:.5em; font-size:calc(16px * var(--s)); line-height:1.4; color:#EDE8DA; background:rgba(11,11,10,var(--op)); border:1px solid rgba(237,232,218,.14); box-shadow:0 6px 24px rgba(0,0,0,.4); pointer-events:auto; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:none; }
 .locked .box { pointer-events:none; cursor:default; }
-.hot:not(.locked) .box, .drag .box { outline:2px dashed rgba(255,197,107,.85); outline-offset:3px; }
+.hot:not(.locked) .box, .drag .box { outline:2px dashed rgba(240,203,74,.85); outline-offset:3px; }
 .drag .box { cursor:grabbing; }
 .chip { display:inline-block; text-align:center; margin:2px 4px 2px 0; padding:1px 4px; border-radius:.45em; vertical-align:top; cursor:pointer; }
-.chip:hover { background:rgba(246,239,223,.16); }
-.chip .w { font-weight:700; } .chip .t { font-size:.85em; font-weight:600; color:var(--tr, #7ee0a8); min-height:1em; }
-.chip.star .w { color:#ffc56b; } .chip.star .w::before { content:"★ "; font-size:.8em; }
+.chip:hover { background:rgba(237,232,218,.16); }
+.chip .w { font-weight:700; } .chip .t { font-size:.85em; font-weight:600; color:var(--tr, #F0CB4A); min-height:1em; }
+.chip.star .w { text-decoration:underline; text-decoration-color:#F0CB4A; text-decoration-thickness:2px; text-underline-offset:3px; }
 .wgrip { position:absolute; right:-10px; top:50%; width:18px; height:44px; margin-top:-22px; display:none; pointer-events:auto; cursor:ew-resize; touch-action:none; }
-.wgrip::after { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:#ffc56b; }
+.wgrip::after { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:#F0CB4A; }
 .hot:not(.locked) .wgrip, .drag .wgrip { display:block; }
-.pill .dot { width:14px; height:14px; border-radius:50%; background:var(--tr, #7ee0a8); border:2px solid rgba(246,239,223,.6); box-sizing:border-box; }
-.chip .w .p, .gap { font-weight:600; color:rgba(246,239,223,.72); }
+.pill .dot { width:14px; height:14px; border-radius:50%; background:var(--tr, #F0CB4A); border:2px solid rgba(237,232,218,.6); box-sizing:border-box; }
+.chip .w .p, .gap { font-weight:600; color:rgba(237,232,218,.72); }
 .gap { display:inline-block; vertical-align:top; margin:2px 4px 2px 0; padding:1px 4px; }
-.ep { font-size:12px; color:#9fb3ae; margin-bottom:4px; }
 .msg { max-width:24em; font-weight:600; white-space:normal; }
-.fix { all:unset; box-sizing:border-box; display:inline-block; margin-top:.7em; padding:.5em 1em; border-radius:.7em; background:linear-gradient(180deg,#ffc56b,#ff8a3d); color:#2a1204; font-weight:800; cursor:pointer; pointer-events:auto; }
+.fix { all:unset; box-sizing:border-box; display:inline-block; margin-top:.7em; padding:.5em 1em; border-radius:.7em; background:#F0CB4A; color:#1a1500; font-weight:800; cursor:pointer; pointer-events:auto; }
 .fix.later { margin-left:.6em; background:rgba(255,255,255,.14); color:#fff; font-weight:600; }
 .fix:hover { filter:brightness(1.07); } .fix:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 [hidden] { display:none !important; }
-.lg { display:flex; align-items:center; gap:.6em; margin-bottom:.4em; font-size:max(11px, .74em); font-weight:600; color:#b9c9c4; white-space:nowrap; }
+.lg { display:flex; align-items:center; gap:.6em; margin-bottom:.4em; font-size:max(11px, .74em); font-weight:600; color:#B3AE9F; flex-wrap:wrap; row-gap:.2em; }
 .lg button, .pick button { all:unset; box-sizing:border-box; cursor:pointer; pointer-events:auto; }
-.lg button { padding:.12em .7em; border-radius:99px; border:1px solid rgba(255,197,107,.7); color:#ffc56b; font-weight:700; }
-.lg button:hover { background:#ffc56b; color:#2a1204; } .lg button:focus-visible, .pick button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.lg button { padding:.12em .7em; border-radius:99px; border:1px solid rgba(240,203,74,.7); color:#F0CB4A; font-weight:700; }
+.lg button:hover { background:#F0CB4A; color:#1a1500; } .lg button:focus-visible, .pick button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .pick { max-width:27em; white-space:normal; }
 .pick b { display:block; margin:.5em 0 .35em; font-size:.9em; }
-.pick .l { display:inline-block; margin:0 .35em .35em 0; padding:.2em .7em; border-radius:99px; border:1px solid rgba(246,239,223,.3); font-size:.84em; font-weight:600; }
-.pick .l:hover { background:rgba(246,239,223,.16); } .pick .l.on { background:#ffc56b; border-color:#ffc56b; color:#2a1204; font-weight:800; }
-.pick .ok { display:inline-block; margin-top:.5em; padding:.45em 1.4em; border-radius:.7em; background:linear-gradient(180deg,#ffc56b,#ff8a3d); color:#2a1204; font-weight:800; }
-.sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(246,239,223,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
-.hint { margin-top:.6em; font-size:12px; font-weight:600; color:#ffc56b; }
+.pick .l { display:inline-block; margin:0 .35em .35em 0; padding:.2em .7em; border-radius:99px; border:1px solid rgba(237,232,218,.3); font-size:.84em; font-weight:600; }
+.pick .l:hover { background:rgba(237,232,218,.16); } .pick .l.on { background:#F0CB4A; border-color:#F0CB4A; color:#1a1500; font-weight:800; }
+.pick .ok { display:inline-block; margin-top:.5em; padding:.45em 1.4em; border-radius:.7em; background:#F0CB4A; color:#1a1500; font-weight:800; }
+.sent { margin-top:.5em; padding-top:.4em; border-top:1px solid rgba(237,232,218,.16); font-size:.92em; color:#e4dccb; font-style:italic; }
+.hint { margin-top:.6em; font-size:12px; font-weight:600; color:#F0CB4A; }
 .grip { position:absolute; right:-7px; bottom:-7px; width:22px; height:22px; display:none; pointer-events:auto; cursor:nwse-resize; touch-action:none; }
-.grip::after { content:""; position:absolute; right:4px; bottom:4px; width:10px; height:10px; border-right:3px solid #ffc56b; border-bottom:3px solid #ffc56b; border-radius:0 0 5px 0; }
+.grip::after { content:""; position:absolute; right:4px; bottom:4px; width:10px; height:10px; border-right:3px solid #F0CB4A; border-bottom:3px solid #F0CB4A; border-radius:0 0 5px 0; }
 .hot:not(.locked) .grip, .drag .grip { display:block; }
-.pill { position:absolute; right:0; bottom:calc(100% + 8px); display:none; gap:2px; padding:4px; border-radius:999px; background:#0f2a31; border:1px solid rgba(246,239,223,.25); box-shadow:0 6px 18px rgba(0,0,0,.5); pointer-events:auto; white-space:nowrap; }
+.pill { position:absolute; right:0; bottom:calc(100% + 8px); display:none; gap:2px; padding:4px; border-radius:999px; background:#151513; border:1px solid rgba(237,232,218,.25); box-shadow:0 6px 18px rgba(0,0,0,.5); pointer-events:auto; white-space:nowrap; }
 .below .pill { bottom:auto; top:calc(100% + 8px); }
 .hot .pill, .drag .pill { display:flex; }
 .pill button { all:unset; box-sizing:border-box; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#f6efdf; cursor:pointer; font:700 13px/1 "Segoe UI", system-ui, sans-serif; }
-.pill button:hover { background:rgba(246,239,223,.16); }
-.pill button:focus-visible { outline:2px solid #ffc56b; }
+.pill button:hover { background:rgba(237,232,218,.16); }
+.pill button:focus-visible { outline:2px solid #F0CB4A; }
 .pill svg { width:16px; height:16px; }
 .locked .pill button:not(.lock) { display:none; }
-.pill .lock.on { background:#ff8a3d; color:#2a1204; }
+.pill .lock.on { background:#F0CB4A; color:#1a1500; }
+.kept { margin-left:auto; padding:.05em .55em; border-radius:99px; color:#F0CB4A; font-weight:700; transition:background .6s; }
+.kept.bump { background:rgba(240,203,74,.35); }
+.hint.first { font-weight:700; }
+.chip:focus-visible { outline:2px solid #F0CB4A; outline-offset:1px; }
+@media (prefers-reduced-motion:reduce) { .kept { transition:none; } }
 `;
 const ovWrap = document.createElement("div"); ovWrap.className = "wrap";
 const ovPill = document.createElement("div"); ovPill.className = "pill";
@@ -76,14 +83,16 @@ const ovHead = document.createElement("div"); ovHead.className = "lg";
 const ovPick = document.createElement("div"); ovPick.className = "pick"; ovPick.hidden = true;
 ovBoxEl.append(ovHead, ovContent, ovPick, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
 
-const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false, w: 0, c: 0 };
-const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff"]; // çeviri rengi seçenekleri
+// Çeviri rengi seçenekleri. Sıra değişmez (eski kullanıcıların kayıtlı seçimi dizin olarak durur); yeni varsayılan altyazı sarısı (5).
+const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff", "#F0CB4A"];
+const BOX_DEF = { h: "l", hx: 0.02, v: "t", vy: 0.05, s: 1, op: 0.85, locked: false, w: 0, c: 5 };
 let BOX = { ...BOX_DEF }, boxTip = true, boxBusy = false;
+let keptN = 0, firstMsgUntil = 0; // bu dil çiftinde tutulan kelime sayısı; "ilk kelime tutuldu" notunun görüneceği son an
 function normBox(b) {
   b = b && typeof b === "object" ? b : {};
   const n = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
   return { h: ["l", "c", "r"].includes(b.h) ? b.h : BOX_DEF.h, hx: n(b.hx, 0, 1, BOX_DEF.hx), v: b.v === "b" ? "b" : "t", vy: n(b.vy, 0, 1, BOX_DEF.vy),
-    s: n(b.s, 0.6, 2.4, 1), op: n(b.op, 0.35, 1, 0.85), locked: !!b.locked,
+    s: n(b.s, 0.6, 2.4, 1), op: n(b.op, 0.6, 1, 0.85), locked: !!b.locked,
     w: b.w ? n(b.w, 200, 1600, 0) : 0, c: Math.round(n(b.c, 0, TR_COLORS.length - 1, 0)) };
 }
 function placeBox() {
@@ -122,8 +131,11 @@ function ovButton(cls, label, fn) {
 }
 function paintHead() {
   const t = document.createElement("span");
-  t.textContent = CVL.t("lgSub", CVL.langName(SRC)) + "  →  " + CVL.t("lgTr", CVL.langName(DST));
-  ovHead.replaceChildren(t, ovButton("", CVL.t("lgChange"), () => (picking ? closePick() : openPick())));
+  t.textContent = CVL.langName(SRC) + "  →  " + CVL.langName(DST); // kısa: "Spanish → English" (uzun açıklama dil seçicide)
+  const kids = [t];
+  if (keptN > 0) { const k = document.createElement("span"); k.className = "kept"; k.textContent = CVL.t("keptN", keptN); kids.push(k); }
+  kids.push(ovButton("", CVL.t("lgChange"), () => (picking ? closePick() : openPick())));
+  ovHead.replaceChildren(...kids);
 }
 function paintPick() {
   const row = (title, cur, set) => {
@@ -207,15 +219,56 @@ gesture(ovWgrip, () => null, (dx, dy, r) => {
 // ---------- Yıldızlı kelimeler ----------
 // Kutudaki bir kelimeye tıklamak onu yıldızlar. Liste cihazda tutulur; giriş yapılmışsa hesaba da yazılır.
 let starSet = new Set();
-function loadStars() { try { chrome.storage.local.get("stars", (r) => { starSet = new Set(((r && r.stars) || {})[SRC + ">" + DST] || []); paintStars(); }); } catch (e) {} }
-function paintStars() { ovContent.querySelectorAll(".chip").forEach((c) => c.classList.toggle("star", starSet.has(c.dataset.w))); }
+function loadStars() {
+  try {
+    chrome.storage.local.get(["stars", "bank"], (r) => {
+      starSet = new Set(((r && r.stars) || {})[SRC + ">" + DST] || []);
+      keptN = BANK.list(r && r.bank, SRC + ">" + DST).length;
+      paintStars(); paintHead();
+    });
+  } catch (e) {}
+}
+function paintStars() { ovContent.querySelectorAll(".chip").forEach((c) => { const on = starSet.has(c.dataset.w); c.classList.toggle("star", on); c.setAttribute("aria-pressed", String(on)); }); }
 function toggleStar(word) {
   const on = !starSet.has(word);
   if (on) starSet.add(word); else starSet.delete(word);
   paintStars(); tipDone();
+  keepLocal(word, on);
   try {
     chrome.storage.local.get("stars", (r) => { const all = (r && r.stars) || {}; all[SRC + ">" + DST] = [...starSet].slice(-3000); chrome.storage.local.set({ stars: all }); });
     chrome.runtime.sendMessage({ action: "star", word, on }, () => void chrome.runtime.lastError);
+  } catch (e) {}
+}
+
+// ---------- Hesapsız "tut" ----------
+// Kutudaki kelimeye tıklamak onu tutar: kelime, çevirisi ve videodaki saniye cihazda (chrome.storage.local "bank") saklanır.
+// Hesap gerekmez ve sunucuya bir şey gitmez. Giriş yapılmışsa ayrıca hesabın yıldız listesine de yazılır (toggleStar içindeki "star" mesajı).
+function addFirstKeptNote() {
+  const m = document.createElement("div"); m.className = "hint first"; m.textContent = CVL.t("firstKept"); ovContent.appendChild(m);
+}
+function keepLocal(word, on) {
+  try {
+    chrome.storage.local.get(["bank", "keptFirst"], (r) => {
+      const pair = SRC + ">" + DST;
+      let bank = (r && r.bank) || {};
+      if (on) {
+        const v = document.querySelector("video");
+        bank = BANK.add(bank, pair, { w: word, t: wordCache.get(word) || "", ep: readEpisode(), vt: v ? v.currentTime : NaN });
+      } else bank = BANK.remove(bank, pair, word);
+      const patch = { bank }, first = on && !(r && r.keptFirst);
+      if (first) patch.keptFirst = Date.now();
+      chrome.storage.local.set(patch);
+      keptN = BANK.list(bank, pair).length;
+      paintHead();
+      const k = ovHead.querySelector(".kept");
+      if (k && on) { k.classList.add("bump"); setTimeout(() => k.classList.remove("bump"), 700); }
+      if (first) { // ilk tutulan kelime: bir kez, kısa ve sakin bir not (sonraki cümlelerde de 9 sn görünür)
+        firstMsgUntil = Date.now() + 9000;
+        const h = ovContent.querySelector(".hint"); if (h) h.remove();
+        addFirstKeptNote();
+        clearTimeout(hideTimer); hideTimer = setTimeout(() => showBox(false), 9000);
+      }
+    });
   } catch (e) {}
 }
 
@@ -241,7 +294,7 @@ pillBtn("", "A−", "ovSmaller", () => { BOX.s = Math.max(0.6, Math.round((BOX.s
 pillBtn("", "A+", "ovBigger", () => { BOX.s = Math.min(2.4, Math.round((BOX.s + 0.12) * 100) / 100); });
 const colorDot = document.createElement("span"); colorDot.className = "dot";
 pillBtn("", colorDot, "ovColor", () => { BOX.c = (BOX.c + 1) % TR_COLORS.length; });
-pillBtn("", ovIcon([["circle", { cx: 12, cy: 12, r: 8 }], ["path", { d: "M12 4a8 8 0 0 1 0 16z", fill: "currentColor" }]]), "ovOpacity", () => { BOX.op = BOX.op > 0.9 ? 0.55 : BOX.op > 0.7 ? 1 : 0.85; });
+pillBtn("", ovIcon([["circle", { cx: 12, cy: 12, r: 8 }], ["path", { d: "M12 4a8 8 0 0 1 0 16z", fill: "currentColor" }]]), "ovOpacity", () => { BOX.op = BOX.op > 0.95 ? 0.85 : BOX.op > 0.78 ? 0.7 : 1; });
 const lockBtn = pillBtn("lock", ovIcon([["rect", { x: 5, y: 11, width: 14, height: 10, rx: 2.5 }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]]), "ovLock", () => { BOX.locked = !BOX.locked; });
 
 // Fare kutunun üstündeyken araçlar görünür (kilitliyken kutu tıklamayı geçirdiği için :hover çalışmaz, konum elle ölçülür)
@@ -417,6 +470,8 @@ function makeChip(word, shown, lead, trail) {
   const chip = document.createElement("div");
   chip.className = "chip" + (starSet.has(word) ? " star" : "");
   chip.dataset.w = word;
+  chip.tabIndex = 0; chip.setAttribute("role", "button"); chip.setAttribute("aria-pressed", String(starSet.has(word)));
+  chip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleStar(word); } }); // sayfanın kısayolları (boşluk = oynat/durdur) çalışmasın
   const tr = document.createElement("div"); tr.className = "w";
   const punct = (t) => { if (!t) return; const p = document.createElement("span"); p.className = "p"; p.textContent = t; tr.append(p); };
   punct(lead); tr.append(shown || word); punct(trail);
@@ -503,22 +558,19 @@ function showSentence(sentence) {
   clearTimeout(hideTimer);
   if (!boxBusy) hideTimer = setTimeout(() => showBox(false), 12000);
   ovContent.textContent = "";
-  // Bölüm adı okunamadıysa uyarı gösterilmez (izleyeni ilgilendirmez; kelimeler yine kaydedilir)
-  if (episode) {
-    const epLabel = document.createElement("div");
-    epLabel.className = "ep";
-    epLabel.textContent = "📺 " + episode;
-    ovContent.appendChild(epLabel);
-  }
+  // Bölüm adı kutuda gösterilmez (kutuyu sade tutar); kelimelerle birlikte sunucuya ve cihaz defterine yazılır.
   const row = document.createElement("div");
+  if (SRC === "ar") { row.dir = "rtl"; row.style.textAlign = "right"; } // kutu kökü ltr sabit; sağdan sola dilde kelime sırası tersine dönmesin
   ovContent.appendChild(row);
 
   // Cümlenin çevirisi (bağlam için sunucudan gelir)
   const transLine = document.createElement("div");
   transLine.className = "sent";
+  if (DST === "ar") { transLine.dir = "rtl"; transLine.style.textAlign = "right"; }
   transLine.textContent = "…";
   ovContent.appendChild(transLine);
   if (boxTip) { const h = document.createElement("div"); h.className = "hint"; h.textContent = CVL.t("ovHint"); ovContent.appendChild(h); }
+  if (Date.now() < firstMsgUntil) addFirstKeptNote();
   showBox(true);
 
   const uniqueWords = [...new Set(words)];
@@ -746,7 +798,7 @@ function showMismatch(lang) {
   lastNoticeAt = now; noticeUntil = now + NOTICE_MS;
   ovContent.textContent = "";
   const msg = document.createElement("div"); msg.className = "msg";
-  msg.textContent = "⏸ " + CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
+  msg.textContent = CVL.t("mismatch", CVL.langName(lastBadLang || "?"), CVL.langName(SRC));
   ovContent.appendChild(msg);
   const src = lastBadLang;
   if (SUB_LANGS.includes(src) && src !== SRC) {
@@ -803,7 +855,7 @@ function ccGuide() {
   if (Date.now() < noticeUntil || Date.now() - seenAt < 60000 || !playingVideo()) return;
   if (IS_YT && document.querySelector(".ytp-subtitles-button[aria-pressed='true']")) return;
   ccPlayed += POLL_MS;
-  if (ccPlayed < 8000 || ccFor === location.href) return;
+  if (ccPlayed < 3000 || ccFor === location.href) return; // 3 sn: kullanıcı boş ekranda uzun beklemesin (e2e ölçümünde 8 sn sürtünmeydi)
   ccFor = location.href;
   const yt = IS_YT ? document.querySelector(".ytp-subtitles-button[aria-pressed='false']") : null;
   if (!yt) { guide(CVL.t("ccOff"), "", null, "", null, 14000); return; }
@@ -889,6 +941,7 @@ try {
     if (ch.startAsk) ASK = ch.startAsk.newValue !== "no";
     if (ch.hideOrig) { HIDE_ORIG = ch.hideOrig.newValue !== false; applyHide(); }
     if (ch.stars) { starSet = new Set((ch.stars.newValue || {})[SRC + ">" + DST] || []); paintStars(); }
+    if (ch.bank) { keptN = BANK.list(ch.bank.newValue, SRC + ">" + DST).length; paintHead(); }
     if (ch.box && !boxBusy) { BOX = normBox(ch.box.newValue || BOX_DEF); placeBox(); }
   });
 } catch (e) {}

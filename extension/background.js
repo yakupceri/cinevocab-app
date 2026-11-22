@@ -53,24 +53,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Simge üzerinde açık/kapalı rozeti
-function badge(on) {
+// Simge üzerinde rozet: tekrar bekleyen kelime varsa SAYI (sarı), yoksa çeviri açıksa "ON" (yeşil).
+// Yalnızca sayı: bildirim, ses, metin yok. Hesapsız kullanıcının cihazdaki defterine bakar (bank.js + srs.js); en az 4 kelime gerekir.
+try { importScripts("bank.js", "srs.js"); } catch (e) { /* rozet yalnızca ON/boş çalışır */ }
+async function refreshBadge() {
   try {
-    chrome.action.setBadgeText({ text: on ? "ON" : "" });
-    chrome.action.setBadgeBackgroundColor({ color: "#2f9e6d" });
+    const r = await chrome.storage.local.get(["enabled", "src", "dst", "bank", "key"]);
+    let n = 0;
+    if (!r.key && typeof CVSrs !== "undefined" && typeof CVBank !== "undefined") {
+      const s = CVSrs.stats(CVBank.list(r.bank, (r.src || "en") + ">" + (r.dst || "en")), CVSrs.dayOf());
+      if (s.usable >= 4) n = s.ready;
+    }
+    if (n > 0) {
+      chrome.action.setBadgeText({ text: n > 99 ? "99+" : String(n) });
+      chrome.action.setBadgeBackgroundColor({ color: "#F0CB4A" });
+      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#1A1500" });
+    } else {
+      chrome.action.setBadgeText({ text: r.enabled ? "ON" : "" });
+      chrome.action.setBadgeBackgroundColor({ color: "#2f9e6d" });
+      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#FFFFFF" });
+    }
   } catch (e) {}
 }
-chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled)));
-chrome.runtime.onInstalled.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
-chrome.runtime.onStartup && chrome.runtime.onStartup.addListener(() => chrome.storage.local.get("enabled", (r) => badge(!!(r && r.enabled))));
-chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.enabled) badge(!!ch.enabled.newValue); });
+refreshBadge();
+chrome.runtime.onInstalled.addListener(() => refreshBadge());
+chrome.runtime.onStartup && chrome.runtime.onStartup.addListener(() => refreshBadge());
+chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && (ch.enabled || ch.bank || ch.src || ch.dst || ch.key)) refreshBadge(); });
 
 // İlk kurulumda karşılama sayfasını aç (güncellemede açılmaz)
 chrome.runtime.onInstalled.addListener((d) => {
   if (d.reason !== "install") return;
-  // Yeni kurulumda çeviri AÇIK başlar: eklentiyi kuran kişi araç çubuğundaki simgeyi bulup düğmeye basmak zorunda kalmasın.
-  // Kullanıcı daha önce bir seçim yaptıysa (yeniden kurulum) dokunulmaz.
-  chrome.storage.local.get("enabled", (r) => { if (!r || r.enabled === undefined) chrome.storage.local.set({ enabled: true }); });
+  // 2.1: Yeni kurulumda çeviri KAPALI başlar. Altyazı cümlesi sunucuya gidiyor; mağaza metni ve gizlilik sayfası
+  // "sen açtığında" diyor, bu yüzden açma işi kullanıcının bilinçli bir tıkıdır: welcome sayfasındaki ana düğme
+  // (enabled: true yazar) ya da videonun üstündeki "Çeviriyi başlat" düğmesi. Burada hiçbir şey açılmaz.
   // Başlangıç dilleri tarayıcı diline göre seçilir (eskiden herkes için "Türkçe altyazı -> İngilizce" idi):
   // çeviriler kullanıcının kendi dilinde, altyazı dili İngilizce (kendi dili İngilizce ise İspanyolca).
   // Yanlışsa kutudaki tek tıklık düğme ya da açılır pencere düzeltir. Güncellemede dokunulmaz.
@@ -102,7 +117,16 @@ function inviteRef() { return new Promise((res) => chrome.storage.local.get("ref
 
 // ---------- Diğer sitelerde çalıştırma ("Bu sitede aç") ----------
 // Açılır pencere izni (kullanıcı hareketiyle) alır; burada içerik betiği kalıcı kaydedilir ve açık sekmeye hemen yüklenir.
-const CS_FILES = ["lang.js", "content.js"];
+const CS_FILES = ["lang.js", "bank.js", "content.js"];
+// Güncellemede, kullanıcının "Bu sitede aç" ile önceden kaydettiği betik listeleri yeni dosya listesine çekilir (bank.js eklendi).
+chrome.runtime.onInstalled.addListener(async (d) => {
+  if (d.reason !== "update") return;
+  try {
+    const have = await chrome.scripting.getRegisteredContentScripts();
+    const mine = have.filter((s) => String(s.id).startsWith("cv-")).map((s) => ({ id: s.id, js: CS_FILES }));
+    if (mine.length) await chrome.scripting.updateContentScripts(mine);
+  } catch (e) { console.warn("Kayıtlı betik listesi yenilenemedi:", e); }
+});
 async function enableSite(origins, tabId) {
   const id = "cv-" + origins[0].replace(/[^a-z0-9]/gi, "");
   try {
@@ -222,6 +246,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   importing = true;
   importWords(request);
   sendResponse({ ok: true });
+});
+
+// ---------- Cihazdaki defter -> hesap ----------
+// Hesapsız kullanıcının videoda "tuttuğu" kelimeler cihazdaki defterdedir (bank.js). Giriş yapılınca ya da hesap açılınca bunlar
+// hesabın kelime listesine taşınır: "Yedekle" sözünün gerçek karşılığı. Altyazı metni değil, yalnızca kelimeler ve video adı gider.
+// Taşınanlar bankSyncTs ile işaretlenir; sonraki turda yalnızca bu zamandan yeni tutulanlar taşınır. Hata olursa işaret konmaz,
+// bir sonraki girişte yeniden denenir (sunucuda aynı kelime iki kez eklenmez).
+let migrating = false;
+async function migrateBank() {
+  if (migrating) return;
+  migrating = true;
+  try {
+    const { key, bank, bankSyncTs } = await chrome.storage.local.get(["key", "bank", "bankSyncTs"]);
+    if (!key || !bank || typeof bank !== "object") return;
+    const since = Number(bankSyncTs) || 0, started = Date.now();
+    for (const pair of Object.keys(bank)) {
+      const m = /^([a-z]{2})>([a-z]{2})$/.exec(pair);
+      if (!m || !Array.isArray(bank[pair])) continue;
+      const byEp = new Map();
+      for (const it of bank[pair]) {
+        if (!it || typeof it.w !== "string" || !(it.ts > since)) continue;
+        const ep = String(it.ep || "").slice(0, 80);
+        if (!byEp.has(ep)) byEp.set(ep, []);
+        byEp.get(ep).push(it.w);
+      }
+      for (const [episode, words] of byEp) {
+        for (let i = 0; i < words.length; i += 30) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+          try {
+            const r = await fetch(API + "/translate-words", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+              body: JSON.stringify({ words: words.slice(i, i + 30), src: m[1], dst: m[2], gen: 0, lookup_only: false, sentence: "", episode, thumb: "" }),
+              signal: ctrl.signal,
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+          } finally { clearTimeout(timer); }
+        }
+      }
+    }
+    await chrome.storage.local.set({ bankSyncTs: started });
+  } catch (e) {
+    console.warn("Defter hesaba taşınamadı (sonraki girişte yeniden denenir):", e);
+  } finally { migrating = false; }
+}
+chrome.storage.onChanged.addListener((ch, area) => {
+  if (area === "local" && ch.key && ch.key.newValue && !ch.key.oldValue) migrateBank(); // giriş yapıldı ya da hesap açıldı
 });
 
 // ---------- Yıldızlı kelime: giriş yapılmışsa hesaba da yazılır ----------
