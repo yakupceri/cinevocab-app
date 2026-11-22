@@ -262,7 +262,7 @@ scene({ id: "rank", dur: 5.0, cues: [[0.2, "slam"], [0.35, "pop"], [1.0, "tap"],
   const S = WIDE ? 1.0 : 1.1, x = WIDE ? 1000 : 60, yA = WIDE ? 250 : 720, yB = yA + 308 * S + 26;
   const A_ = siteWin(sc, { w: 872, h: 308, scale: S, x, y: yA, imgs: [{ src: "site-duel.png", ox: 328, oy: 458 }] });
   const B_ = siteWin(sc, { w: 872, h: 196, scale: S, x, y: yB, imgs: [{ src: "site-leagues.png", ox: 328, oy: 491 }] });
-  const hl = mk("div", "hlrow"); hl.style.cssText += ";left:14px;top:131px;width:844px;height:54px"; A_.clip.append(hl); this.s = { T, A_, B_, hl, S };
+  const hl = mk("div", "hlrow"); hl.style.cssText += ";left:14px;top:78px;width:844px;height:54px"; A_.clip.append(hl); this.s = { T, A_, B_, hl, S };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9);
   const pa = P(u, 0.3, 0.5), pb = P(u, 1.8, 0.5); s.A_.fw.style.transform = `translate(${(1 - pa) * 140}px,0) scale(${s.S})`; s.A_.fw.style.opacity = pa; s.B_.fw.style.transform = `translate(${(1 - pb) * 140}px,0) scale(${s.S})`; s.B_.fw.style.opacity = pb;
   const q = u > 1.0 && u < 3.2 ? 0.5 + 0.5 * Math.sin((u - 1.0) * 7) : 0; s.hl.style.opacity = u > 1.0 ? clamp((u - 1.0) / 0.2) * (0.4 + 0.6 * q) : 0; } });

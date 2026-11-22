@@ -54,13 +54,13 @@ STAMPS = {"Money Heist S1 E1": "2026-11-20 21:14:00", "Money Heist S1 E2": "2026
           "YouTube · Easy Spanish 344": "2026-11-18 13:22:00", "YouTube · La Casa de Dreaming Spanish": "2026-11-15 18:01:00",
           "Udemy · Spanish for Beginners: Lesson 4": "2026-11-10 09:30:00", "": "2026-11-09 10:00:00"}
 
-LEAGUE_ROWS = [("lucia_m", "ES", 812), ("yakup_demo", "TR", 640), ("tomas99", "DE", 455), ("marie_l", "FR", 120)]
+LEAGUE_ROWS = [("zeri", "TR", 900), ("lucia_m", "ES", 812), ("tomas99", "DE", 455), ("marie_l", "FR", 120)]  # örnek veri: Türkiye bayraklı "zeri" 1. sırada
 
 
 def fresh_state(scene="full"):
     s = {
         "scene": scene, "logged": scene != "loggedout", "mail": False,
-        "me": {"username": "yakup_demo", "games": 14, "score": 6120, "wins": 3, "country": "TR", "avatar": "",
+        "me": {"username": "zeri", "games": 14, "score": 6120, "wins": 3, "country": "TR", "avatar": "",
                "has_recovery": False, "has_password": True},
         "words": [] if scene in ("empty", "fresh") else [{"tr": a, "eng": b, "episode": c} for a, b, c in ES + ES_DUP],
         "known": [] if scene in ("empty", "fresh") else [{"tr": a, "eng": b} for a, b in KNOWN],
@@ -161,7 +161,7 @@ def api_get(path, qs):
         return 200, {"name": "Cuma Ligi", "owner": "lucia_m", "members": 4}
     if path.startswith("/api/leagues/") and path.split("/")[-1].isdigit():
         return need() or (200, {"id": int(path.split("/")[-1]), "name": "Cuma Ligi", "code": "K7M2QX", "owner": True, "period": qs.get("period", "week"),
-                                "rows": [{"username": n, "country": c, "pts": p, "me": n == "yakup_demo", "owner": n == "lucia_m"} for n, c, p in LEAGUE_ROWS]})
+                                "rows": [{"username": n, "country": c, "pts": p, "me": n == "zeri", "owner": n == "lucia_m"} for n, c, p in LEAGUE_ROWS]})
     if path == "/api/srs":
         return need() or (200, srs_info())
     if path == "/api/srs/session":
@@ -181,7 +181,7 @@ def api_get(path, qs):
         return need() or (200, {"day": "2026-11-23", "num": 214, "total": 10, "seconds": 12, "ready": True, "done": False, "started": DAILY["started"],
                                 "answered": len(DAILY["answers"]), "streak": 3})
     if path == "/api/daily/board":
-        return need() or (200, {"rows": [{"username": n, "country": c, "score": sc, "correct": 9 - i, "me": n == "yakup_demo"} for i, (n, c, sc) in enumerate(LEAGUE_ROWS)],
+        return need() or (200, {"rows": [{"username": n, "country": c, "score": sc, "correct": 9 - i, "me": n == "zeri"} for i, (n, c, sc) in enumerate(LEAGUE_ROWS)],
                                 "rank": 2, "total": 4})
     return 404, {"detail": "yok: " + path}
 
@@ -339,14 +339,14 @@ class H(BaseHTTPRequestHandler):
         page = {"/account": "account.html", "/game": "game.html", "/daily": "daily.html", "/explore": "explore.html", "/": "landing.html"}.get(path)
         if page:
             return self.send(200, render_plain(page))
-        if path == "/__old/account":  # karşılaştırma için: git HEAD'deki (eski) account.html, yalnızca okunur
+        if path == "/__old/account":  # karşılaştırma için: yeniden tasarımdan önceki (eski) account.html (9ff7113~1), yalnızca okunur
             import subprocess
-            out = subprocess.run(["git", "show", "HEAD:templates/account.html"], cwd=ROOT, capture_output=True, check=False).stdout
+            out = subprocess.run(["git", "show", "9ff7113~1:templates/account.html"], cwd=ROOT, capture_output=True, check=False).stdout
             return self.send(200, out.replace(b"{{ ASSET_V }}", b"dev"))
         if path.startswith("/join/"):
             return self.send(200, render_plain("join.html"))
         if path.startswith("/u/"):
-            out = render_jinja("profile.html", {"p": {"words": 412, "level": 7, "streak": 5, "wins": 3, "badges": ["connector"], "username": "yakup_demo"}, "name": "yakup_demo"})
+            out = render_jinja("profile.html", {"p": {"words": 412, "level": 7, "streak": 5, "wins": 3, "badges": ["connector"], "username": "zeri"}, "name": "zeri"})
             return self.send(200, out) if out else self.send(501, "jinja2 yok")
         if path.startswith(("/learn/", "/ogren/")):
             try:

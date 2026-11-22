@@ -27,8 +27,8 @@ const SHOTS = [
   tabs("known", "known"),
   tabs("practice", "practice"),
   tabs("duel", "duel"),
-  { ...tabs("duel-open", "duel"), extra: async (p) => { await p.getByRole("button", { name: /Düzenle|Edit/ }).click(); await wait(150); } },
-  { ...tabs("duel-open-screen", "duel"), extra: async (p) => { await p.getByRole("button", { name: /Düzenle|Edit/ }).click(); await p.locator(".modepick button").nth(2).click(); await wait(150); } },
+  { ...tabs("duel-open", "duel"), extra: async (p) => { await p.getByRole("button", { name: /Oda ayarları|Room settings/ }).click(); await wait(150); } },
+  { ...tabs("duel-open-screen", "duel"), extra: async (p) => { await p.getByRole("button", { name: /Oda ayarları|Room settings/ }).click(); await p.locator(".modepick button").nth(2).click(); await wait(150); } },
   tabs("leagues", "leagues"),
   tabs("settings", "settings"),
   tabs("words-empty", "words", "empty"),
@@ -48,17 +48,17 @@ const SHOTS = [
   { name: "explore", scene: "full", url: "/explore", ready: ".topics a" },
   { name: "join", scene: "full", url: "/join/K7M2QX", ready: ".card h1" },
   { name: "learn", scene: "full", url: "/learn/es", ready: ".lp h1" },
-  { name: "profile", scene: "full", url: "/u/yakup_demo", ready: ".pf h1" },
+  { name: "profile", scene: "full", url: "/u/zeri", ready: ".pf h1" },
 ];
 
 // game.html için tarayıcıda sahte WebSocket: sunucu protokolü (me, room, countdown, question, reveal, end) birebir aynı iletilerle taklit edilir
 const FAKE_WS = (kind) => `(() => {
   const ME = "p-me";
-  const players = [{ id: ME, name: "yakup_demo", score: 0 }, { id: "p2", name: "lucia_m", score: 0 }, { id: "p3", name: "tomas99", score: 0 }];
+  const players = [{ id: ME, name: "zeri", score: 0 }, { id: "p2", name: "lucia_m", score: 0 }, { id: "p3", name: "tomas99", score: 0 }];
   const room = (host) => ({ t: "room", code: "4821", episode: "", host, src: "es", dst: "en", n: 10, seconds: 12, locked: false, mode: "choice", learn: "src", screen: ${kind === "screen"}, players: ${kind === "screen" ? "[players[1], players[2]]" : "players"} });
   const q = { t: "question", idx: 2, total: 10, tr: "verdad", options: ["truth", "never", "money", "fear"], seconds: 12, mode: "choice" };
-  const reveal = { t: "reveal", correct: "truth", dist: { truth: 2, never: 1 }, results: [{ id: ME, name: "yakup_demo", ok: true, delta: 118, score: 318, streak: 3 }, { id: "p2", name: "lucia_m", ok: false, delta: 0, score: 276, streak: 0 }, { id: "p3", name: "tomas99", ok: true, delta: 96, score: 240, streak: 1 }] };
-  const end = { t: "end", scores: [{ id: ME, name: "yakup_demo", score: 940 }, { id: "p2", name: "lucia_m", score: 880 }, { id: "p3", name: "tomas99", score: 610 }] };
+  const reveal = { t: "reveal", correct: "truth", dist: { truth: 2, never: 1 }, results: [{ id: ME, name: "zeri", ok: true, delta: 118, score: 318, streak: 3 }, { id: "p2", name: "lucia_m", ok: false, delta: 0, score: 276, streak: 0 }, { id: "p3", name: "tomas99", ok: true, delta: 96, score: 240, streak: 1 }] };
+  const end = { t: "end", scores: [{ id: ME, name: "zeri", score: 940 }, { id: "p2", name: "lucia_m", score: 880 }, { id: "p3", name: "tomas99", score: 610 }] };
   window.WebSocket = class {
     constructor() { this.readyState = 1; setTimeout(() => { this.onopen && this.onopen(); }, 20); }
     send(d) { const m = JSON.parse(d); window.__sent = (window.__sent || []).concat([m]); const out = (o, ms) => setTimeout(() => this.onmessage && this.onmessage({ data: JSON.stringify(o) }), ms);

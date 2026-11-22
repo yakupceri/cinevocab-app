@@ -26,7 +26,7 @@ async function newPage(opts = {}) {
 const FAKE_WS = `(() => { window.WebSocket = class { constructor() { this.readyState = 1; setTimeout(() => this.onopen && this.onopen(), 10); }
   send(d) { const m = JSON.parse(d); window.__sent = (window.__sent || []).concat([m]);
     if (m.t === "create" || m.t === "join") { setTimeout(() => this.onmessage({ data: JSON.stringify({ t: "me", id: "me1" }) }), 10);
-      setTimeout(() => this.onmessage({ data: JSON.stringify({ t: "room", code: "4821", episode: m.episode || "", host: "me1", src: "es", dst: "en", n: m.n || 10, seconds: m.seconds || 12, locked: !!m.password, mode: m.mode || "choice", learn: "src", screen: !!m.screen, players: [{ id: "me1", name: "yakup_demo", score: 0 }] }) }), 30); } }
+      setTimeout(() => this.onmessage({ data: JSON.stringify({ t: "room", code: "4821", episode: m.episode || "", host: "me1", src: "es", dst: "en", n: m.n || 10, seconds: m.seconds || 12, locked: !!m.password, mode: m.mode || "choice", learn: "src", screen: !!m.screen, players: [{ id: "me1", name: "zeri", score: 0 }] }) }), 30); } }
   close() {} }; })();`;
 
 // ------------------------------------------------------------------ 1) yedi adres
@@ -34,7 +34,7 @@ console.log("1) Adresler (#words #videos #known #practice #duel #leagues #settin
 await scene("full");
 {
   const { ctx, page } = await newPage();
-  const want = { words: "Kelimeler", videos: "Videolar", known: "Bildiklerim", practice: "Pratik", duel: "Düello", leagues: "Arkadaş ligleri", settings: "yakup_demo" };
+  const want = { words: "Kelimeler", videos: "Videolar", known: "Bildiklerim", practice: "Pratik", duel: "Düello", leagues: "Arkadaş ligleri", settings: "zeri" };
   for (const [h, title] of Object.entries(want)) {
     await page.goto(`${BASE}/account#${h}`); await page.waitForSelector(".layout");
     await page.waitForFunction((t) => { const e = document.querySelector("h1"); return e && e.textContent.includes(t); }, title, { timeout: 4000 }).catch(() => {});
@@ -46,7 +46,7 @@ await scene("full");
   // sayfa açıkken adres değişirse (ör. eklenti ya da dış bağlantı) sekme değişir
   await page.goto(`${BASE}/account#words`); await page.waitForSelector(".layout");
   await page.evaluate(() => { location.hash = "#settings"; }); await wait(300);
-  ok((await page.locator("h1").first().textContent()).includes("yakup_demo"), "hashchange -> Ben sekmesi");
+  ok((await page.locator("h1").first().textContent()).includes("zeri"), "hashchange -> Ben sekmesi");
   // gezinirken adres güncellenir
   await page.locator(".nav button", { hasText: "Düello" }).click(); await wait(200);
   ok(await page.evaluate(() => location.hash) === "#duel", "menüden gezinince adres #duel olur");
@@ -141,7 +141,7 @@ for (const ver of ["old", "new"]) {
         await c.locator("input[placeholder^='Boş bırakırsan']").fill("abc");
         await c.getByRole("button", { name: "Oda kur" }).click();
       } else {
-        await page.getByRole("button", { name: "Düzenle" }).click();
+        await page.getByRole("button", { name: "Oda ayarları" }).click();
         await page.locator("#duel-panel select").selectOption({ label: "YouTube · Easy Spanish 344 · 9" });
         await page.locator("#duel-panel .modepick button").nth(1).click();
         await page.locator("#duel-panel input[type=number]").nth(0).fill("7"); await page.locator("#duel-panel input[type=number]").nth(1).fill("20");
@@ -154,7 +154,7 @@ for (const ver of ["old", "new"]) {
         const c = page.locator(".card", { has: page.locator("h2", { hasText: /^Oda kur$/ }) });
         await c.locator("select").nth(1).selectOption("screen"); await c.getByRole("button", { name: "Oda kur" }).click();
       } else {
-        await page.getByRole("button", { name: "Düzenle" }).click(); await page.locator("#duel-panel .modepick button").nth(2).click();
+        await page.getByRole("button", { name: "Oda ayarları" }).click(); await page.locator("#duel-panel .modepick button").nth(2).click();
         await page.getByRole("button", { name: "Düello başlat" }).click();
       } },
     join: async (page) => { // kodla katıl + şifre
@@ -194,7 +194,7 @@ await scene("full");
   await page.goto(`${BASE}/account#duel`); await page.waitForSelector(".duo");
   const sum0 = await page.locator(".startrow .sum").textContent();
   ok(sum0 === "10 soru · 12 sn · Çoktan seçmeli · Tüm kelimeler", `varsayılan özet: "${sum0}"`);
-  const btn = page.getByRole("button", { name: "Düzenle" });
+  const btn = page.getByRole("button", { name: "Oda ayarları" });
   ok((await btn.getAttribute("aria-expanded")) === "false" && !(await page.locator("#duel-panel").isVisible()), "panel kapalı başlar");
   await btn.click();
   ok((await btn.getAttribute("aria-expanded")) === "true" && (await page.locator("#duel-panel").isVisible()), "Düzenle paneli açar");
@@ -204,7 +204,7 @@ await scene("full");
   ok(sum1 === "15 soru · 12 sn · Büyük ekran (sınıf / grup) · Tüm kelimeler", `özet canlı güncellenir: "${sum1}"`);
   await page.getByRole("button", { name: "Tamam" }).click();
   ok(!(await page.locator("#duel-panel").isVisible()), "Tamam paneli kapatır");
-  await page.getByRole("button", { name: "Düzenle" }).click(); await page.getByRole("button", { name: "Varsayılana dön" }).click(); await wait(200);
+  await page.getByRole("button", { name: "Oda ayarları" }).click(); await page.getByRole("button", { name: "Varsayılana dön" }).click(); await wait(200);
   ok((await page.locator(".startrow .sum").textContent()) === sum0, "Varsayılana dön özeti sıfırlar");
   await page.locator(".codein").pressSequentially("12ab34x"); ok((await page.locator(".codein").inputValue()) === "1234", "kod girişi yalnızca 4 rakam alır");
   ok((await page.locator(".codein").count()) === 1, "kod girişi sayfada tek (yinelenme yok)");
@@ -312,7 +312,7 @@ await scene("loggedout");
 {
   const { ctx, page } = await newPage();
   await page.goto(`${BASE}/account`); await page.waitForSelector(".auth");
-  await page.locator(".auth input").first().fill("yakup_demo"); await page.locator(".auth .pw input").first().fill("secret1");
+  await page.locator(".auth input").first().fill("zeri"); await page.locator(".auth .pw input").first().fill("secret1");
   await page.locator(".auth button.primary").click(); await page.waitForSelector(".layout", { timeout: 4000 });
   ok(true, "giriş yapınca panel açılır");
   await ctx.close();
