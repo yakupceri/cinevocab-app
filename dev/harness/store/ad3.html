@@ -61,6 +61,10 @@
   #hdr .lg { width:46px; height:46px; }
   .lg { display:block; border-radius:22%; overflow:hidden; } .lg img, .lg svg { display:block; width:100%; height:100%; }
   .cf { position:absolute; will-change:transform; }
+  .sclip { position:relative; overflow:hidden; border-radius:16px; background:#0B0B0A; box-shadow:0 30px 80px rgba(0,0,0,.5), 0 0 0 2px rgba(255,255,255,.14); transform-origin:50% 50%; }
+  .live { position:absolute; right:14px; top:14px; display:flex; align-items:center; gap:8px; padding:6px 16px; border-radius:99px; background:#E5322D; color:#fff; font:800 19px/1 "CV Display",sans-serif; letter-spacing:.04em; }
+  .live::before { content:""; width:10px; height:10px; border-radius:50%; background:#fff; }
+  .hlrow { position:absolute; border:3px solid var(--Y); border-radius:10px; }
 </style></head>
 <body>
 <div id="stage"></div>
@@ -165,7 +169,7 @@ const showImg = (h, k) => h.imgs.forEach((im, i) => (im.style.display = i === k 
 const SC = [];
 function scene(o) { SC.push(o); }
 // 1) kanca: sayaç + "0"
-scene({ id: "hook", dur: 4.2, th: "k", hdr: false, short: true, build(sc) {
+scene({ id: "hook", dur: 4.0, cues: [[0.1, "count"], [0.2, "count"], [0.3, "count"], [0.4, "count"], [0.5, "count"], [0.6, "count"], [0.7, "count"], [0.8, "count"], [0.9, "count"], [1.0, "count"], [1.35, "slam"], [2.5, "boom"]], th: "k", hdr: false, short: true, build(sc) {
   const d = mk("div"); place(d, { x: 0, y: 0, w: W, h: H }); d.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:" + (WIDE ? 26 : 40) + "px;padding:0 " + (WIDE ? 120 : 64) + "px";
   const l1 = mk("div", "h"); l1.style.cssText = "color:#FFD42B;font-size:" + (WIDE ? 76 : 84) + "px"; l1.innerHTML = '<span class="cn">0</span> hours of series.';
   const l2 = mk("div", "h"); l2.style.fontSize = (WIDE ? 100 : 108) + "px"; const words = []; "How many new words did you learn?".split(" ").forEach((w) => { const s = mk("span", "w", w); l2.append(s); words.push(s); });
@@ -173,7 +177,7 @@ scene({ id: "hook", dur: 4.2, th: "k", hdr: false, short: true, build(sc) {
   d.append(l1, l2, z); sc.append(d); this.s = { l1, words, z, cn: l1.querySelector(".cn") };
 }, render(u) { const s = this.s, c = P(u, 0.1, 1.1); s.cn.textContent = Math.round(c * 1000).toLocaleString("en-US"); fadeIn(s.l1, u, 0.0, 0.3, 20); slam(s.words, u, 1.35, 0.1); const p = P(u, 2.5, 0.45, E.back), sh = u > 2.5 ? Math.sin((u - 2.5) * 40) * 3 * Math.exp(-(u - 2.5) * 5) : 0; tf(s.z, { o: clamp((u - 2.5) / 0.1), s: 0.4 + 0.6 * p, r: sh }); } });
 // 2) logo + slogan
-scene({ id: "logo", dur: 3.2, th: "y", hdr: false, short: true, build(sc) {
+scene({ id: "logo", dur: 3.0, cues: [[0.1, "pop"], [0.55, "slam"]], th: "y", hdr: false, short: true, build(sc) {
   const d = mk("div"); place(d, { x: 0, y: 0, w: W, h: H }); d.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:50px;padding:0 " + (WIDE ? 220 : 64) + "px";
   const lg = logoEl(WIDE ? 190 : 230); lg.style.boxShadow = "0 24px 50px rgba(0,0,0,.25)";
   const h = mk("div", "h"); const words = [];
@@ -181,19 +185,19 @@ scene({ id: "logo", dur: 3.2, th: "y", hdr: false, short: true, build(sc) {
   h.style.fontSize = (WIDE ? 96 : 104) + "px"; d.append(lg, h); sc.append(d); this.s = { lg, words };
 }, render(u) { const s = this.s; tf(s.lg, { o: P(u, 0.1, 0.2), s: 0.5 + 0.5 * P(u, 0.1, 0.5, E.back), r: (1 - P(u, 0.1, 0.5)) * -12 }); slam(s.words, u, 0.55, 0.09); } });
 // 3) her kelime canlı çevrilir
-scene({ id: "live", dur: 5.0, th: "k", hdr: true, short: true, build(sc) {
+scene({ id: "live", dur: 5.0, cues: [[0.2, "slam"], [1.1, "sweep"]], th: "k", hdr: true, short: true, build(sc) {
   const T = textBlock(sc, { head: ["Every subtitle word,", "*translated live.*"], sub: "On YouTube, Prime Video, Netflix and Udemy.", side: "l" });
   const f = WIDE ? buildFrame(sc, { scale: 0.92, x: 940, y: 218 }) : buildFrame(sc, { scale: 1, x: 40, y: 700 });
   this.s = { T, f };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9); const p = P(u, 0, 0.5); tf(s.f.fw, { o: p, x: (1 - p) * 120, s: 1 }); s.f.fw.style.transform = `translate(${(1 - p) * 120}px,0) scale(${WIDE ? 0.92 : 1})`; s.f.fw.style.opacity = p; frameRender(s.f, u, { wipe: [1.1, 1.0], tap: null }); } });
 // 4) kelimeyi tut
-scene({ id: "keep", dur: 5.0, th: "y", hdr: true, short: true, build(sc) {
+scene({ id: "keep", dur: 5.0, cues: [[0.2, "slam"], [1.5, "tap"], [1.53, "ding"], [1.7, "whoosh_s"], [2.3, "pop"]], th: "y", hdr: true, short: true, build(sc) {
   const T = textBlock(sc, { head: ["Click a word,", "*keep it.*"], sub: "No account. Saved with the scene.", side: "r" });
   const f = WIDE ? buildFrame(sc, { scale: 0.92, x: 60, y: 160, tray: true }) : buildFrame(sc, { scale: 1, x: 40, y: 700, tray: true });
   this.s = { T, f };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.8); const p = P(u, 0, 0.5); const sc = WIDE ? 0.92 : 1; s.f.fw.style.transform = `translate(${(1 - p) * -120}px,0) scale(${sc})`; s.f.fw.style.opacity = p; frameRender(s.f, u, { wipe: null, tap: 1.5 }); } });
 // 5) kutu senin
-scene({ id: "box", dur: 4.8, th: "k", hdr: true, short: false, build(sc) {
+scene({ id: "box", dur: 5.0, cues: [[0.2, "slam"], [0.6, "pop"], [1.55, "pop"], [2.5, "pop"], [3.45, "pop"]], th: "k", hdr: true, short: false, build(sc) {
   const T = textBlock(sc, { head: ["The box is", "*yours.*"], sub: null, side: "l" });
   const f = WIDE ? buildFrame(sc, { scale: 0.86, x: 960, y: 70, tools: true }) : buildFrame(sc, { scale: 1, x: 40, y: 620, tools: true });
   const defs = [["Drag", "drop it anywhere", "M12 3v18M3 12h18M12 3l-3 3m3-3l3 3M12 21l-3-3m3 3l3-3M3 12l3-3m-3 3l3 3M21 12l-3-3m3 3l-3 3"], ["Resize", "pull the corner", "M5 19L19 5M19 5h-6m6 0v6M5 19h6m-6 0v-6"], ["Pick a color", "for the translations", "C"], ["Lock", "keeps it in place", "L"]];
@@ -202,20 +206,20 @@ scene({ id: "box", dur: 4.8, th: "k", hdr: true, short: false, build(sc) {
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); const p = P(u, 0, 0.5), sc = WIDE ? 0.86 : 1; s.f.fw.style.transform = `translate(${(1 - p) * 120}px,0) scale(${sc})`; s.f.fw.style.opacity = p; frameRender(s.f, u, { wipe: null, tap: null });
   s.cards.forEach((c, k) => { const at = 0.6 + k * 0.95, on = u >= at && u < at + 0.95, pp = P(u, 0.4 + k * 0.12, 0.4, E.back); c.classList.toggle("on", on); tf(c, { o: clamp((u - 0.4 - k * 0.12) / 0.15), y: (1 - pp) * 40, s: on ? 1.03 : 1 }); const r = s.rings[k], d = u - at; r.style.display = d >= 0 && d < 0.95 ? "" : "none"; if (d >= 0 && d < 0.95) { const q = (d % 0.5) / 0.5; r.style.opacity = 1 - q; r.style.transform = `scale(${0.5 + q * 1.1})`; } }); } });
 // 6) kelimeler listesi
-scene({ id: "words", dur: 4.2, th: "y", hdr: true, short: false, build(sc) {
+scene({ id: "words", dur: 4.0, cues: [[0.2, "slam"], [1.2, "pop"]], th: "y", hdr: true, short: false, build(sc) {
   const T = textBlock(sc, { head: ["Every word you met,", "*one click away.*"], sub: "Kept on your device, with the video time.", side: "l" });
   const sPop = WIDE ? 1.55 : 1.42, pw = buildPopup(sc, { scale: sPop, x: WIDE ? 1146 : (W - 380 * sPop) / 2, y: WIDE ? 87 : 720, imgs: ["p-words.png"] });
   const hl = mk("div"); hl.style.cssText = "position:absolute;left:10px;top:98px;width:360px;height:54px;border-radius:10px;background:rgba(255,212,43,.18);box-shadow:inset 0 0 0 2px rgba(255,212,43,.8)"; pw.fx.append(hl); this.s = { T, pw, hl, sPop };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9); const p = P(u, 0, 0.55), y0 = WIDE ? 87 : 720; s.pw.pw.style.top = y0 + (1 - p) * 90 + "px"; s.pw.pw.style.opacity = p; const f = P(u, 1.2, 0.25), g = 1 - P(u, 2.2, 0.3, E.lin); s.hl.style.opacity = f * g; } });
 // 7) yarın geri gelir (boşluk doldurma)
-scene({ id: "cloze", dur: 5.6, th: "k", hdr: true, short: true, build(sc) {
+scene({ id: "cloze", dur: 5.5, cues: [[0.2, "slam"], [2.9, "tap"], [3.0, "right"]], th: "k", hdr: true, short: true, build(sc) {
   const T = textBlock(sc, { head: ["Tomorrow,", "*it comes back.*"], sub: "A fill-in-the-blank, in the line you heard.", side: "l" });
   const sPop = WIDE ? 1.55 : 1.42, pw = buildPopup(sc, { scale: sPop, x: WIDE ? 1146 : (W - 380 * sPop) / 2, y: WIDE ? 87 : 720, imgs: ["p-cloze.png", "p-cloze-ok.png"] });
   pw.r = mkRip(pw.fx); pw.b = mkBurst(pw.fx, 8); this.s = { T, pw, sPop };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 1.0); const p = P(u, 0.1, 0.55), y0 = WIDE ? 87 : 720; s.pw.pw.style.top = y0 + (1 - p) * 90 + "px"; s.pw.pw.style.opacity = p;
   const ok = u >= 3.0; showImg(s.pw, ok ? 1 : 0); const o = COORD.opts.find((x) => x.t === "propio"); rip(s.pw.r, u, 2.9, o.x / 1.0 * (380 / 380) + o.w * 0.7 - 0, o.y + o.h / 2); const pulse = ok && u - 3.0 < 0.4 ? 1 + 0.02 * Math.sin((u - 3.0) / 0.4 * Math.PI) : 1; s.pw.pw.style.transform = `scale(${s.sPop * pulse})`; burst(s.pw.b, u, 3.05, 190, 150, 150); } });
 // 8) 1 gün, 3 gün, 7 gün + öğrenildi
-scene({ id: "learned", dur: 5.4, th: "y", hdr: true, short: true, build(sc) {
+scene({ id: "learned", dur: 5.5, cues: [[0.2, "slam"], [1.5, "pop"], [2.1, "pop"], [2.7, "pop"], [3.5, "learned"], [3.5, "confetti"]], th: "y", hdr: true, short: true, build(sc) {
   const T = textBlock(sc, { head: ["1 day. 3 days.", "*7 days.*"], sub: "Each right answer pushes the next review out.", side: "l" });
   const steps = mk("div"); steps.style.marginTop = "34px"; ["1 day", "3 days", "7 days"].forEach((t) => steps.append(mk("span", "step", t))); T.d.append(steps);
   const cap = mk("div", "mono", "3 right answers = learned"); cap.style.cssText = "margin-top:22px;font-size:30px;opacity:.7"; T.d.append(cap);
@@ -225,29 +229,60 @@ scene({ id: "learned", dur: 5.4, th: "y", hdr: true, short: true, build(sc) {
   [...s.steps.children].forEach((e, i) => { const at = 1.5 + i * 0.6, on = u >= at; e.classList.toggle("on", on); e.style.transform = `scale(${on && u - at < 0.3 ? 1 + 0.16 * Math.sin((u - at) / 0.3 * Math.PI) : 1})`; });
   const lr = u >= 3.5; showImg(s.pw, lr ? 1 : 0); const p = P(u, 0.1, 0.55); s.pw.pw.style.opacity = p; const lp = lr && u - 3.5 < 0.6 ? 1 + 0.045 * Math.sin((u - 3.5) / 0.6 * Math.PI) : 1; s.pw.pw.style.transform = `scale(${s.sPop * lp})`; burst(s.pw.b, u, 3.5, 190, 160, 220); confetti(s.cf, u - 3.5); } });
 // 9) seri
-scene({ id: "streak", dur: 3.8, th: "k", hdr: true, short: false, build(sc) {
+scene({ id: "streak", dur: 4.0, cues: [[0.3, "pop"], [0.8, "count"], [1.2, "count"], [1.6, "count"], [2.0, "count"], [2.4, "count"]], th: "k", hdr: true, short: false, build(sc) {
   const T = textBlock(sc, { head: ["Keep the streak,", "*a little every day.*"], sub: null, side: "l" });
   const box = mk("div"); place(box, WIDE ? { x: 1010, y: 0, w: 800, h: 1080 } : { x: 0, y: 720, w: 1080, h: 900 }); box.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0";
   const fl = mk("div"); fl.innerHTML = '<svg viewBox="0 0 64 80" width="' + (WIDE ? 190 : 210) + '"><path d="M32 4c2 14 18 22 18 42a18 18 0 0 1-36 0c0-8 4-13 8-17 0 7 4 10 7 10 0-12-3-22 3-35z" fill="#FFD42B"/><path d="M32 40c1 7 8 10 8 18a8 8 0 0 1-16 0c0-6 5-9 8-18z" fill="#111110"/></svg>';
   const num = mk("div", "h", "1"); num.style.cssText = "font-size:" + (WIDE ? 330 : 360) + "px;line-height:.95;letter-spacing:-.05em"; const lab = mk("div", "h", "day streak"); lab.style.cssText = "font-size:" + (WIDE ? 64 : 72) + "px;opacity:.78";
   box.append(fl, num, lab); sc.append(box); this.s = { T, fl, num, lab };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); const p = P(u, 0.3, 0.5, E.back); tf(s.fl, { o: clamp((u - 0.3) / 0.15), s: 0.4 + 0.6 * p, y: Math.sin(u * 6) * 4 }); const n = 1 + Math.min(4, Math.floor(P(u, 0.8, 1.6, E.lin) * 5)); s.num.textContent = String(n); const pop = u > 0.8 ? 1 + 0.06 * Math.exp(-((u - 0.8) * 4 % 1.0) * 6) : 1; tf(s.num, { o: clamp((u - 0.5) / 0.2), s: pop }); tf(s.lab, { o: P(u, 0.9, 0.4) }); } });
+
+function siteWin(sc, o) { // o: {w,h,scale,x,y,imgs:[{src,ox,oy}]}: gerçek site ekran görüntüsünün bir bölgesini pencere olarak gösterir
+  const fw = mk("div", "fw"); fw.style.left = o.x + "px"; fw.style.top = o.y + "px"; fw.style.transform = `scale(${o.scale})`;
+  const clip = mk("div", "sclip"); clip.style.width = o.w + "px"; clip.style.height = o.h + "px";
+  const imgs = o.imgs.map((d) => { const i = mk("img"); i.src = A + d.src; i.style.cssText = `position:absolute;left:${-d.ox}px;top:${-d.oy}px;width:1280px;height:auto;display:block`; clip.append(i); return i; });
+  fw.append(clip); sc.append(fw); return { fw, clip, imgs, o };
+}
+// 9b) düello
+scene({ id: "duel", dur: 7.0, cues: [[0.2, "slam"], [0.5, "pop"], [2.1, "pop"], [3.4, "tap"], [3.45, "right"], [5.2, "pop"], [5.25, "learned"], [5.25, "confetti"]], th: "k", hdr: true, short: true, build(sc) {
+  const T = textBlock(sc, { head: ["Duel your", "*friends.*"], sub: "Live, head to head. With a free account.", side: "l" });
+  const S = WIDE ? 1.3 : 1.5, x = WIDE ? 1024 : 60, y = WIDE ? 85 : 720;
+  const sw = siteWin(sc, { w: 640, h: 700, scale: S, x, y, imgs: ["site-game-lobby.png", "site-game-question.png", "site-game-reveal.png", "site-game-end.png"].map((src) => ({ src, ox: 320, oy: 75 })) });
+  const live = mk("div", "live", "LIVE"); sw.clip.append(live);
+  const r = mkRip(sw.clip), b = mkBurst(sw.clip, 8), cf = mkConfetti(sc, 100, 11, "burst", x + 320 * S, y + 200 * S);
+  this.s = { T, sw, live, r, b, cf, S };
+}, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9);
+  const p = P(u, 0, 0.5); s.sw.fw.style.transform = `translate(${(1 - p) * 120}px,0) scale(${s.S})`; s.sw.fw.style.opacity = p;
+  const marks = [0, 2.1, 3.45, 5.2], k = u < 2.1 ? 0 : u < 3.45 ? 1 : u < 5.2 ? 2 : 3; s.sw.imgs.forEach((im, i) => (im.style.display = i === k ? "" : "none"));
+  const since = u - marks[k]; s.sw.clip.style.transform = k > 0 && since < 0.3 ? `scale(${1 + 0.025 * Math.sin(clamp(since / 0.3) * Math.PI)})` : "none";
+  s.live.style.display = u >= 2.1 ? "" : "none"; rip(s.r, u, 3.4, 168, 254); burst(s.b, u, 3.47, 168, 254, 110); confetti(s.cf, u - 5.25); } });
+// 9c) sıralama ve ligler
+scene({ id: "rank", dur: 5.0, cues: [[0.2, "slam"], [0.35, "pop"], [1.0, "tap"], [1.8, "pop"]], th: "y", hdr: true, short: false, build(sc) {
+  const T = textBlock(sc, { head: ["Climb the", "*leaderboard.*"], sub: "Weekly or all-time, plus private friend leagues.", side: "l" });
+  const S = WIDE ? 1.0 : 1.1, x = WIDE ? 1000 : 60, yA = WIDE ? 250 : 720, yB = yA + 308 * S + 26;
+  const A_ = siteWin(sc, { w: 872, h: 308, scale: S, x, y: yA, imgs: [{ src: "site-duel.png", ox: 328, oy: 458 }] });
+  const B_ = siteWin(sc, { w: 872, h: 196, scale: S, x, y: yB, imgs: [{ src: "site-leagues.png", ox: 328, oy: 491 }] });
+  const hl = mk("div", "hlrow"); hl.style.cssText += ";left:14px;top:131px;width:844px;height:54px"; A_.clip.append(hl); this.s = { T, A_, B_, hl, S };
+}, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9);
+  const pa = P(u, 0.3, 0.5), pb = P(u, 1.8, 0.5); s.A_.fw.style.transform = `translate(${(1 - pa) * 140}px,0) scale(${s.S})`; s.A_.fw.style.opacity = pa; s.B_.fw.style.transform = `translate(${(1 - pb) * 140}px,0) scale(${s.S})`; s.B_.fw.style.opacity = pb;
+  const q = u > 1.0 && u < 3.2 ? 0.5 + 0.5 * Math.sin((u - 1.0) * 7) : 0; s.hl.style.opacity = u > 1.0 ? clamp((u - 1.0) / 0.2) * (0.4 + 0.6 * q) : 0; } });
+
 // 10) 16 dil
-scene({ id: "langs", dur: 3.6, th: "y", hdr: true, short: false, build(sc) {
+scene({ id: "langs", dur: 3.5, cues: [[0.2, "slam"], [0.4, "pop"], [0.68, "pop"], [0.96, "pop"], [1.24, "pop"], [1.52, "pop"]], th: "y", hdr: true, short: false, build(sc) {
   const T = textBlock(sc, { head: ["16 subtitle", "*languages.*"], sub: "Any pair: Spanish to English, French to English…", side: "l" });
   const names = ["Türkçe", "English", "Français", "Italiano", "Deutsch", "Español", "Português", "Русский", "العربية", "Română", "日本語", "हिन्दी", "Indonesia", "Polski", "Nederlands", "한국어"];
   const pills = names.map((n, i) => { const p = mk("div", "pill dk", n); const col = i % 2, row = Math.floor(i / 2); const w = WIDE ? 370 : 440, h = WIDE ? 84 : 92; place(p, WIDE ? { x: 1010 + col * 400, y: 110 + row * 108, w, h } : { x: 80 + col * 470, y: 760 + row * 118, w, h }); sc.append(p); return p; });
   this.s = { T, pills };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); if (s.T.sub) fadeIn(s.T.sub, u, 0.9); s.pills.forEach((p, i) => { const at = 0.4 + i * 0.07, q = P(u, at, 0.35, E.back); tf(p, { o: clamp((u - at) / 0.1), s: 0.6 + 0.4 * q }); }); } });
 // 11) ücretsiz hesapla daha fazlası
-scene({ id: "account", dur: 3.8, th: "k", hdr: true, short: false, build(sc) {
+scene({ id: "account", dur: 4.0, cues: [[0.2, "slam"], [0.6, "pop"], [0.78, "pop"], [0.96, "pop"], [1.14, "pop"]], th: "k", hdr: true, short: false, build(sc) {
   const T = textBlock(sc, { head: ["Free account?", "*Even more.*"], sub: null, side: "l" });
-  const items = ["Quizzes with levels", "Streaks and daily goals", "Daily challenge", "Friend leagues", "Live duels", "Words from a whole YouTube video"];
-  const pills = items.map((n, i) => { const p = mk("div", "pill ol", n); const w = WIDE ? 700 : 900, h = WIDE ? 92 : 100; place(p, WIDE ? { x: 1010, y: 190 + i * 118, w, h } : { x: 90, y: 760 + i * 130, w, h }); p.style.justifyContent = "flex-start"; sc.append(p); return p; });
+  const items = ["Quizzes with levels", "Streaks and daily goals", "Daily challenge", "Words from a whole YouTube video"];
+  const pills = items.map((n, i) => { const p = mk("div", "pill ol", n); const w = WIDE ? 700 : 900, h = WIDE ? 92 : 100; place(p, WIDE ? { x: 1010, y: 250 + i * 128, w, h } : { x: 90, y: 780 + i * 140, w, h }); p.style.justifyContent = "flex-start"; sc.append(p); return p; });
   this.s = { T, pills };
 }, render(u) { const s = this.s; slam(s.T.words, u, 0.2); s.pills.forEach((p, i) => { const at = 0.6 + i * 0.18, q = P(u, at, 0.4, E.back); tf(p, { o: clamp((u - at) / 0.1), x: (1 - q) * 80 }); }); } });
 // 12) kapanış
-scene({ id: "end", dur: 5.0, th: "y", hdr: false, short: true, build(sc) {
+scene({ id: "end", dur: 5.0, cues: [[0.0, "confetti"], [0.15, "pop"], [0.35, "slam"], [1.3, "pop"], [3.3, "tap"]], th: "y", hdr: false, short: true, build(sc) {
   const d = mk("div"); place(d, { x: 0, y: 0, w: W, h: H }); d.style.cssText += ";display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:" + (WIDE ? 22 : 34) + "px";
   const lg = logoEl(WIDE ? 170 : 220); lg.style.boxShadow = "0 24px 50px rgba(0,0,0,.25)";
   const nm = mk("div", "h", "CineVocab"); nm.style.fontSize = (WIDE ? 150 : 150) + "px";
@@ -284,6 +319,7 @@ function seek(t) {
   document.querySelectorAll("#seg i b").forEach((b, i) => { b.style.width = (i < idx ? 100 : i === idx ? clamp((t - cur.t0) / cur.dur) * 100 : 0) + "%"; });
   const off = -(t * 40) % 62; $("h1").style.backgroundPositionX = off + "px"; $("h2").style.backgroundPositionX = -off + "px";
 }
+window.CUES = () => { const o = []; LIST.forEach((sc, i) => { if (i > 0) o.push([sc.t0 - 0.12, "whoosh"]); (sc.cues || []).forEach(([u, t]) => o.push([sc.t0 + u, t])); }); return o.sort((a, b) => a[0] - b[0]); };
 window.seek = seek; window.getTotal = () => TOTAL; window.SCENES = () => LIST.map((s) => [s.id, s.t0, s.dur]);
 setup();
 </script>

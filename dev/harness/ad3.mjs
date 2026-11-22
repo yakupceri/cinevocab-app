@@ -3,9 +3,11 @@
 //   node harness/ad3.mjs wide still live:2.5,keep:1.8,cloze:3.4     -> önizleme kareleri (sahne:saniye ya da düz saniye)
 //   node harness/ad3.mjs wide video                                  -> 1920x1080 tam video  (dev/out/ad3/cinevocab-store-wide.mp4)
 //   node harness/ad3.mjs tall video short                            -> 1080x1920 kısa kesit (dev/out/ad3/cinevocab-short-tall.mp4)
+//   node harness/ad3.mjs wide audio                                   -> yalnızca müziği yeniden üretip mevcut sessiz videoya ekler (kare üretmez)
+//   Müzik: dev/tools/music.py (kodla üretilen özgün enstrümantal + olaylara bağlı ses efektleri). Kendi şarkını eklemek için: audio=/yol/sarki.mp3
 // ek bayraklar: logo=ticket  (üst logo: bilet "Cv")
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -31,7 +33,24 @@ await page.waitForFunction("window.READY === true", null, { timeout: 20000 });
 const total = await page.evaluate("getTotal()"), scenes = await page.evaluate("SCENES()");
 console.log(`süre ${total.toFixed(1)} sn · sahneler:`, scenes.map(([i, t0, d]) => `${i}@${t0.toFixed(1)}`).join(" "));
 
-if (MODE === "still") {
+const cues = await page.evaluate("CUES()");
+const cuesFile = join(OUT, `cues-${FMT}-${CUT}.json`);
+writeFileSync(cuesFile, JSON.stringify({ total, cues }));
+const BASE = `cinevocab-${CUT === "short" ? "short" : "store"}-${FMT}`, SILENT = join(OUT, BASE + "-silent.mp4"), FINAL = join(OUT, BASE + ".mp4");
+const OWN_AUDIO = rest.find((x) => x.startsWith("audio="))?.slice(6);
+function addAudio() {
+  const wav = join(OUT, BASE + ".wav"), tools = resolve(HERE, "..", "tools");
+  let audio = OWN_AUDIO;
+  if (!audio) {
+    const m = spawnSync("python3", ["-I", join(tools, "music.py"), cuesFile, wav], { encoding: "utf8" });
+    console.log(m.status === 0 ? m.stdout.trim() : "müzik HATA: " + m.stderr); if (m.status !== 0) return;
+    audio = wav;
+  }
+  const x = spawnSync("swift", [join(tools, "mux-audio.swift"), SILENT, audio, FINAL], { encoding: "utf8" });
+  console.log(x.status === 0 ? x.stdout.trim() : "ses ekleme HATA: " + (x.stderr || x.stdout));
+}
+
+if (MODE === "audio") { addAudio(); } else if (MODE === "still") {
   for (const tok of LIST.split(",").filter(Boolean)) {
     let t = Number(tok); if (isNaN(t)) { const [id, u] = tok.split(":"), sc = scenes.find((s) => s[0] === id); t = sc[1] + Number(u); }
     await page.evaluate((x) => seek(x), t);
@@ -47,9 +66,9 @@ if (MODE === "still") {
     await page.screenshot({ path: join(dir, `f${String(i).padStart(4, "0")}.png`) });
     if (i % 120 === 0) console.log(`kare ${i}/${n}`);
   }
-  const mp4 = join(OUT, `cinevocab-${CUT === "short" ? "short" : "store"}-${FMT}.mp4`), sw = resolve(HERE, "..", "tools", "frames2mp4.swift");
-  const m = spawnSync("swift", [sw, dir, String(FPS), mp4], { encoding: "utf8" });
-  console.log(m.status === 0 ? "mp4: " + mp4 : "mp4 HATA: " + (m.stderr || m.stdout));
-  if (m.status === 0) rmSync(dir, { recursive: true, force: true });
+  const sw = resolve(HERE, "..", "tools", "frames2mp4.swift");
+  const m = spawnSync("swift", [sw, dir, String(FPS), SILENT], { encoding: "utf8" });
+  console.log(m.status === 0 ? "sessiz mp4: " + SILENT : "mp4 HATA: " + (m.stderr || m.stdout));
+  if (m.status === 0) { rmSync(dir, { recursive: true, force: true }); addAudio(); }
 }
 await b.close();

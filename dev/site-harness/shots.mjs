@@ -84,7 +84,7 @@ for (const theme of THEMES) {
     for (const s of SHOTS) {
       if (FILTER && !s.name.includes(FILTER)) continue;
       await fetch(`${BASE}/__scene?name=${s.scene}`);
-      const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1, locale: LANG === "tr" ? "tr-TR" : "en-US", serviceWorkers: "block", hasTouch: vpName === "mobile" });
+      const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: Number(opt("dpr", "1")), locale: LANG === "tr" ? "tr-TR" : "en-US", serviceWorkers: "block", hasTouch: vpName === "mobile" });
       await ctx.addInitScript(([th, lang]) => { try { localStorage.setItem("cv-theme", th); localStorage.setItem("cv-lang", lang); localStorage.setItem("cv-pair", "es:en"); } catch (e) {} }, [theme, LANG]);
       if (s.ws) await ctx.addInitScript(FAKE_WS(s.ws));
       if (s.seed) await ctx.addInitScript((seed) => { try { sessionStorage.setItem("cv-duel", JSON.stringify(seed)); } catch (e) {} }, s.seed);
