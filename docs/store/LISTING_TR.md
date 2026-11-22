@@ -31,6 +31,8 @@ Yeni kurulumdan sonra CineVocab, karşılama sayfasındaki düğmeye, araç çub
 - Dil koruması: altyazı seçtiğin dilde değilse çeviriyi durdurur
 - Altyazı kutusunu videonun üstünde istediğin yere taşı, boyutunu ve saydamlığını ayarla
 - Bir YouTube videosunun tüm kelimelerini tek seferde çıkar (ücretsiz hesap gerekir)
+- Tutulan kelimeler videonun üstünde sarı vurguyla görünür
+- Daha önce gördüğün kelimeler anında çıkar: çevirilerin küçük bir önbelleği cihazında kalır
 
 TUTTUĞUN KELİMELERLE ÇALIŞ (hesap gerekmez)
 - Tuttuğun kelimelerden açılır pencerede hızlı turlar

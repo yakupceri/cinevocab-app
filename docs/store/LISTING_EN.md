@@ -36,6 +36,8 @@ WHILE YOU WATCH
 - Language guard: pauses when the subtitles are not in the language you chose
 - Move the subtitle box anywhere on the video, resize it and set its transparency
 - Pull the words out of a whole YouTube video at once (free account needed)
+- Kept words are highlighted in yellow right on the video
+- Words you have seen before show up instantly: a small cache of translations stays on your device
 
 PRACTISE WHAT YOU KEPT (no account needed)
 - Quick rounds from the words you kept, right in the popup
@@ -60,7 +62,7 @@ CineVocab is an independent project. It is not affiliated with or endorsed by Am
 - Language: English (add Turkish as an extra language with LISTING_TR.md)
 - Website: https://cinevocab.up.railway.app
 - Support: use your support email or the contact page on the site
-- Graphics: the screenshots in this folder are from version 1.8.7 and must be re-taken for the 2.1 look before upload (1280x800, up to 5). Small promo tile 440x280, marquee 1400x560, store icon 128x128.
+- Graphics: ready in dev/out/release-2.3.0/ (5 screenshots 1280x800, small promo tile 440x280, marquee 1400x560; store icon is extension/icons/icon128.png). Promo video: upload dev/out/release-2.3.0/cinevocab-store-wide.mp4 to YouTube and paste its link.
 
 ## Privacy tab
 
@@ -89,9 +91,12 @@ Tick all three statements: I do not sell user data to third parties; I do not us
 Privacy policy URL: https://cinevocab.up.railway.app/privacy
 
 ### Notes for the reviewer (Test instructions field)
-Translation is off after install and works without an account. Open the welcome page (it opens at install), keep Spanish to English selected, and press "Watch a Spanish video". This switches the extension on and opens YouTube search results filtered for captions. Open any video with Spanish captions, press CC if needed, and each subtitle word appears with its translation in a box on the video. Click a word to keep it: it appears under the extension icon, in the Words tab, without signing in. An account is optional (free sign-up in the popup).
+Translation is off after install and works without an account. Open the welcome page (it opens at install), keep Spanish to English selected, and press "Watch a Spanish video". This switches the extension on and opens YouTube search results filtered for captions. Open any video with Spanish captions, press CC if needed, and each subtitle word appears with its translation in a box on the video. Click a word to keep it: it appears under the extension icon, in the Words tab, without signing in. An account is optional (free sign-up in the popup). To see the practice: keep 4 words, open the toolbar popup and press Practice; fill-in-the-blank questions appear from the second review of a word (press "Practise anyway" to get there in the same session).
 
 ## What changed since 2.0.3 (for your own notes; the store has no field for it)
+- 2.3: fill-in-the-blank questions in the line you heard the word in, a sentence-builder bonus, a "Sentence practice" card for signed-in users, kept words shown as a yellow highlight (no underline), progress bar and "up next" words on the practice start screen, a short animation when a word is learned.
+- 2.3: faster subtitles: the box starts after about 40 ms instead of about 380 ms on captions that do not slide, and translated words are remembered on the device.
+- 2.3: no new permissions; the permission list and site list are identical to the 2.0.3 version in the store.
 - 2.2: practise the words you kept without an account (spaced review, typing from the 3rd step, "learned" after a few days, daily streak, count on the toolbar icon). Words that are not translated yet are not asked.
 - 2.2: the "turn on subtitles" hint appears after 3 seconds instead of 8.
 - Off after a fresh install; the welcome page button is the opt-in. People who updated from 2.0.3 keep the setting they had (2.0.3 switched on at install).
