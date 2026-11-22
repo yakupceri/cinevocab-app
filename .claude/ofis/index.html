@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ajan Ofisi</title>
+<style>
+:root{
+  --bg:#F3F3F0; --panel:#FFFFFF; --line:#D8D8D2; --ink:#171715; --dim:#5E5E58;
+  --work:#1F4FBF; --done:#2A7A4B; --idle:#7A7A73; --wait:#A15F00; --unk:#7A7A73;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#121311; --panel:#1B1C1A; --line:#33342F; --ink:#ECECE6; --dim:#A2A29A;
+  --work:#7FA6FF; --done:#6CC48C; --idle:#8D8D85; --wait:#E0A64A; --unk:#8D8D85;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121311; --panel:#1B1C1A; --line:#33342F; --ink:#ECECE6; --dim:#A2A29A;
+    --work:#7FA6FF; --done:#6CC48C; --idle:#8D8D85; --wait:#E0A64A; --unk:#8D8D85;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:1080px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:22px;line-height:1.2;margin:0;letter-spacing:-.01em;flex:1;min-width:8ch}
+.pill{font:500 12.5px ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:5px 9px;color:var(--dim);background:var(--panel)}
+.pill.bad{color:var(--wait);border-color:var(--wait)}
+button.tg{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:5px 10px;cursor:pointer}
+button.tg:focus-visible{outline:2px solid var(--work);outline-offset:2px}
+.note{margin:0 0 18px;color:var(--dim);font-size:13.5px;max-width:78ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.desk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (min-width:700px){.desk.wide{grid-column:span 2}}
+.desk .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.desk h2{font-size:16px;line-height:1.25;margin:0;overflow-wrap:anywhere}
+.desk .role{display:block;font-size:12.5px;color:var(--dim);font-weight:400;margin-top:2px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;white-space:nowrap;color:var(--c)}
+.st i{width:10px;height:10px;display:inline-block;flex:none;border:2px solid var(--c);background:var(--c)}
+.s-calisiyor{--c:var(--work)} .s-calisiyor i{border-radius:50%}
+.s-bitirdi{--c:var(--done)} .s-bitirdi i{border-radius:2px}
+.s-bosta{--c:var(--idle)} .s-bosta i{border-radius:50%;background:transparent}
+.s-bekliyor{--c:var(--wait)} .s-bekliyor i{border-radius:2px;background:transparent;transform:rotate(45deg)}
+.s-bilinmiyor{--c:var(--unk)} .s-bilinmiyor i{border-radius:2px;background:transparent;border-style:dashed}
+.s-henuz{--c:var(--idle)} .s-henuz i{border-radius:50%;background:transparent;border-style:dotted}
+.last{margin:0;font-size:14px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-height:3.6em}
+.last.empty{color:var(--dim)}
+.when{font:12.5px ui-monospace,Menlo,Consolas,monospace;color:var(--dim);margin-top:auto}
+.rows{list-style:none;margin:0;padding:0}
+.rows li{border-top:1px solid var(--line);padding:9px 0;display:grid;gap:3px;min-width:0}
+.rows li:first-child{border-top:0;padding-top:0}
+.rows .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rows .ty{font:600 13px ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.rows .ty small{font-weight:400;color:var(--dim)}
+.rows .tx{margin:0;font-size:13.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.rows .wh{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
+details{margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+summary{cursor:pointer;font-weight:600}
+summary:focus-visible{outline:2px solid var(--work);outline-offset:2px}
+table{border-collapse:collapse;width:100%;font:12.5px ui-monospace,Menlo,Consolas,monospace;margin-top:10px}
+td,th{text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:500}
+.scroll{overflow-x:auto}
+.keys{margin:12px 0 0;color:var(--dim);font-size:12.5px}
+@media (prefers-reduced-motion:no-preference){.s-calisiyor i{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ajan Ofisi</h1>
+    <span class="pill" id="conn">bağlanıyor…</span>
+    <button class="tg" id="tg" type="button" aria-label="Tema değiştir">Tema</button>
+  </header>
+  <p class="note">Bu sayfa yalnızca Claude Code hook'larının bildirdiğini gösterir. Hiç çalışmamış masa "Henüz çalışmadı" yazar. Esc ile kesme ve oturum çökmesi bildirilmez: 3 dakikadır sinyal gelmeyen bir "çalışıyor" masası "Bilinmiyor" olur. Adı tanımlı olmayan ajanlar "Diğer ajanlar" masasında toplanır.</p>
+  <div class="grid" id="grid"></div>
+  <details>
+    <summary>Hook'lar gerçekte ne gönderiyor?</summary>
+    <p class="keys" id="keys"></p>
+    <div class="scroll"><table><thead><tr><th>saat</th><th>olay</th><th>masa</th><th>araç</th></tr></thead><tbody id="log"></tbody></table></div>
+  </details>
+</div>
+<script>
+var STALE = 180, STALE_WAIT = 1800;        // saniye
+var LABEL = { calisiyor: "Çalışıyor", bitirdi: "Bitirdi", bosta: "Boşta", bekliyor: "İzin bekliyor", bilinmiyor: "Bilinmiyor", henuz: "Henüz çalışmadı" };
+var PRIO = { calisiyor: 0, bekliyor: 1, bilinmiyor: 2, bitirdi: 3, bosta: 4 };
+var grid = document.getElementById("grid"), conn = document.getElementById("conn");
+
+// tema: kayıtlı seçim varsa o, yoksa sistem
+function themeGet(){ try { return localStorage.getItem("ofisTema") || ""; } catch (e) { return ""; } }
+function themeSet(v){ try { localStorage.setItem("ofisTema", v); } catch (e) {} }
+function themeApply(v){ if (v) document.documentElement.setAttribute("data-theme", v); else document.documentElement.removeAttribute("data-theme"); }
+themeApply(themeGet());
+document.getElementById("tg").addEventListener("click", function(){
+  var cur = document.documentElement.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  var nxt = cur === "dark" ? "light" : "dark"; themeSet(nxt); themeApply(nxt);
+});
+
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+function clock(t){ var d = new Date(t * 1000); return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()); }
+function ago(s){ s = Math.max(0, Math.round(s)); if (s < 5) return "şimdi"; if (s < 60) return s + " sn önce"; if (s < 3600) return Math.round(s / 60) + " dk önce"; return Math.round(s / 3600) + " sa önce"; }
+function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+// Gösterilen durum, hook'un son söylediği durumdan türetilir; sinyal eskiyse "bilinmiyor"
+function view(x, now){
+  if (!x || !x.at) return "bilinmiyor";
+  var age = now - (x.seen || x.at);
+  if (x.status === "calisiyor") return age > STALE ? "bilinmiyor" : "calisiyor";
+  if (x.status === "bekliyor") return age > STALE_WAIT ? "bilinmiyor" : "bekliyor";
+  if (x.status === "bitirdi" && now - x.at > 600) return "bosta";
+  return PRIO[x.status] != null ? x.status : "bilinmiyor";
+}
+function stamp(x, now){ return x && x.at ? clock(x.at) + " · " + ago(now - x.at) : "—"; }
+function badge(v){ var st = el("span", "st s-" + v); st.appendChild(el("i")); st.appendChild(document.createTextNode(LABEL[v])); return st; }
+
+// En öncelikli ajan: çalışan > izin bekleyen > sinyali kesilen > bitiren > boşta; eşitse en yeni
+function best(list, now){
+  return list.slice().sort(function(a, b){
+    var va = view(a, now), vb = view(b, now);
+    return (PRIO[va] - PRIO[vb]) || ((b.at || 0) - (a.at || 0));
+  })[0];
+}
+
+function deskCard(name, role, x, v, now, wide){
+  var card = el("section", "desk" + (wide ? " wide" : "")), top = el("div", "top"), h = el("h2", "", name);
+  if (role) h.appendChild(el("span", "role", role));
+  top.append(h, badge(v));
+  var last = el("p", "last" + (x && x.last ? "" : " empty"), x && x.last ? x.last : (v === "henuz" ? "Bu oturumda henüz görev almadı." : "Henüz sinyal gelmedi."));
+  var when = el("div", "when", stamp(x, now));
+  if (v === "bilinmiyor" && x && x.status === "calisiyor") when.textContent += " · sinyal kesildi";
+  card.append(top, last, when);
+  return card;
+}
+
+function othersCard(list, now, started){
+  var card = el("section", "desk wide"), top = el("div", "top"), h = el("h2", "", "Diğer ajanlar");
+  h.appendChild(el("span", "role", "Adı tanımlı olmayan ajanlar (tür ve son iş)"));
+  var v = "henuz";
+  if (list.length) v = view(best(list, now), now);
+  else if (!started) v = "bilinmiyor";
+  top.append(h, badge(v));
+  card.appendChild(top);
+  if (!list.length){ card.appendChild(el("p", "last empty", started ? "Bu oturumda tanımsız ajan çalışmadı." : "Henüz sinyal gelmedi.")); return card; }
+  var ul = el("ul", "rows");
+  list.slice().sort(function(a, b){ return (b.at || 0) - (a.at || 0); }).slice(0, 6).forEach(function(a){
+    var li = el("li"), r1 = el("div", "r1"), ty = el("span", "ty", a.type || "tür belirtilmemiş");
+    if (a.inferred) ty.appendChild(el("small", "", " (istekten tahmin)"));
+    r1.append(ty, badge(view(a, now)));
+    li.append(r1, el("p", "tx", a.last || "—"), el("div", "wh", stamp(a, now)));
+    ul.appendChild(li);
+  });
+  card.appendChild(ul);
+  return card;
+}
+
+function render(state, cfg){
+  var now = Date.now() / 1000, started = !!(state && state.updated), desks = (state && state.desks) || {};
+  var ags = state && state.agents ? Object.keys(state.agents).map(function(k){ var a = state.agents[k]; a.id = k; return a; }) : [];
+  var known = {}, cards = [];
+  (cfg.desks || []).forEach(function(c){
+    known[c.id] = 1;
+    if (c.id === "ana"){
+      var x = desks.ana; cards.push(deskCard(c.name, c.role, x, x ? view(x, now) : (started ? "henuz" : "bilinmiyor"), now));
+      return;
+    }
+    var mine = ags.filter(function(a){ return a.type === c.id; });
+    if (mine.length){ var b = best(mine, now); cards.push(deskCard(c.name, c.role, b, view(b, now), now)); }
+    else cards.push(deskCard(c.name, c.role, null, started ? "henuz" : "bilinmiyor", now));
+  });
+  var others = ags.filter(function(a){ return !known[a.type]; });
+  cards.push(othersCard(others, now, started));
+  grid.replaceChildren.apply(grid, cards);
+
+  // hook'ların gerçek verisi
+  var log = document.getElementById("log"), keys = document.getElementById("keys"), ks = (state && state.keys) || {};
+  keys.textContent = Object.keys(ks).length ? "Görülen olaylar ve alan adları: " + Object.keys(ks).map(function(k){ return k + " (" + ks[k].join(", ") + ")"; }).join(" · ") : "Henüz hiç olay gelmedi.";
+  log.replaceChildren.apply(log, ((state && state.log) || []).slice().reverse().slice(0, 20).map(function(l){
+    var tr = el("tr"); [clock(l.t), l.e, l.who + (l.agent ? " (alt ajan)" : ""), l.tool || ""].forEach(function(c){ tr.appendChild(el("td", "", c)); }); return tr;
+  }));
+  if (started){
+    var a = now - state.updated; conn.textContent = "son sinyal " + ago(a); conn.className = "pill" + (a > 900 ? " bad" : "");
+  } else { conn.textContent = "hiç sinyal yok"; conn.className = "pill bad"; }
+}
+
+function get(url){ return fetch(url + "?t=" + Date.now(), { cache: "no-store" }).then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); }); }
+var cfg = { desks: [] };
+function tick(){
+  Promise.all([get("agents.json").catch(function(){ return cfg; }), get("durum.json").catch(function(){ return null; })]).then(function(res){
+    cfg = res[0]; render(res[1], cfg);
+    if (!res[1]) { conn.textContent = "durum.json yok: hook çalışmadı mı?"; conn.className = "pill bad"; }
+  }).catch(function(){ conn.textContent = "sunucuya ulaşılamıyor"; conn.className = "pill bad"; });
+}
+tick(); setInterval(tick, 3000);
+</script>
+</body>
+</html>

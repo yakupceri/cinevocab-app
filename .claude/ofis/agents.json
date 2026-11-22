@@ -1,0 +1,11 @@
+{
+  "desks": [
+    { "id": "ana", "name": "Claude (ana oturum)", "role": "Ana oturum" },
+    { "id": "tasarimci", "name": "Tasarımcı", "role": "Arayüzü çizer ve koda döker" },
+    { "id": "elestirmen", "name": "Eleştirmen", "role": "Tasarımı okur, kod değiştirmez" },
+    { "id": "denetci", "name": "Denetçi", "role": "Arayüz kurallarını denetler" },
+    { "id": "hesap-denetcisi", "name": "Hesap denetçisi", "role": "XP, seri, SRS hesaplarını testler" },
+    { "id": "planlayici", "name": "Planlayıcı", "role": "Fikri küçük adımlara böler" },
+    { "id": "yayin-kontrol", "name": "Yayın kontrolü", "role": "Mağazaya yüklemeden önce denetler" }
+  ]
+}
