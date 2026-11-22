@@ -13,7 +13,7 @@ Learn a language from the shows you watch. Every subtitle word is translated liv
 ### Description
 Stop pausing to look up words. Watch your show, and CineVocab puts the translation of every subtitle word right on the video.
 
-Click a word to keep it. Your words stay on your device, no account needed. When you create a free account, the words you kept move to it, and quizzes, streaks and duels unlock.
+Click a word to keep it. Your words stay on your device, no account needed. When you create a free account, the words you kept are copied to it, and quizzes, streaks and duels unlock.
 
 Works on Prime Video, YouTube, Netflix and Udemy, and on other sites with the "Turn on for this site" button. Free.
 
@@ -32,7 +32,7 @@ After a fresh install, CineVocab does nothing until you switch it on, from the w
 WHILE YOU WATCH
 - Any language pair, for example Spanish to English, French to English or Turkish to English
 - 16 subtitle languages: Turkish, English, French, Italian, German, Spanish, Portuguese, Russian, Arabic, Romanian, Japanese, Hindi, Indonesian, Polish, Dutch and Korean
-- Extension interface in 9 languages
+- Extension interface in 9 languages (the practice screens are in English, Turkish and Spanish; the other languages fall back to English)
 - Language guard: pauses when the subtitles are not in the language you chose
 - Move the subtitle box anywhere on the video, resize it and set its transparency
 - Pull the words out of a whole YouTube video at once (free account needed)
@@ -47,7 +47,7 @@ PRACTISE WHAT YOU KEPT (no account needed)
 - The toolbar icon shows how many words are ready to review
 
 WITH A FREE ACCOUNT (on the CineVocab website and in the popup)
-- The words you kept on this device moved to your account, grouped by platform, show and episode
+- The words you kept on this device are copied to your account, grouped by platform, show and episode
 - Quizzes with levels, streaks and daily goals
 - Daily challenge: the same words for everyone, once a day
 - Private friend leagues and live duels with a 4-digit room code
@@ -55,14 +55,14 @@ WITH A FREE ACCOUNT (on the CineVocab website and in the popup)
 PRIVACY
 After you switch it on, the extension sends the subtitle line it reads to our server, and from there to Google Translate, to be translated. The subtitle sentence is not saved in our database. The individual words and their translations are saved to a shared translation dictionary (not linked to your name), together with the title and thumbnail address of the video they came from. Words you click are kept on your device, together with the subtitle line they appeared in and its translation, so practice can ask fill-in-the-blank questions. That copy of the line stays on your device. When you create or sign in to an account, the kept words (without those lines) are sent to it, and from then on the words you see are saved to your account. We also keep simple anonymous usage counters (such as daily request counts, approximate country, device type and operating system) to see whether the extension is used; they are not linked to an account. We never sell your data. You can delete your account and all your data at any time. Full policy: https://cinevocab.up.railway.app/privacy
 
-CineVocab is an independent project. It is not affiliated with or endorsed by Amazon, Prime Video, Google, YouTube, Netflix or Udemy.
+CineVocab is an independent project. It is not affiliated with or endorsed by any of the sites or services it works with.
 
 ### Other fields
 - Category: Education
 - Language: English (add Turkish as an extra language with LISTING_TR.md)
 - Website: https://cinevocab.up.railway.app
 - Support: use your support email or the contact page on the site
-- Graphics: ready in dev/out/release-2.3.0/ (5 screenshots 1280x800, small promo tile 440x280, marquee 1400x560; store icon is extension/icons/icon128.png). Promo video: upload dev/out/release-2.3.0/cinevocab-store-wide.mp4 to YouTube and paste its link.
+- Graphics: ready in dev/out/release-2.3.0/ (5 screenshots 1280x800, small promo tile 440x280, marquee 1400x560; store icon is extension/icons/icon128.png). Promo video: upload dev/out/release-2.3.0/cinevocab-promo-video-16x9.mp4 to YouTube and paste its link.
 
 ## Privacy tab
 
@@ -72,9 +72,9 @@ Translate the subtitle words of videos as the user watches (after the user switc
 ### Permission justifications
 - storage: Saves the on/off switch, the chosen language pair, the subtitle box settings, the words the user keeps on their device (with the subtitle line they came from), a small cache of already translated words so they show up faster, and the optional sign-in key.
 - identity: Optional "Continue with Google" sign-in. Opens Google's sign-in window and asks only for basic profile (openid, profile); no email address is requested.
-- scripting: Starts the translation box on a site only after the user presses "Turn on for this site", and reads the addresses of the large video frames on the open page so the box also works in embedded players.
+- scripting: Starts the translation box on a site only after the user presses "Turn on for this site", and reads the addresses of the large video frames on the open page so the box also works in embedded players. Right after install it also reads the friend-invite name that the CineVocab website left in an already open CineVocab tab.
 - activeTab: Lets the popup see the address of the open tab, and enable CineVocab on it only when the user asks.
-- Host permission (https://cinevocab.up.railway.app/*): Sends the subtitle line to the CineVocab server to be translated, and saves the user's words to their account there.
+- Host permission (https://cinevocab.up.railway.app/*): Sends the subtitle line to the CineVocab server to be translated, and saves the user's words to their account there. On the CineVocab website, a small script also connects the signed-in account to the extension.
 - Optional host permissions (https://*/*, http://*/*): Not granted at install. Asked for one site at a time, only when the user presses "Turn on for this site", for that site and its video player's domain.
 - Content script sites (primevideo.com, youtube.com, udemy.com, netflix.com): Reads the subtitle line that the video player is showing, so each word can be translated and shown in a box on top of the video.
 
@@ -85,13 +85,14 @@ No, I am not using remote code. (All JavaScript is inside the extension package.
 Tick these data types:
 - Authentication information (the optional sign-in key)
 - Website content (subtitle text, plus the title and thumbnail address of the video the words came from)
+- Personally identifiable information (the username the user chooses when creating an account; check the Dashboard definition and tick it if it applies)
 
 Tick all three statements: I do not sell user data to third parties; I do not use or transfer user data for purposes unrelated to the item's single purpose; I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
 Privacy policy URL: https://cinevocab.up.railway.app/privacy
 
 ### Notes for the reviewer (Test instructions field)
-Translation is off after install and works without an account. Open the welcome page (it opens at install), keep Spanish to English selected, and press "Watch a Spanish video". This switches the extension on and opens YouTube search results filtered for captions. Open any video with Spanish captions, press CC if needed, and each subtitle word appears with its translation in a box on the video. Click a word to keep it: it appears under the extension icon, in the Words tab, without signing in. An account is optional (free sign-up in the popup). To see the practice: keep 4 words, open the toolbar popup and press Practice; fill-in-the-blank questions appear from the second review of a word (press "Practise anyway" to get there in the same session).
+Translation is off after install and works without an account. Open the welcome page (it opens at install), keep Spanish to English selected, and press "Find Spanish videos with captions". This switches the extension on and opens YouTube search results filtered for captions. Open any video with Spanish captions, press CC if needed, and each subtitle word appears with its translation in a box on the video. Click a word to keep it: it appears under the extension icon, in the Words tab, without signing in. An account is optional (free sign-up in the popup). To see the practice: keep 4 words, open the toolbar popup and press Practice; fill-in-the-blank questions appear from the second review of a word (press "Practise anyway" to get there in the same session).
 
 ## What changed since 2.0.3 (for your own notes; the store has no field for it)
 - 2.3: fill-in-the-blank questions in the line you heard the word in, a sentence-builder bonus, a "Sentence practice" card for signed-in users, kept words shown as a yellow highlight (no underline), progress bar and "up next" words on the practice start screen, a short animation when a word is learned.

@@ -8,7 +8,7 @@ Bu metin yalnızca kodun yaptığını söyler; ad ve özette üçüncü taraf m
 ## Açıklama
 İzlerken kelime aramak için durmak yok. Dizini izle, CineVocab her altyazı kelimesinin çevirisini doğrudan videonun üstünde göstersin.
 
-Bir kelimeye tıkla, tutulsun. Kelimelerin cihazında kalır, hesap gerekmez. Ücretsiz hesap açtığında tuttuğun kelimeler hesabına taşınır; quiz, seri ve düello açılır.
+Bir kelimeye tıkla, tutulsun. Kelimelerin cihazında kalır, hesap gerekmez. Ücretsiz hesap açtığında tuttuğun kelimeler hesabına kopyalanır; quiz, seri ve düello açılır.
 
 Prime Video, YouTube, Netflix ve Udemy'de, ayrıca "Bu sitede aç" düğmesiyle başka sitelerde çalışır. Ücretsiz.
 
@@ -27,7 +27,7 @@ Yeni kurulumdan sonra CineVocab, karşılama sayfasındaki düğmeye, araç çub
 İZLERKEN
 - Her dil çiftiyle çalışır, örneğin İspanyolca → İngilizce, Fransızca → İngilizce, Türkçe → İngilizce
 - 16 altyazı dili: Türkçe, İngilizce, Fransızca, İtalyanca, Almanca, İspanyolca, Portekizce, Rusça, Arapça, Rumence, Japonca, Hintçe, Endonezce, Lehçe, Felemenkçe ve Korece
-- Eklenti arayüzü 9 dilde
+- Eklenti arayüzü 9 dilde (alıştırma ekranları İngilizce, Türkçe ve İspanyolca; diğer dillerde İngilizceye döner)
 - Dil koruması: altyazı seçtiğin dilde değilse çeviriyi durdurur
 - Altyazı kutusunu videonun üstünde istediğin yere taşı, boyutunu ve saydamlığını ayarla
 - Bir YouTube videosunun tüm kelimelerini tek seferde çıkar (ücretsiz hesap gerekir)
@@ -42,7 +42,7 @@ TUTTUĞUN KELİMELERLE ÇALIŞ (hesap gerekmez)
 - Araç çubuğu simgesi kaç kelimenin tekrar beklediğini gösterir
 
 ÜCRETSİZ HESAPLA (CineVocab sitesinde ve açılır pencerede)
-- Cihazda tuttuğun kelimeler hesabına taşınır; platform, dizi ve bölüme göre gruplanır
+- Cihazda tuttuğun kelimeler hesabına kopyalanır; platform, dizi ve bölüme göre gruplanır
 - Seviye, seri ve günlük hedefli quiz'ler
 - Günlük meydan okuma: herkese günde bir kez aynı kelimeler
 - Özel arkadaş ligleri ve 4 haneli kodla canlı düello
@@ -50,7 +50,7 @@ TUTTUĞUN KELİMELERLE ÇALIŞ (hesap gerekmez)
 GİZLİLİK
 Eklentiyi açtıktan sonra, okuduğu altyazı satırını çevrilmek üzere sunucumuza, oradan da Google Translate'e gönderir. Altyazı cümlesi veritabanımıza kaydedilmez. Tek tek kelimeler ve çevirileri, geldikleri videonun adı ve küçük resim adresiyle birlikte, adına bağlı olmayan ortak bir çeviri sözlüğüne kaydedilir. Tıkladığın kelimeler, geçtikleri altyazı satırı ve çevirisiyle birlikte cihazında tutulur; alıştırma bu satırla boşluk doldurma soruları sorar. Bu satır kopyası cihazında kalır. Hesap açtığında ya da giriş yaptığında tutulan kelimeler (bu satırlar olmadan) hesabına gönderilir, bundan sonra gördüğün kelimeler hesabına kaydedilir. Ayrıca eklentinin kullanılıp kullanılmadığını görmek için anonim kullanım sayaçları tutarız (günlük istek sayısı, yaklaşık ülke, cihaz türü ve işletim sistemi gibi); bunlar bir hesapla ilişkilendirilmez. Verilerini asla satmayız. Hesabını ve tüm verilerini istediğin zaman silebilirsin. Tam metin: https://cinevocab.up.railway.app/privacy
 
-CineVocab bağımsız bir projedir. Amazon, Prime Video, Google, YouTube, Netflix veya Udemy ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.
+CineVocab bağımsız bir projedir. çalıştığı sitelerin ve hizmetlerin hiçbiriyle bağlantılı değildir ve onlar tarafından onaylanmamıştır.
 
 ## İzin gerekçeleri (Gizlilik sekmesi)
 - storage: Açma/kapama düğmesini, dil çiftini, kutu ayarlarını, kullanıcının cihazında tuttuğu kelimeleri (geçtikleri altyazı satırıyla), daha önce çevrilen kelimelerin daha hızlı görünmesi için küçük bir çeviri önbelleğini ve isteğe bağlı giriş anahtarını saklar.

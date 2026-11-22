@@ -20,10 +20,17 @@ Yeniden üretmek: `cd dev && node harness/store-art.mjs 2.3.0` (görseller), `no
    - *English (default)*: Description, kısa özet ve diğer alanlar `LISTING_EN.md`'den; *Turkish*: `LISTING_TR.md`'den.
    - Graphic assets: yukarıdaki tablo. Screenshot'ları 01 → 05 sırasıyla ekle.
    - Global promo video: YouTube linki (aşağıdaki başlık/açıklama ile yükle, "Unlisted" ya da "Public" olabilir; mağaza her ikisini de gösterir).
-3. **Privacy practices**: single purpose, izin gerekçeleri, "Remote code: No", data usage ve politika adresi `LISTING_EN.md`'nin "Privacy tab" bölümünden aynen. Bu sürümde değişen tek şey storage gerekçesine eklenen çeviri önbelleği cümlesidir.
+3. **Privacy practices**: single purpose, izin gerekçeleri, "Remote code: No", data usage ve politika adresi `LISTING_EN.md`'nin "Privacy tab" bölümünden aynen. Storage gerekçesini bütünüyle yeni metinle yapıştır: 2.0.3'e göre yeni olan şeyler cihazdaki kelime ve altyazı satırı, tekrar ilerlemesi ve çeviri önbelleğidir. Data usage'ta "Personally identifiable information (kullanıcı adı)" kutusunu Dashboard'daki tanıma bakarak işaretle.
 4. **Test instructions** alanını `LISTING_EN.md`'deki "Notes for the reviewer" paragrafıyla doldur (cümle alıştırmasını nasıl göreceği de yazılı).
 5. *Distribution*: Public. *Publishing options*: **Defer publishing** önerilir; onaydan sonra istediğin an "Publish" dersin (site önbellek düzeltmesiyle zamanlamak için).
 6. **Submit for review**.
+
+## Göndermeden ÖNCE (bağımsız denetimin bulgusu)
+Paket temiz ve olduğu gibi yüklenebilir. Ama **gizlilik sayfası (`/privacy`) eklentinin ve mağaza metninin söylediğiyle uyuşmuyor**; mağaza politikası bu durumda eklentiyi kaldırabilir. `accounts.py`'daki metne şunlar eklenmeli (sunucu dosyası, push ile yeniden dağıtılır):
+1. Cihaz türü ve işletim sistemi, günlük ziyaretçi kaydıyla saklanır; hesaba bağlanmaz.
+2. Yerel depolama paragrafı: eklenti cihazda anahtarını ve ayarlarını, tuttuğun kelimeleri (geçtiği altyazı satırı ve çevirisiyle), tekrar ilerlemeni ve çeviri önbelleğini saklar. Hesap açınca kelimeler (satırlar olmadan) hesabına kopyalanır.
+3. Limited Use cümlesi: "The use of information received from Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements."
+4. "Son güncelleme" tarihi.
 
 ## Dikkat edilecekler
 - Ad ve kısa özette üçüncü taraf marka adı geçmemeli (2.0.x bu yüzden bir kez reddedilmişti). Mevcut metinler temiz.
