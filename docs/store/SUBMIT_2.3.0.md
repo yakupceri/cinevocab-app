@@ -58,7 +58,7 @@ Free. No account to start.
 Install (free): https://cinevocab.up.railway.app/install?src=yt-en&hl=en
 Website: https://cinevocab.up.railway.app
 
-#learnspanish #chromeextension #languagelearning #learnenglish #subtitles #vocabulary
+#learnspanish #chromeextension #languagelearning #learnenglish #subtitles #vocabulary #youtubesubtitles #spanishlearning #englishlearning #spacedrepetition #flashcards #languagelearningtips #learnwithnetflix #learnwithyoutube #freeextension
 ```
 **Etiketler:** learn spanish, language learning, chrome extension, subtitles, vocabulary, spaced repetition, learn english, flashcards, youtube subtitles, youtube translator
 
@@ -83,7 +83,7 @@ CineVocab, YouTube'da (altyazısı olan her videoda), Prime Video'da, Netflix'te
 Kur (ücretsiz): https://cinevocab.up.railway.app/install?src=yt-tr&hl=tr
 Web sitesi: https://cinevocab.up.railway.app
 
-#ingilizceöğren #chromeeklentisi #dilöğrenme #altyazı #kelimeöğrenme #diziizle
+#ingilizceöğren #chromeeklentisi #dilöğrenme #altyazı #kelimeöğrenme #diziizle #youtubealtyazı #ingilizcekelime #kelimeezberi #dizilerleingilizce #aralıklıtekrar #ingilizce #eklenti #ücretsiz #netflixingilizce
 ```
 **Etiketler:** ingilizce öğren, dil öğrenme, chrome eklentisi, altyazı, kelime öğrenme, dizi izleyerek ingilizce, youtube altyazı çeviri, aralıklı tekrar
 
