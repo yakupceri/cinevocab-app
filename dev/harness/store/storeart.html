@@ -92,11 +92,20 @@ if (K === "shot") {
     <div class="abs sub" style="left:70px;top:420px;width:600px;font-size:28px">${T.mq[1]}</div>
     ${frame("chips.png", 760, 70, 700, 490, 0, 0, 700)}</div>`;
 } else if (K === "thumb") {
-  W = 1280; Hh = 720; th = "y";
-  html = `<div class="cv y" style="width:1280px;height:720px">${holes}
-    <div class="abs" style="left:64px;top:90px;width:${LANG === "tr" ? 700 : 940}px">${H(T.th[0]).replace('class="h"', `class="h" style="font-size:${LANG === "tr" ? 92 : 76}px;line-height:1.04"`)}<div class="sub" style="font-size:34px;margin-top:26px">${T.th[1]}</div></div>
-    <img src="${ICON}" class="abs" style="left:64px;bottom:60px;width:96px;height:96px;border-radius:22px;box-shadow:0 14px 30px rgba(0,0,0,.28)">
-    ${frame("kept.png", 630, 292, 660, 462, 0, 0, 660)}</div>`;
+  W = 1280; Hh = 720; th = "k";
+  // dikkat çekici kapak: iri üç satır büyük harf, sarı vurgu, büyütülmüş altyazı kutusu, kırmızı halka, ücretsiz etiketi
+  const C = LANG === "tr"
+    ? { lines: ["DİZİ İZLE", "İNGİLİZCE", "*ÖĞREN*"], free: "ÜCRETSİZ", crop: { x: 960, y: 872, w: 600, h: 380 }, ring: { x: 1322, y: 892, w: 172, h: 118 } }
+    : { lines: ["EVERY WORD", "TRANSLATED", "*INSTANTLY*"], free: "FREE", crop: { x: 1020, y: 872, w: 760, h: 380 }, ring: { x: 1530, y: 892, w: 214, h: 118 } };
+  const bw = 580, k = bw / C.crop.w, bh = Math.round(C.crop.h * k), bx = 672, by = 186;
+  const hl = C.lines.map((l) => l.startsWith("*") ? `<span style="background:#FFD42B;color:#111110;padding:0 .12em;border-radius:.14em">${l.replace(/\*/g, "")}</span>` : l).join("<br>");
+  const rg = C.ring;
+  html = `<div class="cv k" style="width:1280px;height:720px">
+    <div class="abs" style="left:56px;top:40px;display:flex;align-items:center;gap:14px;font:800 36px/1 'CV Display',sans-serif"><img src="${ICON}" style="width:64px;height:64px;border-radius:15px">CineVocab</div>
+    <div class="abs" style="left:56px;top:${LANG === 'tr' ? 150 : 170}px;width:640px;font:800 ${LANG === 'tr' ? 112 : 92}px/1.02 'CV Display',sans-serif;letter-spacing:-.03em">${hl}</div>
+    <div class="shot" style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;border-radius:20px;box-shadow:0 0 0 6px #FFD42B, 0 30px 60px rgba(0,0,0,.5)"><img src="${A}kept.png" style="left:${-C.crop.x * k}px;top:${-C.crop.y * k}px;width:${2000 * k}px"></div>
+    <div class="abs" style="left:${bx + (rg.x - C.crop.x) * k - 10}px;top:${by + (rg.y - C.crop.y) * k - 10}px;width:${rg.w * k + 20}px;height:${rg.h * k + 20}px;border:9px solid #E5322D;border-radius:50%"></div>
+    <div class="abs" style="left:56px;bottom:46px;padding:14px 34px;border-radius:99px;background:#FFD42B;color:#111110;font:800 44px/1 'CV Display',sans-serif;letter-spacing:.02em;transform:rotate(-3deg)">${C.free}</div></div>`;
 }
 document.body.innerHTML = html; document.documentElement.style.width = W + "px"; document.documentElement.style.height = Hh + "px";
 document.title = "ready";
