@@ -12,7 +12,7 @@
     --bg:#0d0d0c; --bg2:#121210; --panel:#171715; --panel2:#1f1f1c; --ink:#f3efe6; --dim:#a8a296; --faint:#8f897d;
     --line:rgba(243,239,230,.10); --line2:rgba(243,239,230,.20);
     --accent:#ffd42b; --accent-ink:#171400;
-    --c-site:#5cc8e8; --c-ext:#62d394; --c-click:#ff7a45; --c-reg:#ffd42b; --c-anon:#a99cff; --c-mute:#6f6a60;
+    --c-site:#5cc8e8; --c-ext:#62d394; --c-click:#ff7a45; --c-reg:#ffd42b; --c-anon:#a99cff; --c-video:#ff8fb1; --c-mute:#6f6a60;
     --ok:#62d394; --bad:#ff6b5b; --warn:#ffd42b;
   }
   * { box-sizing: border-box; }
@@ -87,7 +87,7 @@
   td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
 
   /* ---- sayı kartları ---- */
-  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:16px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:12px; margin-bottom:16px; }
   .kpi { position:relative; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px 0; min-height:132px; display:flex; flex-direction:column; }
   .kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c, var(--accent)); }
   .k-lab { color:var(--dim); font-size:12.5px; }
@@ -133,7 +133,8 @@
   .meter { display:flex; height:10px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.05); margin-top:12px; } .meter i { display:block; height:100%; }
   .keys { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--dim); }
   .key i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; vertical-align:-1px; background:var(--c); }
-  .tag.s-click { color:var(--c-click); border-color:rgba(255,122,69,.5); } .tag.s-site { color:var(--c-site); border-color:rgba(92,200,232,.5); } .tag.s-ext { color:var(--c-ext); border-color:rgba(98,211,148,.5); }
+  .tag.s-click { color:var(--c-click); border-color:rgba(255,122,69,.5); } .tag.s-site { color:var(--c-site); border-color:rgba(92,200,232,.5); } .tag.s-ext { color:var(--c-ext); border-color:rgba(98,211,148,.5); } .tag.s-video { color:var(--c-video); border-color:rgba(255,143,177,.5); }
+  .subh { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:18px 0 0; font-size:12.5px; color:var(--dim); } .subh:first-of-type { margin-top:10px; }
   .today { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:16px; padding:14px 18px; margin-bottom:12px; }
   .today > b { font-size:12.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); }
   .today span { color:var(--dim); } .today span b { color:var(--ink); font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; margin-right:5px; letter-spacing:-.01em; }
@@ -279,7 +280,7 @@ function openTab(name, btn) {
 }
 
 // ---------- Renkler, sayı biçimi ----------
-const C = { site: "var(--c-site)", ext: "var(--c-ext)", click: "var(--c-click)", reg: "var(--c-reg)", anon: "var(--c-anon)", mute: "var(--c-mute)" };
+const C = { video: "var(--c-video)", site: "var(--c-site)", ext: "var(--c-ext)", click: "var(--c-click)", reg: "var(--c-reg)", anon: "var(--c-anon)", mute: "var(--c-mute)" };
 const DEV = { telefon: ["Telefon", "#f1ecdf"], bilgisayar: ["Bilgisayar", "#a8a296"], tablet: ["Tablet", "#6f6a60"] };
 const UNK = "#3f3c37";
 const DEVS = ["telefon", "bilgisayar", "tablet"];
@@ -475,23 +476,28 @@ async function viewTraffic() {
       sub: h("span", {}, "kişi değil, istek sayısı · tüm isteklerin ", h("b", {}, "%" + pct(anon, calls)), days > 14 ? " (son 14 gün)" : "") }));
     anonReq = byAge[13];
   }
-  kp.push(kpi({ label: "Mağaza linki tıklaması", value: T.clicks || 0, color: C.click, spark: col("clicks"), sub: todayYest("clicks") }),
-    kpi({ label: "Yeni kayıt", value: T.signups || 0, color: C.reg, spark: col("signups"), sub: todayYest("signups") }));
+  kp.push(kpi({ label: "Mağaza linki tıklaması", value: T.clicks || 0, color: C.click, spark: col("clicks"), sub: todayYest("clicks") }));
+  if (T.video != null) kp.push(kpi({ label: "Video tıklaması", value: T.video, color: C.video, spark: col("video"), sub: todayYest("video") }));
+  kp.push(kpi({ label: "Yeni kayıt", value: T.signups || 0, color: C.reg, spark: col("signups"), sub: todayYest("signups") }));
 
   const bits = [[last.site, "siteye girdi"], [last.ext, "eklentiyi kullandı"]];
   if (last.ext_anon != null) bits.push([last.ext_anon, "hesapsız kullandı"]);
   else if (anonReq != null) bits.push([anonReq, "hesapsız çeviri isteği"]);
-  bits.push([last.clicks, "mağaza linkine tıkladı"], [last.signups, "kayıt oldu"]);
+  bits.push([last.clicks, "mağaza linkine tıkladı"]);
+  if (last.video != null) bits.push([last.video, "videoya tıkladı"]);
+  bits.push([last.signups, "kayıt oldu"]);
   const todayStrip = h("div", { class: "today", role: "group", "aria-label": "Bugünün sayıları" }, h("b", {}, "Bugün"),
     bits.map(([n, t]) => h("span", {}, h("b", {}, fmt(n || 0)), t)), h("span", { class: "faint" }, "saat " + (d.now || "").slice(11, 16) + "'e kadar"));
   const hrs = d.hours || { site: [], clicks: [] }, nowH = Number((d.now || "").slice(11, 13));
   const hsum = Array.from({ length: 24 }, (_, i) => (hrs.site[i] || 0) + (hrs.clicks[i] || 0)), peak = hsum.indexOf(Math.max(...hsum));
-  const srcRows = (d.sources || []).map((r) => ({ label: r.src, total: r.n,
+  const srcOf = (kind) => (d.sources || []).filter((r) => (r.kind || "ext") === kind).map((r) => ({ label: r.src, total: r.n,
     sub: (DEVS.map((k) => r[k] ? DEV[k][0] + " " + r[k] : "").filter(Boolean).join(" · ")) || "",
     parts: [...devParts(r), [Math.max(0, r.n - DEVS.reduce((a, k) => a + r[k], 0)), UNK, "Cihaz bilinmiyor"]] }));
+  const extRows = srcOf("ext"), vidRows = srcOf("video");
   const refRows = (d.referrers || []).map((r) => ({ label: r.ref || "Doğrudan / bilinmiyor", total: r.n, parts: [[r.n, r.ref ? C.reg : C.mute]] }));
   const cty = countryRows(d.countries || []);
-  const seriesTop = [{ key: "site", label: "Siteye giren", color: C.site }, { key: "ext", label: "Eklentiyi kullanan", color: C.ext }, { key: "clicks", label: "Link tıklaması", color: C.click }];
+  const seriesTop = [{ key: "site", label: "Siteye giren", color: C.site }, { key: "ext", label: "Eklentiyi kullanan", color: C.ext }, { key: "clicks", label: "Mağaza linki", color: C.click }];
+  if (daily.some((x) => x.video != null)) seriesTop.push({ key: "video", label: "Tanıtım videosu", color: C.video });
   const regSeries = [{ key: "signups", label: "Yeni kayıt", color: C.reg }];
   if (daily.some((x) => x.ext_anon != null)) regSeries.push({ key: "ext_anon", label: "Hesapsız kullanan", color: C.anon });
 
@@ -527,16 +533,20 @@ async function viewTraffic() {
       h("div", { class: "panel" }, h("h3", {}, "Yeni kayıt" + (regSeries.length > 1 ? " ve hesapsız kullanan" : "")), h("p", { class: "sub" }, "Son 14 gün"),
         trendChart(daily, regSeries, { type: "cols", height: 190, label: "Kayıtlar" }))),
     h("div", { class: "grid2" },
-      h("div", { class: "panel" }, h("h3", {}, "Hangi linkten tıkladılar?"), h("p", { class: "sub" }, "?src= etiketli bağlantılar (/install ve /get)"),
-        hbars(srcRows, "Henüz tıklama yok. Linki şöyle kullan: /install?src=reddit"),
-        h("div", { class: "keys" }, DEVS.map((k) => h("span", { class: "key", style: "--c:" + DEV[k][1] }, h("i"), DEV[k][0])), h("span", { class: "key", style: "--c:" + UNK }, h("i"), "Cihaz bilinmiyor"))),
+      h("div", { class: "panel" }, h("h3", {}, "Hangi linkten tıkladılar?"),
+        h("div", { class: "subh" }, h("span", { class: "tag s-ext" }, "Eklenti linki"), "/get?src=… · Chrome Web Mağazası'na gider"),
+        hbars(extRows, "Henüz tıklama yok. Linki şöyle kullan: /get?src=reddit"),
+        h("div", { class: "subh" }, h("span", { class: "tag s-video" }, "Tanıtım videosu"), "/video?src=… · YouTube'a gider"),
+        hbars(vidRows, "Henüz video tıklaması yok. Linki şöyle kullan: /video?src=quora-es"),
+        h("div", { class: "keys" }, DEVS.map((k) => h("span", { class: "key", style: "--c:" + DEV[k][1] }, h("i"), DEV[k][0])), h("span", { class: "key", style: "--c:" + UNK }, h("i"), "Cihaz bilinmiyor")),
+        h("p", { class: "hint" }, "Etiket küçük harf, rakam, \"-\" ve \"_\" olabilir, en çok 24 karakter. İkisinde aynı etiketi kullan (ör. quora-es), böylece aynı yerden gelen eklenti ve video tıklamalarını yan yana görürsün.")),
       h("div", { class: "panel" }, h("h3", {}, "Siteye hangi siteden geldiler?"), hbars(refRows, "Henüz veri yok."),
         h("p", { class: "hint" }, "Yalnızca site adı tutulur (ör. google.com). Doğrudan = adresi yazdı, kısayoldan girdi ya da site adı gizlendi."))),
     h("div", { class: "panel" }, h("h3", {}, "Son girenler ", h("span", { class: "dim" }, "(son 15 hareket)")),
       (d.recent || []).length ? h("div", { class: "wrap" }, h("table", {},
         h("tr", {}, ["Saat", "Olay", "Nereden", "Cihaz", "Ülke"].map((t) => h("th", {}, t))),
         d.recent.slice(0, 15).map((r) => h("tr", {}, h("td", { class: "dim dev" }, r.at),
-          h("td", {}, h("span", { class: "tag " + (r.kind === "tıklama" ? "s-click" : r.kind === "eklenti" ? "s-ext" : "s-site") }, r.kind === "tıklama" ? "link tıkladı" : r.kind === "eklenti" ? "eklenti" : "siteye girdi")),
+          h("td", {}, h("span", { class: "tag " + (r.kind === "tıklama" ? "s-click" : r.kind === "video" ? "s-video" : r.kind === "eklenti" ? "s-ext" : "s-site") }, r.kind === "tıklama" ? "link tıkladı" : r.kind === "video" ? "video tıkladı" : r.kind === "eklenti" ? "eklenti" : "siteye girdi")),
           h("td", {}, r.what || h("span", { class: "dim" }, r.kind === "eklenti" ? "—" : "doğrudan / bilinmiyor")),
           h("td", { class: "dev" }, r.device ? (DEV[r.device] ? DEV[r.device][0] : r.device) + (r.os ? " · " + r.os : "") : h("span", { class: "dim" }, "—")),
           h("td", {}, countryLabel(r.country || "?"))))))

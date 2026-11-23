@@ -2,6 +2,7 @@
 // Kullanım (dev/ klasöründen):  node admin-harness/shots.mjs [--anon] [--vp desktop|mobile] [--tab "Ziyaretçiler"] [--days 7] [--empty]
 //   --anon  : sunucu "ext_anon/ext_acct" alanlarını da veriyormuş gibi davran (ileride eklenecek sayaç)
 //   --empty : hiç veri yokmuş gibi (boş durumlar)
+//   --novideo : eski sunucu gibi (video alanları yok) ya da henüz video tıklaması yok
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ const root = path.resolve(here, "../..");
 const out = path.resolve(here, "../out/admin");
 fs.mkdirSync(out, { recursive: true });
 const arg = (k, d) => { const i = process.argv.indexOf("--" + k); return i < 0 ? d : (process.argv[i + 1] && !process.argv[i + 1].startsWith("--") ? process.argv[i + 1] : true); };
-const ANON = !!arg("anon", false), EMPTY = !!arg("empty", false), VP = arg("vp", "desktop"), ONLY = arg("tab", ""), DAYS = Number(arg("days", 7)) || 7;
+const ANON = !!arg("anon", false), EMPTY = !!arg("empty", false), NOVIDEO = !!arg("novideo", false), VP = arg("vp", "desktop"), ONLY = arg("tab", ""), DAYS = Number(arg("days", 7)) || 7;
 const html = fs.readFileSync(path.join(root, "templates/admin.html"), "utf8");
 
 // ---------- sahte veri ----------
@@ -25,12 +26,13 @@ const site = z([62, 71, 58, 90, 84, 66, 73, 120, 108, 95, 141, 132, 118, 127]);
 const ext = z([35, 40, 38, 52, 49, 44, 47, 61, 66, 58, 77, 81, 72, 79]);
 const clicks = z([9, 14, 11, 18, 16, 12, 13, 24, 21, 19, 31, 28, 26, 30]);
 const signups = z([1, 2, 0, 3, 2, 1, 1, 4, 3, 2, 5, 4, 3, 4]);
+const video = z([0, 0, 0, 1, 0, 2, 1, 3, 2, 4, 6, 5, 4, 7]);
 const extAnon = ext.map((x) => Math.round(x * 0.62));
 const sum = (a, n) => a.slice(-n).reduce((s, x) => s + x, 0);
 
 function traffic(days) {
-  const daily = Array.from({ length: 14 }, (_, i) => ({ day: dd(dayOf(i)), site: site[i], ext: ext[i], clicks: clicks[i], signups: signups[i], ...(ANON ? { ext_anon: i < 4 ? null : extAnon[i] } : {}) }));
-  const totals = { site: sum(site, days), ext: sum(ext, days), clicks: sum(clicks, days), signups: sum(signups, days), ...(ANON ? { ext_anon: sum(extAnon, days), ext_acct: sum(ext, days) - sum(extAnon, days) - sum(ext.map((x) => Math.round(x * 0.2)), days), ext_unknown: sum(ext.map((x) => Math.round(x * 0.2)), days) } : {}) };
+  const daily = Array.from({ length: 14 }, (_, i) => ({ day: dd(dayOf(i)), site: site[i], ext: ext[i], clicks: clicks[i], signups: signups[i], video: video[i], ...(ANON ? { ext_anon: i < 4 ? null : extAnon[i] } : {}) }));
+  const totals = { site: sum(site, days), ext: sum(ext, days), clicks: sum(clicks, days), video: sum(video, days), signups: sum(signups, days), ...(ANON ? { ext_anon: sum(extAnon, days), ext_acct: sum(ext, days) - sum(extAnon, days) - sum(ext.map((x) => Math.round(x * 0.2)), days), ext_unknown: sum(ext.map((x) => Math.round(x * 0.2)), days) } : {}) };
   const f = days === 1 ? 0.14 : days === 7 ? 1 : 3.4;
   const e = (n) => (EMPTY ? 0 : Math.round(n * f));
   const countries = EMPTY ? [] : [
@@ -39,12 +41,14 @@ function traffic(days) {
     { country: "NL", site: e(18), ext: e(11), clicks: e(3) }, { country: "?", site: e(14), ext: e(9), clicks: e(1) }, { country: "FR", site: e(12), ext: e(7), clicks: e(2) }, { country: "BR", site: e(9), ext: e(6), clicks: e(1) },
     ...["IT", "ES", "PL", "SE", "AT", "CH", "CA", "AU"].map((c, i) => ({ country: c, site: e(8 - i), ext: e(4), clicks: e(1) }))];
   const hours = { site: z(Array.from({ length: 24 }, (_, i) => Math.round(8 + 36 * Math.exp(-(((i - 21) % 24) ** 2) / 22) + 18 * Math.exp(-((i - 13) ** 2) / 18)))), clicks: z(Array.from({ length: 24 }, (_, i) => Math.round(2 + 9 * Math.exp(-((i - 20) ** 2) / 14)))) };
-  const kinds = ["tıklama", "site", "eklenti", "site", "tıklama", "eklenti"], devs = ["telefon", "bilgisayar", "telefon", "bilgisayar", "tablet"], oss = ["Android", "Windows", "iOS", "macOS", "Android"], cc = ["TR", "US", "dil:tr", "DE", "?", "GB"];
+  const kinds = ["tıklama", "site", "video", "site", "tıklama", "eklenti"], devs = ["telefon", "bilgisayar", "telefon", "bilgisayar", "tablet"], oss = ["Android", "Windows", "iOS", "macOS", "Android"], cc = ["TR", "US", "dil:tr", "DE", "?", "GB"];
   const recent = EMPTY ? [] : Array.from({ length: 15 }, (_, i) => ({ at: `23.11 ${String(14 - Math.floor(i / 3)).padStart(2, "0")}:${String(58 - i * 3).padStart(2, "0")}`, kind: kinds[i % 6], what: i % 3 === 0 ? "yt-tr" : i % 3 === 1 ? "google.com" : "", device: devs[i % 5], os: oss[i % 5], country: cc[i % 6] }));
+  if (NOVIDEO) { delete totals.video; daily.forEach((x) => delete x.video); }
   return { days, now: "23.11.2026 14:03", totals, daily, errors: [],
     devices: { site: EMPTY ? {} : { telefon: e(310), bilgisayar: e(240), tablet: e(18) }, clicks: EMPTY ? {} : { telefon: e(80), bilgisayar: e(44), tablet: e(4) }, os: EMPTY ? {} : { Android: e(210), Windows: e(160), iOS: e(70), macOS: e(54) } },
     referrers: EMPTY ? [] : [{ ref: "", n: e(300) }, { ref: "google.com", n: e(120) }, { ref: "youtube.com", n: e(64) }, { ref: "reddit.com", n: e(21) }],
-    sources: EMPTY ? [] : [{ src: "yt-tr", n: e(61), telefon: e(40), bilgisayar: e(18), tablet: 0 }, { src: "yt-en", n: e(38), telefon: e(21), bilgisayar: e(15), tablet: 0 }, { src: "reddit", n: e(9), telefon: e(2), bilgisayar: e(5), tablet: 0 }],
+    sources: EMPTY ? [] : [{ kind: "ext", src: "yt-tr", n: e(61), telefon: e(40), bilgisayar: e(18), tablet: 0 }, { kind: "ext", src: "yt-en", n: e(38), telefon: e(21), bilgisayar: e(15), tablet: 0 }, { kind: "ext", src: "reddit", n: e(9), telefon: e(2), bilgisayar: e(5), tablet: 0 },
+      ...(NOVIDEO ? [] : [{ kind: "video", src: "quora-es", n: e(14), telefon: e(10), bilgisayar: e(3), tablet: 0 }, { kind: "video", src: "yt-tr", n: e(9), telefon: e(5), bilgisayar: e(4), tablet: 0 }])],
     countries, hours, recent };
 }
 const stats = () => ({ users: EMPTY ? 0 : 412, users_today: 4, users_week: 23, active_24h: 61, online_now: 3, banned: 0, words: 18452, user_words: 9120, games: 307, rooms: 1,

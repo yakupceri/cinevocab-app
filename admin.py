@@ -218,6 +218,12 @@ def stats(request: Request):
 
 # ---------- Ziyaretçiler: kim, nereden, hangi cihazdan, saat kaçta (hepsi İstanbul saati) ----------
 
+def _vid(yes: bool, col: str = "src") -> str:
+    """SQL koşulu: tanıtım videosu tıklamaları /video ile "v:" önekiyle tutulur (ör. v:quora-es). Mağaza linkleri (/get)
+    önekisizdir. "%" kullanılmaz, çünkü sorgular psycopg2 parametreleriyle çalışır."""
+    return f"left({col}, 2) {'=' if yes else '<>'} 'v:'"
+
+
 @router.get("/admin/api/traffic")
 def traffic(request: Request, days: int = 7):
     """Kimlik yok: yalnızca sayılar, cihaz türü, ülke tahmini, yönlendiren site adı ve saat."""
@@ -233,10 +239,11 @@ def traffic(request: Request, days: int = 7):
     def totals():
         site, ext = q("SELECT count(*) FILTER (WHERE kind = 'site'), count(*) FILTER (WHERE kind = 'ext') "
                       "FROM visits_daily WHERE " + win_v + ";", (days,), True)[0]
-        clicks = q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + win_v + ";", (days,), True)[0][0]
+        clicks = q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + _vid(False) + " AND " + win_v + ";", (days,), True)[0][0]
+        video = q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + _vid(True) + " AND " + win_v + ";", (days,), True)[0][0]
         signups = q("SELECT count(*) FROM users WHERE " + _tr_ts("created_at") + "::date > " + TR_TODAY + " - %s;",
                     (days,), True)[0][0]
-        res = {"site": int(site), "ext": int(ext), "clicks": int(clicks), "signups": int(signups)}
+        res = {"site": int(site), "ext": int(ext), "clicks": int(clicks), "video": int(video), "signups": int(signups)}
         try:  # Eklentiyi kullananlar: hesaplı / hesapsız / bilinmiyor (acct sütunundan önceki kayıtlar). Hata diğer sayıları bozmaz.
             anon, acct, unk = q("SELECT count(*) FILTER (WHERE kind = 'ext' AND acct = false), "
                                 "count(*) FILTER (WHERE kind = 'ext' AND acct = true), "
@@ -249,13 +256,14 @@ def traffic(request: Request, days: int = 7):
     _block(out, "totals", totals, {})
 
     def daily():
-        rows = [{"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4])} for r in q(
+        rows = [{"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4]), "video": int(r[5])} for r in q(
             "WITH d AS (SELECT g::date AS day FROM generate_series(" + TR_TODAY + " - 13, " + TR_TODAY + ", interval '1 day') g) "
             "SELECT to_char(d.day, 'DD.MM'), "
             "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'site'), "
             "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'ext'), "
-            "(SELECT coalesce(sum(n), 0) FROM link_clicks c WHERE c.day = d.day), "
-            "(SELECT count(*) FROM users u WHERE " + _tr_ts("u.created_at") + "::date = d.day) "
+            "(SELECT coalesce(sum(n), 0) FROM link_clicks c WHERE c.day = d.day AND " + _vid(False, "c.src") + "), "
+            "(SELECT count(*) FROM users u WHERE " + _tr_ts("u.created_at") + "::date = d.day), "
+            "(SELECT coalesce(sum(n), 0) FROM link_clicks c WHERE c.day = d.day AND " + _vid(True, "c.src") + ") "
             "FROM d ORDER BY d.day;", (), True)]
         try:  # günlük hesapsız kullanan; o gün hiç "bilinen" kayıt yoksa None (eski günler)
             known = {r[0]: (int(r[1]), int(r[2])) for r in q(
@@ -274,11 +282,11 @@ def traffic(request: Request, days: int = 7):
         for dev, n in q("SELECT device, count(*) FROM visits_daily WHERE kind = 'site' AND device <> '' AND " + win_v +
                         " GROUP BY device;", (days,), True):
             res["site"][dev] = int(n)
-        for dev, n in q("SELECT device, count(*) FROM link_hits WHERE device <> '' AND " + win_h + " GROUP BY device;",
+        for dev, n in q("SELECT device, count(*) FROM link_hits WHERE device <> '' AND " + _vid(False) + " AND " + win_h + " GROUP BY device;",
                         (days,), True):
             res["clicks"][dev] = int(n)
         for os_, n in q("SELECT os, sum(n) FROM (SELECT os, count(*) n FROM visits_daily WHERE kind = 'site' AND os <> '' AND " + win_v +
-                        " GROUP BY os UNION ALL SELECT os, count(*) FROM link_hits WHERE os <> '' AND " + win_h +
+                        " GROUP BY os UNION ALL SELECT os, count(*) FROM link_hits WHERE os <> '' AND " + _vid(False) + " AND " + win_h +
                         " GROUP BY os) t GROUP BY os ORDER BY 2 DESC;", (days, days), True):
             res["os"][os_] = int(n)
         return res
@@ -289,8 +297,13 @@ def traffic(request: Request, days: int = 7):
         (days,), True)], [])
 
     def sources():
-        rows = {r[0]: {"src": r[0], "n": int(r[1]), "telefon": 0, "bilgisayar": 0, "tablet": 0} for r in q(
-            "SELECT src, sum(n) FROM link_clicks WHERE " + win_v + " GROUP BY src ORDER BY 2 DESC LIMIT 15;", (days,), True)}
+        """Eklenti linki (/get, kind "ext") ve tanıtım videosu (/video, kind "video") ayrı listelenir; her biri en çok 15 satır.
+        Videonun "v:" öneki gösterilen etikette yoktur; cihaz kırılımı tam etiketle eşleştirilir."""
+        rows = {}
+        for kind in ("ext", "video"):
+            for src, n in q("SELECT src, sum(n) FROM link_clicks WHERE " + _vid(kind == "video") + " AND " + win_v +
+                            " GROUP BY src ORDER BY 2 DESC LIMIT 15;", (days,), True):
+                rows[src] = {"src": src[2:] if kind == "video" else src, "kind": kind, "n": int(n), "telefon": 0, "bilgisayar": 0, "tablet": 0}
         for src, dev, n in q("SELECT src, device, count(*) FROM link_hits WHERE " + win_h + " GROUP BY src, device;",
                              (days,), True):
             if src in rows and dev in ("telefon", "bilgisayar", "tablet"):
@@ -303,7 +316,7 @@ def traffic(request: Request, days: int = 7):
         for k, s_, e in q("SELECT country, count(*) FILTER (WHERE kind = 'site'), count(*) FILTER (WHERE kind = 'ext') "
                           "FROM visits_daily WHERE " + win_v + " GROUP BY country;", (days,), True):
             c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0}).update(site=int(s_), ext=int(e))
-        for k, n in q("SELECT country, count(*) FROM link_hits WHERE " + win_h + " GROUP BY country;", (days,), True):
+        for k, n in q("SELECT country, count(*) FROM link_hits WHERE " + _vid(False) + " AND " + win_h + " GROUP BY country;", (days,), True):
             c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0})["clicks"] = int(n)
         top = sorted(c.items(), key=lambda kv: -(kv[1]["site"] + kv[1]["ext"] + kv[1]["clicks"]))[:40]  # panel ilk 10 ülkeyi gösterir, kalanını "diğer"de toplar
         return [{"country": k, **v} for k, v in top]
@@ -315,7 +328,7 @@ def traffic(request: Request, days: int = 7):
                       "WHERE kind = 'site' AND first_at IS NOT NULL AND " + win_v + " GROUP BY 1;", (days,), True):
             v[int(h)] = int(n)
         for h, n in q("SELECT extract(hour FROM timezone('Europe/Istanbul', at))::int, count(*) FROM link_hits "
-                      "WHERE " + win_h + " GROUP BY 1;", (days,), True):
+                      "WHERE " + _vid(False) + " AND " + win_h + " GROUP BY 1;", (days,), True):
             c[int(h)] = int(n)
         return {"site": v, "clicks": c}
     _block(out, "hours", hours, {"site": [0] * 24, "clicks": [0] * 24})
@@ -323,7 +336,8 @@ def traffic(request: Request, days: int = 7):
     _block(out, "recent", lambda: [
         {"at": r[0], "kind": r[1], "what": r[2], "device": r[3], "os": r[4], "country": r[5]} for r in q(
             "SELECT to_char(timezone('Europe/Istanbul', t), 'DD.MM HH24:MI'), kind, what, device, os, country FROM ("
-            "(SELECT at AS t, 'tıklama' AS kind, src AS what, device, os, country FROM link_hits ORDER BY at DESC LIMIT 30) "
+            "(SELECT at AS t, CASE WHEN " + _vid(True) + " THEN 'video' ELSE 'tıklama' END AS kind, "
+            "CASE WHEN " + _vid(True) + " THEN substr(src, 3) ELSE src END AS what, device, os, country FROM link_hits ORDER BY at DESC LIMIT 30) "
             "UNION ALL "
             "(SELECT first_at, CASE kind WHEN 'ext' THEN 'eklenti' ELSE 'site' END, ref, device, os, country FROM visits_daily "
             "WHERE first_at IS NOT NULL ORDER BY first_at DESC LIMIT 30)) x ORDER BY t DESC LIMIT 30;", (), True)], [])
@@ -844,7 +858,7 @@ def funnel(request: Request, days: int = 30):
     need_admin(request)
     days = max(1, min(int(days), 365))
     out = {"days": days}
-    _block(out, "clicks", lambda: int(q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE day > " + TR_TODAY + " - %s;",
+    _block(out, "clicks", lambda: int(q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + _vid(False) + " AND day > " + TR_TODAY + " - %s;",
                                         (days,), True)[0][0]), 0)
     _block(out, "steps", lambda: _funnel_row(q(_FUNNEL_CTE + "SELECT " + _FUNNEL_COLS + " FROM j;", (days,), True)[0]), {})
     _block(out, "cohorts", lambda: [

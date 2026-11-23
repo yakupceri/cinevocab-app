@@ -1464,24 +1464,48 @@ STORE_URL = "https://chromewebstore.google.com/detail/cinevocab/glhogfbfbjifiihg
 _BOT_UA = re.compile(r"bot|crawl|spider|preview|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|embed|fetch|curl|wget|python", re.I)
 
 
+def _link_tag(src: str) -> str:
+    """?src= etiketi: yalnızca küçük harf, rakam, "-" ve "_"; en çok 24 karakter; boşsa "direct". ":" atılır, bu yüzden
+    kimse /get ile "v:" önekini (video sayacı) taklit edemez."""
+    return re.sub(r"[^a-z0-9_-]", "", (src or "").lower())[:24] or "direct"
+
+
+def _count_link(request: Request, tag: str):
+    """Kısa bağlantı tıklamasını sayar: gün (İstanbul) + etiket + cihaz türü + ülke. Kimlik, IP ya da çerez saklanmaz.
+    Botlar sayılmaz. Hata yönlendirmeyi bozmaz, loga yazılır. /get ve /video aynı mantığı kullanır."""
+    if _BOT_UA.search(request.headers.get("user-agent", "")):
+        return
+    try:
+        q("INSERT INTO link_clicks (day, src, n) VALUES (" + TR_TODAY + ", %s, 1) "
+          "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
+        dev, os_ = device_info(request)  # telefon mu bilgisayar mı: kimlik değil, yalnızca tür
+        q("INSERT INTO link_hits (src, device, os, country) VALUES (%s, %s, %s, %s);",
+          (tag, dev, os_, _visit_country(request)))
+    except Exception as e:
+        print(f"Link sayaci hatasi: {e!r}")  # yonlendirmeyi bozmasin, ama loga yazilsin
+
+
 @app.get("/get")
 @app.get("/install")
 def install_redirect(request: Request, src: str = "", hl: str = ""):
     """Kisa kurulum adresi: Chrome Web Magazasi'na yonlendirir ve tiklamayi kaynaga gore sayar.
     Kimlik, IP ya da cerez saklanmaz; yalnizca gun + kaynak etiketi + sayi tutulur. Botlar sayilmaz."""
-    tag = re.sub(r"[^a-z0-9_-]", "", (src or "").lower())[:24] or "direct"
-    if not _BOT_UA.search(request.headers.get("user-agent", "")):
-        try:
-            q("INSERT INTO link_clicks (day, src, n) VALUES (" + TR_TODAY + ", %s, 1) "
-              "ON CONFLICT (day, src) DO UPDATE SET n = link_clicks.n + 1;", (tag,))
-            dev, os_ = device_info(request)  # telefon mu bilgisayar mı: kimlik değil, yalnızca tür
-            q("INSERT INTO link_hits (src, device, os, country) VALUES (%s, %s, %s, %s);",
-              (tag, dev, os_, _visit_country(request)))
-        except Exception as e:
-            print(f"Link sayaci hatasi: {e!r}")  # yonlendirmeyi bozmasin, ama loga yazilsin
+    _count_link(request, _link_tag(src))
     lang = re.sub(r"[^a-zA-Z-]", "", hl or "")[:8]  # mağaza dili: ?hl=tr gibi
     url = STORE_URL + ("?hl=" + lang if lang else "")
     return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/video")
+def video_redirect(request: Request, src: str = ""):
+    """Tanıtım videosuna kısa adres. /get ile aynı sayaç (bot filtresi, cihaz, ülke, İstanbul günü); etiketin başına
+    "v:" eklenir (ör. v:quora-es), böylece eklenti ve video tıklamaları ayrı sayılır. Video adresi koda gömülü değildir:
+    VIDEO_URL ortam değişkeninden okunur (yalnızca https). Tanımsız ya da geçersizse ana sayfaya gider."""
+    _count_link(request, "v:" + _link_tag(src))
+    target = (os.environ.get("VIDEO_URL") or "").strip()
+    if not re.fullmatch(r"https://[^\s]+", target):
+        target = "/"
+    return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/game", response_class=HTMLResponse)
