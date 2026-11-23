@@ -64,8 +64,8 @@ https://cinevocab.up.railway.app
 Not: videodaki müzik kodla üretilmiş özgün bir parçadır (telif sorunu yoktur). Kendi şarkını eklemek için: `node harness/ad3.mjs wide audio audio=/yol/sarki.mp3`.
 
 ## Türkçe YouTube videosu
-**Başlık:** YouTube'da altyazıdan İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
-(alternatif: Dizi izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi))
+**Başlık:** Dizi ve YouTube izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
+(kapak yazısı: "Dizi izleyerek İngilizce öğren"; 2 hafta sonra YouTube Studio → Traffic sources → YouTube search'e bakıp hangi kelime daha çok geliyorsa ona göre keskinleştir)
 
 **Açıklama:**
 ```
