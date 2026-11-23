@@ -1,0 +1,12 @@
+import { chromium } from "playwright";
+const [,, url, out, w = "1280", h = "900", theme = ""] = process.argv;
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: +w, height: +h }, colorScheme: theme === "dark" ? "dark" : "light" });
+const p = await ctx.newPage();
+const errs = [];
+p.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+p.on("console", (m) => { if (m.type() === "error") errs.push("konsol: " + m.text().slice(0, 160)); });
+await p.goto(url); await p.waitForSelector(".cell", { timeout: 8000 }); await new Promise((r) => setTimeout(r, 900));
+await p.screenshot({ path: out, fullPage: true });
+console.log("hücre:", await p.locator(".cell").count(), "| hata:", errs.length ? errs.join(" || ") : "yok");
+await b.close();

@@ -5,60 +5,99 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ajan Ofisi</title>
 <style>
+/* Gündüz ofisi (açık tema) ve gece ofisi (koyu tema). Sistem temasını izler; sağ üstteki düğme seçimi kaydeder. */
 :root{
-  --bg:#F3F3F0; --panel:#FFFFFF; --line:#D8D8D2; --ink:#171715; --dim:#5E5E58;
-  --work:#1F4FBF; --done:#2A7A4B; --idle:#7A7A73; --wait:#A15F00; --unk:#7A7A73;
+  --bg:#E9DFCC; --wall:#EFE5D2; --wall2:#E4D7BE; --floor:#D2BC94; --floorLine:rgba(90,60,20,.10);
+  --panel:#FFFDF8; --line:#D8CBB2; --ink:#2A2620; --dim:#6B6355;
+  --deskTop:#BE8F5C; --deskFront:#A8794A; --deskShade:#8F6540; --mon:#23262C; --chair:#3B3F48; --plant:#4E9A5C; --pot:#C96F4A;
+  --work:#2F63D8; --done:#2A7A4B; --idle:#7A746A; --wait:#A15F00; --unk:#7A746A; --accent:#E6B91C;
+  --sky1:#9CD3F2; --sky2:#DDF1FB; --sunO:1; --moonO:0; --lampO:.0; --glass:rgba(255,255,255,.35);
   color-scheme:light;
 }
 :root[data-theme="dark"]{
-  --bg:#121311; --panel:#1B1C1A; --line:#33342F; --ink:#ECECE6; --dim:#A2A29A;
-  --work:#7FA6FF; --done:#6CC48C; --idle:#8D8D85; --wait:#E0A64A; --unk:#8D8D85;
+  --bg:#14120F; --wall:#24211C; --wall2:#1C1A16; --floor:#2C261F; --floorLine:rgba(255,255,255,.035);
+  --panel:#1D1B17; --line:#38342C; --ink:#ECE8DA; --dim:#A59F90;
+  --deskTop:#74553A; --deskFront:#604730; --deskShade:#4A3624; --mon:#0F1115; --chair:#2B2E36; --plant:#3E8A52; --pot:#A55A3D;
+  --work:#7FA6FF; --done:#6CC48C; --idle:#9A948A; --wait:#E0A64A; --unk:#9A948A; --accent:#F0CB4A;
+  --sky1:#0B1630; --sky2:#1E2D55; --sunO:0; --moonO:1; --lampO:1; --glass:rgba(255,255,255,.06);
   color-scheme:dark;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg:#121311; --panel:#1B1C1A; --line:#33342F; --ink:#ECECE6; --dim:#A2A29A;
-    --work:#7FA6FF; --done:#6CC48C; --idle:#8D8D85; --wait:#E0A64A; --unk:#8D8D85;
+    --bg:#14120F; --wall:#24211C; --wall2:#1C1A16; --floor:#2C261F; --floorLine:rgba(255,255,255,.035);
+    --panel:#1D1B17; --line:#38342C; --ink:#ECE8DA; --dim:#A59F90;
+    --deskTop:#74553A; --deskFront:#604730; --deskShade:#4A3624; --mon:#0F1115; --chair:#2B2E36; --plant:#3E8A52; --pot:#A55A3D;
+    --work:#7FA6FF; --done:#6CC48C; --idle:#9A948A; --wait:#E0A64A; --unk:#9A948A; --accent:#F0CB4A;
+    --sky1:#0B1630; --sky2:#1E2D55; --sunO:0; --moonO:1; --lampO:1; --glass:rgba(255,255,255,.06);
     color-scheme:dark;
   }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
-.wrap{max-width:1080px;margin:0 auto}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-h1{font-size:22px;line-height:1.2;margin:0;letter-spacing:-.01em;flex:1;min-width:8ch}
-.pill{font:500 12.5px ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:5px 9px;color:var(--dim);background:var(--panel)}
+  padding:18px max(14px,env(safe-area-inset-right)) 40px max(14px,env(safe-area-inset-left))}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+h1{font-size:23px;line-height:1.2;margin:0;letter-spacing:-.01em;flex:1;min-width:8ch}
+.pill{font:500 12.5px ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:99px;padding:5px 11px;color:var(--dim);background:var(--panel)}
 .pill.bad{color:var(--wait);border-color:var(--wait)}
-button.tg{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:5px 10px;cursor:pointer}
+button.tg{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:99px;padding:5px 13px;cursor:pointer}
 button.tg:focus-visible{outline:2px solid var(--work);outline-offset:2px}
-.note{margin:0 0 18px;color:var(--dim);font-size:13.5px;max-width:78ch}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.desk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
-@media (min-width:700px){.desk.wide{grid-column:span 2}}
-.desk .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.desk h2{font-size:16px;line-height:1.25;margin:0;overflow-wrap:anywhere}
-.desk .role{display:block;font-size:12.5px;color:var(--dim);font-weight:400;margin-top:2px}
+.note{margin:0 0 14px;color:var(--dim);font-size:13.5px;max-width:84ch}
+
+/* ---- oda ---- */
+.office{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--floor);
+  box-shadow:0 18px 50px rgba(40,25,5,.16)}
+:root[data-theme="dark"] .office{box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.wall{position:relative;height:150px;background:linear-gradient(180deg,var(--wall),var(--wall2));border-bottom:10px solid var(--deskShade)}
+.wall::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:linear-gradient(180deg,rgba(0,0,0,.14),transparent)}
+.wall svg{position:absolute;display:block}
+@media (max-width:700px){.wall{height:120px}.wall svg:nth-child(2),.wall svg:nth-child(3){display:none}.wall svg:nth-child(1){width:130px!important;top:12px!important}.wall svg:nth-child(4){top:46px!important}}
+.floor{position:relative;padding:22px 20px 26px;background:
+  repeating-linear-gradient(90deg,transparent 0 118px,var(--floorLine) 118px 120px),
+  repeating-linear-gradient(0deg,transparent 0 58px,var(--floorLine) 58px 60px),var(--floor)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px 20px}
+@media (min-width:760px){.cell.wide{grid-column:1/-1}}
+.others{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.others .left{flex:1 1 440px;min-width:0;max-width:560px}
+.others .right{flex:1 1 360px;min-width:0}
+.others .rows{columns:1}
+@media (min-width:1100px){.others .rows{columns:2;column-gap:22px}.others .rows li{break-inside:avoid}}
+
+.cell{position:relative;display:flex;flex-direction:column;min-width:0}
+.bubble{position:relative;align-self:center;width:fit-content;margin-left:auto;margin-right:auto;max-width:92%;min-height:3.1em;margin-bottom:12px;padding:8px 12px;border-radius:14px;background:var(--panel);
+  border:1px solid var(--line);font-size:13.5px;line-height:1.35;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-8px;width:14px;height:14px;margin-left:-7px;background:var(--panel);
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg)}
+.bubble span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.bubble.empty{color:var(--dim)}
+.scene{display:block;width:100%;height:auto;overflow:visible}
+.plate{margin:-2px 8px 0;padding:9px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 16px rgba(0,0,0,.10);
+  display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;z-index:2}
+.plate .nm{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.plate b{font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+.plate small{display:block;color:var(--dim);font-size:12.5px;line-height:1.3}
+.plate .when{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
 .st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;white-space:nowrap;color:var(--c)}
 .st i{width:10px;height:10px;display:inline-block;flex:none;border:2px solid var(--c);background:var(--c)}
-.s-calisiyor{--c:var(--work)} .s-calisiyor i{border-radius:50%}
-.s-bitirdi{--c:var(--done)} .s-bitirdi i{border-radius:2px}
-.s-bosta{--c:var(--idle)} .s-bosta i{border-radius:50%;background:transparent}
-.s-bekliyor{--c:var(--wait)} .s-bekliyor i{border-radius:2px;background:transparent;transform:rotate(45deg)}
-.s-bilinmiyor{--c:var(--unk)} .s-bilinmiyor i{border-radius:2px;background:transparent;border-style:dashed}
-.s-henuz{--c:var(--idle)} .s-henuz i{border-radius:50%;background:transparent;border-style:dotted}
-.last{margin:0;font-size:14px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-height:3.6em}
-.last.empty{color:var(--dim)}
-.when{font:12.5px ui-monospace,Menlo,Consolas,monospace;color:var(--dim);margin-top:auto}
-.rows{list-style:none;margin:0;padding:0}
-.rows li{border-top:1px solid var(--line);padding:9px 0;display:grid;gap:3px;min-width:0}
-.rows li:first-child{border-top:0;padding-top:0}
+.s-calisiyor{--c:var(--work)} .s-calisiyor .st i{border-radius:50%}
+.s-bitirdi{--c:var(--done)} .s-bitirdi .st i{border-radius:2px}
+.s-bosta{--c:var(--idle)} .s-bosta .st i{border-radius:50%;background:transparent}
+.s-bekliyor{--c:var(--wait)} .s-bekliyor .st i{border-radius:2px;background:transparent;transform:rotate(45deg)}
+.s-bilinmiyor{--c:var(--unk)} .s-bilinmiyor .st i{border-radius:2px;background:transparent;border-style:dashed}
+.s-henuz{--c:var(--idle)} .s-henuz .st i{border-radius:50%;background:transparent;border-style:dotted}
+.cell:not(.wide).s-bilinmiyor .scene{filter:grayscale(1) opacity(.62)}
+.rows{list-style:none;margin:8px 0 0;padding:0}
+.rows li{border-top:1px solid var(--line);padding:8px 0;display:grid;gap:2px;min-width:0}
+.rows li:first-child{border-top:0}
 .rows .r1{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .rows .ty{font:600 13px ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
-.rows .ty small{font-weight:400;color:var(--dim)}
-.rows .tx{margin:0;font-size:13.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.rows .ty small{display:inline;font-weight:400}
+.rows .tx{margin:0;font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .rows .wh{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
-details{margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+.rows .st{--c:var(--idle)}
+
+details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
 summary{cursor:pointer;font-weight:600}
 summary:focus-visible{outline:2px solid var(--work);outline-offset:2px}
 table{border-collapse:collapse;width:100%;font:12.5px ui-monospace,Menlo,Consolas,monospace;margin-top:10px}
@@ -66,7 +105,43 @@ td,th{text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid var(--line);
 th{color:var(--dim);font-weight:500}
 .scroll{overflow-x:auto}
 .keys{margin:12px 0 0;color:var(--dim);font-size:12.5px}
-@media (prefers-reduced-motion:no-preference){.s-calisiyor i{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+
+/* ---- SVG parçaları ---- */
+.f-skin{fill:var(--skin)} .f-hair{fill:var(--hair)} .f-shirt{fill:var(--shirt)} .s-hair{stroke:var(--hair)} .s-shirt{stroke:var(--shirt)} .s-skin{stroke:var(--skin)}
+.f-mon{fill:var(--mon)} .f-chair{fill:var(--chair)} .f-top{fill:var(--deskTop)} .f-front{fill:var(--deskFront)} .f-shade{fill:var(--deskShade)}
+.f-plant{fill:var(--plant)} .f-pot{fill:var(--pot)}
+.lampglow{opacity:var(--lampO)}
+.mon-on{filter:drop-shadow(0 0 10px var(--glowc,transparent))}
+@media (prefers-reduced-motion:no-preference){
+  .typL{animation:tL .34s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+  .typR{animation:tR .41s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+  @keyframes tL{from{transform:translateY(0)}to{transform:translateY(-3px)}}
+  @keyframes tR{from{transform:translateY(-3px)}to{transform:translateY(0)}}
+  .bob{animation:bob 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+  @keyframes bob{50%{transform:translateY(2px) rotate(1.2deg)}}
+  .scrl{animation:scrl 2.4s linear infinite}
+  @keyframes scrl{to{transform:translateY(-30px)}}
+  .blink{animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .steam{animation:steam 2.4s ease-in-out infinite;transform-box:fill-box}
+  .steam.b{animation-delay:.8s}
+  @keyframes steam{0%{opacity:0;transform:translateY(4px)}40%{opacity:.8}100%{opacity:0;transform:translateY(-9px)}}
+  .wave{animation:wave .7s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+  @keyframes wave{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+  .zz{animation:zz 3s ease-in-out infinite}
+  .zz.b{animation-delay:1s} .zz.c{animation-delay:2s}
+  @keyframes zz{0%{opacity:0;transform:translate(0,6px)}30%{opacity:.9}100%{opacity:0;transform:translate(6px,-12px)}}
+  .tw{animation:tw 2.2s ease-in-out infinite} .tw.b{animation-delay:.7s} .tw.c{animation-delay:1.4s}
+  @keyframes tw{50%{opacity:.25}}
+  .bnc{animation:bnc 5s linear infinite}
+  @keyframes bnc{0%{transform:translate(0,0)}25%{transform:translate(70px,26px)}50%{transform:translate(20px,50px)}75%{transform:translate(80px,6px)}100%{transform:translate(0,0)}}
+  .pulse{animation:pulse 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes pulse{50%{transform:scale(1.12);opacity:.75}}
+  .spark{animation:spark 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center} .spark.b{animation-delay:.5s} .spark.c{animation-delay:1s}
+  @keyframes spark{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}
+  .flick{animation:flick .5s steps(3) infinite} @keyframes flick{50%{opacity:.55}}
+  .cl{animation:clk 1s steps(1) infinite}
+}
 </style>
 </head>
 <body>
@@ -74,10 +149,13 @@ th{color:var(--dim);font-weight:500}
   <header>
     <h1>Ajan Ofisi</h1>
     <span class="pill" id="conn">bağlanıyor…</span>
-    <button class="tg" id="tg" type="button" aria-label="Tema değiştir">Tema</button>
+    <button class="tg" id="tg" type="button" aria-label="Tema değiştir (gündüz ofisi / gece ofisi)">Gündüz / gece</button>
   </header>
   <p class="note">Bu sayfa yalnızca Claude Code hook'larının bildirdiğini gösterir. Hiç çalışmamış masa "Henüz çalışmadı" yazar. Esc ile kesme ve oturum çökmesi bildirilmez: 3 dakikadır sinyal gelmeyen bir "çalışıyor" masası "Bilinmiyor" olur. Adı tanımlı olmayan ajanlar "Diğer ajanlar" masasında toplanır.</p>
-  <div class="grid" id="grid"></div>
+  <div class="office">
+    <div class="wall" id="wall"></div>
+    <div class="floor"><div class="grid" id="grid"></div></div>
+  </div>
   <details>
     <summary>Hook'lar gerçekte ne gönderiyor?</summary>
     <p class="keys" id="keys"></p>
@@ -88,9 +166,10 @@ th{color:var(--dim);font-weight:500}
 var STALE = 180, STALE_WAIT = 1800;        // saniye
 var LABEL = { calisiyor: "Çalışıyor", bitirdi: "Bitirdi", bosta: "Boşta", bekliyor: "İzin bekliyor", bilinmiyor: "Bilinmiyor", henuz: "Henüz çalışmadı" };
 var PRIO = { calisiyor: 0, bekliyor: 1, bilinmiyor: 2, bitirdi: 3, bosta: 4 };
-var grid = document.getElementById("grid"), conn = document.getElementById("conn");
+var NS = "http://www.w3.org/2000/svg";
+var grid = document.getElementById("grid"), conn = document.getElementById("conn"), uidN = 0;
 
-// tema: kayıtlı seçim varsa o, yoksa sistem
+// ---- tema ----
 function themeGet(){ try { return localStorage.getItem("ofisTema") || ""; } catch (e) { return ""; } }
 function themeSet(v){ try { localStorage.setItem("ofisTema", v); } catch (e) {} }
 function themeApply(v){ if (v) document.documentElement.setAttribute("data-theme", v); else document.documentElement.removeAttribute("data-theme"); }
@@ -104,8 +183,10 @@ function pad(n){ return (n < 10 ? "0" : "") + n; }
 function clock(t){ var d = new Date(t * 1000); return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()); }
 function ago(s){ s = Math.max(0, Math.round(s)); if (s < 5) return "şimdi"; if (s < 60) return s + " sn önce"; if (s < 3600) return Math.round(s / 60) + " dk önce"; return Math.round(s / 3600) + " sa önce"; }
 function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function svgIn(markup, cls, vb, label){ var s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", vb); s.setAttribute("class", cls || "scene"); if (label){ s.setAttribute("role", "img"); s.setAttribute("aria-label", label); } else s.setAttribute("aria-hidden", "true"); s.innerHTML = markup; return s; }
+function hash(s){ var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
 
-// Gösterilen durum, hook'un son söylediği durumdan türetilir; sinyal eskiyse "bilinmiyor"
+// ---- durum mantığı (eskisiyle aynı) ----
 function view(x, now){
   if (!x || !x.at) return "bilinmiyor";
   var age = now - (x.seen || x.at);
@@ -115,9 +196,7 @@ function view(x, now){
   return PRIO[x.status] != null ? x.status : "bilinmiyor";
 }
 function stamp(x, now){ return x && x.at ? clock(x.at) + " · " + ago(now - x.at) : "—"; }
-function badge(v){ var st = el("span", "st s-" + v); st.appendChild(el("i")); st.appendChild(document.createTextNode(LABEL[v])); return st; }
-
-// En öncelikli ajan: çalışan > izin bekleyen > sinyali kesilen > bitiren > boşta; eşitse en yeni
+function badge(v){ var st = el("span", "st"); st.appendChild(el("i")); st.appendChild(document.createTextNode(LABEL[v])); return st; }
 function best(list, now){
   return list.slice().sort(function(a, b){
     var va = view(a, now), vb = view(b, now);
@@ -125,55 +204,246 @@ function best(list, now){
   })[0];
 }
 
-function deskCard(name, role, x, v, now, wide){
-  var card = el("section", "desk" + (wide ? " wide" : "")), top = el("div", "top"), h = el("h2", "", name);
-  if (role) h.appendChild(el("span", "role", role));
-  top.append(h, badge(v));
-  var last = el("p", "last" + (x && x.last ? "" : " empty"), x && x.last ? x.last : (v === "henuz" ? "Bu oturumda henüz görev almadı." : "Henüz sinyal gelmedi."));
-  var when = el("div", "when", stamp(x, now));
-  if (v === "bilinmiyor" && x && x.status === "calisiyor") when.textContent += " · sinyal kesildi";
-  card.append(top, last, when);
-  return card;
+// ---- insanlar ----
+var LOOKS = [
+  { skin: "#F2C9A0", hair: "#2B1E16", style: "short",      shirt: "#3B6FD6" },
+  { skin: "#C98F63", hair: "#1A1411", style: "bun",        shirt: "#D9573E" },
+  { skin: "#8D5A3B", hair: "#120D0A", style: "curly",      shirt: "#2F9E6D" },
+  { skin: "#F4D3B3", hair: "#7A4A22", style: "long",       shirt: "#8E5BD8" },
+  { skin: "#E3B48A", hair: "#3A2A1E", style: "cap",        shirt: "#E0A64A" },
+  { skin: "#6B4429", hair: "#0F0B09", style: "headphones", shirt: "#35A1B8" },
+  { skin: "#F0C7A3", hair: "#C9A04A", style: "short",      shirt: "#C94F7C" },
+  { skin: "#B67A52", hair: "#241812", style: "long",       shirt: "#6E8F3A" }
+];
+function lookStyle(l){ return "--skin:" + l.skin + ";--hair:" + l.hair + ";--shirt:" + l.shirt + ";"; }
+
+// kafa ve saç (arkadan görünüm), merkez (cx, cy), yarıçap 22
+function head(l, cx, cy){
+  var s = "";
+  if (l.style === "long") s += '<path class="f-hair" d="M' + (cx - 24) + ' ' + (cy + 2) + ' Q' + (cx - 26) + ' ' + (cy + 30) + ' ' + (cx - 16) + ' ' + (cy + 44) + ' L' + (cx + 16) + ' ' + (cy + 44) + ' Q' + (cx + 26) + ' ' + (cy + 30) + ' ' + (cx + 24) + ' ' + (cy + 2) + ' Z"/>';
+  s += '<circle class="f-skin" cx="' + (cx - 21) + '" cy="' + (cy + 3) + '" r="4.5"/><circle class="f-skin" cx="' + (cx + 21) + '" cy="' + (cy + 3) + '" r="4.5"/>';
+  s += '<ellipse class="f-hair" cx="' + cx + '" cy="' + cy + '" rx="23" ry="22"/>';
+  if (l.style === "bun") s += '<circle class="f-hair" cx="' + cx + '" cy="' + (cy - 23) + '" r="9"/>';
+  if (l.style === "curly"){ for (var i = 0; i < 9; i++){ var a = Math.PI * (i / 8) + Math.PI; s += '<circle class="f-hair" cx="' + (cx + Math.cos(a) * 23).toFixed(1) + '" cy="' + (cy + Math.sin(a) * 22).toFixed(1) + '" r="7"/>'; } }
+  if (l.style === "cap") s += '<path d="M' + (cx - 24) + ' ' + (cy - 2) + ' Q' + cx + ' ' + (cy - 34) + ' ' + (cx + 24) + ' ' + (cy - 2) + ' Z" fill="#FFD42B"/><rect x="' + (cx - 26) + '" y="' + (cy - 4) + '" width="52" height="5" rx="2.5" fill="#E6B91C"/>';
+  if (l.style === "headphones") s += '<path d="M' + (cx - 24) + ' ' + (cy + 2) + ' Q' + cx + ' ' + (cy - 40) + ' ' + (cx + 24) + ' ' + (cy + 2) + '" fill="none" stroke="#22252B" stroke-width="5" stroke-linecap="round"/><ellipse cx="' + (cx - 25) + '" cy="' + (cy + 4) + '" rx="6" ry="10" fill="#22252B"/><ellipse cx="' + (cx + 25) + '" cy="' + (cy + 4) + '" rx="6" ry="10" fill="#22252B"/><ellipse cx="' + (cx - 25) + '" cy="' + (cy + 4) + '" rx="2.6" ry="5.5" fill="#FFD42B"/><ellipse cx="' + (cx + 25) + '" cy="' + (cy + 4) + '" rx="2.6" ry="5.5" fill="#FFD42B"/>';
+  return s;
 }
 
-function othersCard(list, now, started){
-  var card = el("section", "desk wide"), top = el("div", "top"), h = el("h2", "", "Diğer ajanlar");
-  h.appendChild(el("span", "role", "Adı tanımlı olmayan ajanlar (tür ve son iş)"));
-  var v = "henuz";
-  if (list.length) v = view(best(list, now), now);
-  else if (!started) v = "bilinmiyor";
-  top.append(h, badge(v));
-  card.appendChild(top);
-  if (!list.length){ card.appendChild(el("p", "last empty", started ? "Bu oturumda tanımsız ajan çalışmadı." : "Henüz sinyal gelmedi.")); return card; }
-  var ul = el("ul", "rows");
-  list.slice().sort(function(a, b){ return (b.at || 0) - (a.at || 0); }).slice(0, 6).forEach(function(a){
-    var li = el("li"), r1 = el("div", "r1"), ty = el("span", "ty", a.type || "tür belirtilmemiş");
-    if (a.inferred) ty.appendChild(el("small", "", " (istekten tahmin)"));
-    r1.append(ty, badge(view(a, now)));
-    li.append(r1, el("p", "tx", a.last || "—"), el("div", "wh", stamp(a, now)));
-    ul.appendChild(li);
-  });
-  card.appendChild(ul);
-  return card;
+// bir insan (arkadan): sandalye + gövde + kafa + kollar. v: durum. Koordinatlar tek masa görünümüne göre (ölçek ayrı uygulanır).
+function person(l, v){
+  var cx = 130, hy = 152, s = "";
+  var up = v === "bitirdi" ? -4 : v === "calisiyor" ? 2 : 0;
+  s += '<ellipse cx="130" cy="228" rx="62" ry="6" fill="#000" opacity=".16"/>';
+  s += '<rect class="f-chair" x="82" y="172" width="96" height="58" rx="22"/>';
+  s += '<g class="' + (v === "calisiyor" ? "bob" : "") + '">';
+  s += '<path class="f-shirt" d="M80 232 L80 198 Q80 180 104 176 L156 176 Q180 180 180 198 L180 232 Z"/>';
+  s += '<rect class="f-skin" x="121" y="164" width="18" height="16" rx="6" style="filter:brightness(.88)"/>';
+  s += '<g transform="translate(0,' + up + ')">' + head(l, cx, hy) + '</g>';
+  // kollar ve eller
+  if (v === "calisiyor"){
+    s += '<g class="typL"><path class="s-shirt" d="M93 192 L106 160" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="107" cy="156" r="6.5"/></g>';
+    s += '<g class="typR"><path class="s-shirt" d="M167 192 L154 160" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="153" cy="156" r="6.5"/></g>';
+  } else if (v === "bitirdi"){ // eller başın arkasında, geriye yaslanma
+    s += '<path class="s-shirt" d="M92 194 L108 150" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="111" cy="142" r="6.5"/>';
+    s += '<path class="s-shirt" d="M168 194 L152 150" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="149" cy="142" r="6.5"/>';
+  } else if (v === "bosta"){ // sağ elde kahve
+    s += '<path class="s-shirt" d="M93 194 L108 166" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="110" cy="162" r="6.5"/>';
+    s += '<path class="s-shirt" d="M167 194 L164 150" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="164" cy="144" r="6.5"/>';
+    s += '<rect x="162" y="128" width="16" height="16" rx="3" fill="#F4F0E6"/><path d="M178 132 q7 1 0 9" fill="none" stroke="#F4F0E6" stroke-width="3"/><rect x="162" y="128" width="16" height="4" rx="2" fill="#7A4A22"/>';
+    s += '<path class="steam" d="M166 124 q-3 -5 0 -9" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.2" stroke-linecap="round"/><path class="steam b" d="M173 124 q-3 -5 0 -9" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.2" stroke-linecap="round"/>';
+  } else if (v === "bekliyor"){ // el kalkık
+    s += '<path class="s-shirt" d="M93 194 L108 166" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="110" cy="162" r="6.5"/>';
+    s += '<g class="wave"><path class="s-shirt" d="M168 192 L182 130" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="183" cy="122" r="7.5"/></g>';
+  } else { // henuz / bilinmiyor: eller dizde
+    s += '<path class="s-shirt" d="M93 196 L102 214" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="104" cy="219" r="6.5"/>';
+    s += '<path class="s-shirt" d="M167 196 L158 214" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="156" cy="219" r="6.5"/>';
+  }
+  s += '</g>';
+  return s;
+}
+
+// ekran içeriği (durumu anlatır). Ekran alanı: x 68..192, y 28..104
+function screen(v, id){
+  var bg = { calisiyor: "#0E141C", bitirdi: "#0F2418", bosta: "#14161B", bekliyor: "#2A1F0A", bilinmiyor: "#202124", henuz: "#101318" }[v], s = '<rect x="68" y="28" width="124" height="76" fill="' + bg + '"/>';
+  if (v === "calisiyor"){
+    var cols = ["#FFD42B", "#7FA6FF", "#6CC48C", "#E0A64A", "#C9C4B8"], g = "", i, w;
+    for (i = 0; i < 16; i++){ w = [70, 44, 86, 30, 58, 76][i % 6]; g += '<rect x="' + (76 + (i % 3) * 8) + '" y="' + (32 + i * 10) + '" width="' + w + '" height="4.5" rx="2" fill="' + cols[i % 5] + '" opacity=".92"/>'; }
+    s += '<g clip-path="url(#c' + id + ')"><g class="scrl">' + g + '</g></g><rect class="blink" x="152" y="92" width="6" height="8" fill="#FFD42B"/>';
+    s += '<g class="spark"><path d="M186 22 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#FFD42B"/></g><g class="spark b"><path d="M60 40 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5z" fill="#7FA6FF"/></g>';
+  } else if (v === "bitirdi"){
+    s += '<g class="pulse"><circle cx="130" cy="66" r="26" fill="#6CC48C" opacity=".18"/></g><path d="M114 66 l11 11 22 -24" fill="none" stroke="#6CC48C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<rect x="78" y="34" width="50" height="4" rx="2" fill="#6CC48C" opacity=".7"/><rect x="78" y="94" width="104" height="4" rx="2" fill="#6CC48C" opacity=".45"/>';
+    s += '<g class="spark"><circle cx="86" cy="52" r="2.2" fill="#FFD42B"/></g><g class="spark b"><circle cx="176" cy="44" r="2.2" fill="#fff"/></g><g class="spark c"><circle cx="170" cy="86" r="2.2" fill="#FFD42B"/></g>';
+  } else if (v === "bosta"){
+    s += '<g class="tw"><circle cx="84" cy="44" r="1.6" fill="#fff"/></g><g class="tw b"><circle cx="170" cy="58" r="1.6" fill="#fff"/></g><g class="tw c"><circle cx="112" cy="90" r="1.6" fill="#fff"/></g><g class="tw b"><circle cx="150" cy="40" r="1.2" fill="#fff"/></g>';
+    s += '<path d="M138 50 a15 15 0 1 0 14 22 a12 12 0 1 1 -14 -22z" fill="#F0CB4A" opacity=".9"/>';
+    s += '<g class="zz"><text x="164" y="66" font-size="13" font-weight="700" fill="#C9C4B8">z</text></g><g class="zz b"><text x="172" y="54" font-size="10" font-weight="700" fill="#C9C4B8">z</text></g>';
+  } else if (v === "bekliyor"){
+    s += '<rect x="108" y="58" width="44" height="32" rx="5" fill="#E0A64A"/><path d="M116 58 v-9 a14 14 0 0 1 28 0 v9" fill="none" stroke="#E0A64A" stroke-width="6"/><circle cx="130" cy="72" r="4" fill="#2A1F0A"/><rect x="128.5" y="72" width="3" height="10" rx="1.5" fill="#2A1F0A"/>';
+    s += '<g class="blink"><text x="160" y="52" font-size="22" font-weight="800" fill="#E0A64A">?</text></g>';
+  } else if (v === "bilinmiyor"){
+    var n = ""; for (var k = 0; k < 9; k++) n += '<rect x="68" y="' + (30 + k * 8.4) + '" width="124" height="3" fill="#5A5C61" opacity="' + (k % 2 ? .35 : .6) + '"/>';
+    s += '<g class="flick">' + n + '</g><text x="118" y="82" font-size="42" font-weight="800" fill="#C9C4B8" opacity=".85">?</text>';
+  } else {
+    s += '<g class="bnc"><rect x="76" y="36" width="34" height="18" rx="4" fill="#FFD42B"/><rect x="82" y="42" width="22" height="3" rx="1.5" fill="#1A1500"/><rect x="82" y="47" width="14" height="3" rx="1.5" fill="#1A1500"/></g>';
+  }
+  return s;
+}
+
+// tek masa sahnesi: lamba + monitör + masa + klavye + bitki + insan
+function deskScene(look, v, label){
+  var id = "x" + (++uidN), glow = { calisiyor: "#7FA6FF", bitirdi: "#6CC48C", bekliyor: "#E0A64A" }[v] || "transparent";
+  var s = '<defs><clipPath id="c' + id + '"><rect x="68" y="28" width="124" height="76" rx="4"/></clipPath><linearGradient id="g' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD87A" stop-opacity=".55"/><stop offset="1" stop-color="#FFD87A" stop-opacity="0"/></linearGradient></defs>';
+  // lamba
+  s += '<ellipse cx="34" cy="146" rx="13" ry="3.5" fill="#2A2D33"/><path d="M34 144 L40 116 L62 108" fill="none" stroke="#2A2D33" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 104 L78 110 L70 122 L52 114z" fill="#2A2D33"/>';
+  if (v === "calisiyor" || v === "bekliyor") s += '<path class="lampglow" d="M58 118 L36 150 L98 150 L76 118z" fill="url(#g' + id + ')"/>';
+  // bitki
+  s += '<rect class="f-pot" x="206" y="124" width="26" height="22" rx="4"/><path class="f-plant" d="M219 124 Q204 104 208 92 Q218 104 219 124z"/><path class="f-plant" d="M219 124 Q226 98 238 96 Q232 112 219 124z"/><path class="f-plant" d="M219 124 Q216 100 222 88 Q226 108 219 124z" style="filter:brightness(.88)"/>';
+  // monitör
+  s += '<g class="' + (glow !== "transparent" ? "mon-on" : "") + '" style="--glowc:' + glow + '"><rect class="f-mon" x="62" y="22" width="136" height="88" rx="9"/>' + screen(v, id) + '<rect x="68" y="28" width="124" height="76" rx="4" fill="none" stroke="rgba(255,255,255,.07)"/></g>';
+  s += '<rect x="122" y="110" width="16" height="18" fill="#2A2D33"/><rect x="104" y="126" width="52" height="6" rx="3" fill="#2A2D33"/>';
+  // masa
+  s += '<rect class="f-top" x="12" y="130" width="236" height="24" rx="6"/><rect class="f-shade" x="12" y="150" width="236" height="4" rx="2" opacity=".55"/><rect class="f-front" x="22" y="154" width="216" height="70" rx="4"/>';
+  s += '<rect class="f-shade" x="30" y="162" width="94" height="22" rx="3" opacity=".5"/><rect class="f-shade" x="136" y="162" width="94" height="22" rx="3" opacity=".5"/><rect x="70" y="170" width="14" height="4" rx="2" fill="#E6D6BC" opacity=".9"/><rect x="176" y="170" width="14" height="4" rx="2" fill="#E6D6BC" opacity=".9"/>';
+  // klavye + fare
+  s += '<rect x="98" y="136" width="64" height="10" rx="2.5" fill="#2A2D33"/><rect x="102" y="139" width="56" height="2.2" rx="1" fill="#8D93A0" opacity=".55"/><rect x="102" y="142.4" width="56" height="2.2" rx="1" fill="#8D93A0" opacity=".45"/><ellipse cx="180" cy="141" rx="7" ry="4.5" fill="#2A2D33"/>';
+  return svgIn(s + person(look, v), "scene", "0 0 260 232", label);
+}
+
+// ---- odanın duvarı: pencere, saat, poster, raf, bitkiler ----
+function wallSVG(){
+  var w = document.getElementById("wall");
+  w.replaceChildren();
+  var win = '<rect x="0" y="0" width="190" height="120" rx="8" fill="var(--deskShade)"/><rect x="8" y="8" width="174" height="104" rx="4" fill="url(#sky)"/>' +
+    '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs>' +
+    '<g style="opacity:var(--sunO)"><circle cx="138" cy="40" r="15" fill="#FFD76A"/><circle cx="138" cy="40" r="22" fill="#FFD76A" opacity=".25"/></g>' +
+    '<g style="opacity:var(--moonO)"><path d="M130 24 a16 16 0 1 0 16 24 a13 13 0 1 1 -16 -24z" fill="#F4F0E0"/><circle cx="40" cy="30" r="1.4" fill="#fff"/><circle cx="70" cy="50" r="1.2" fill="#fff"/><circle cx="96" cy="26" r="1.5" fill="#fff"/><circle cx="60" cy="78" r="1.1" fill="#fff"/><circle cx="110" cy="70" r="1.3" fill="#fff"/></g>' +
+    '<path d="M8 112 L8 92 L34 80 L60 92 L90 76 L124 94 L150 82 L182 96 L182 112z" fill="var(--deskShade)" opacity=".5"/>' +
+    '<rect x="93" y="8" width="4" height="104" fill="var(--deskShade)"/><rect x="8" y="58" width="174" height="4" fill="var(--deskShade)"/><rect x="8" y="8" width="174" height="104" rx="4" fill="var(--glass)"/>';
+  var a = svgIn(win, "", "0 0 190 120"); a.style.cssText = "left:max(16px,4%);top:14px;width:clamp(120px,15vw,190px)";
+  var clk = svgIn('<circle cx="40" cy="40" r="37" fill="var(--panel)" stroke="var(--deskShade)" stroke-width="5"/>' +
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(function(i){ var an = i * Math.PI / 6, r1 = i % 3 ? 30 : 27; return '<line x1="' + (40 + Math.sin(an) * r1).toFixed(1) + '" y1="' + (40 - Math.cos(an) * r1).toFixed(1) + '" x2="' + (40 + Math.sin(an) * 33).toFixed(1) + '" y2="' + (40 - Math.cos(an) * 33).toFixed(1) + '" stroke="var(--dim)" stroke-width="' + (i % 3 ? 1.5 : 3) + '" stroke-linecap="round"/>'; }).join("") +
+    '<line id="hh" x1="40" y1="40" x2="40" y2="22" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/><line id="mm" x1="40" y1="40" x2="40" y2="14" stroke="var(--ink)" stroke-width="2.6" stroke-linecap="round"/><line id="ss" x1="40" y1="44" x2="40" y2="12" stroke="#D9573E" stroke-width="1.3" stroke-linecap="round"/><circle cx="40" cy="40" r="3" fill="var(--ink)"/>', "", "0 0 80 80", "Duvar saati");
+  clk.style.cssText = "left:calc(50% - 40px);top:22px;width:80px";
+  var poster = svgIn('<rect x="0" y="0" width="86" height="106" rx="5" fill="var(--deskShade)"/><rect x="6" y="6" width="74" height="94" rx="3" fill="#FFD42B"/><rect x="16" y="18" width="54" height="30" rx="5" fill="#111110"/><rect x="22" y="26" width="30" height="4" rx="2" fill="#FFD42B"/><rect x="22" y="34" width="20" height="4" rx="2" fill="#6CC48C"/><text x="43" y="72" text-anchor="middle" font-size="12" font-weight="800" fill="#111110" font-family="system-ui,sans-serif">CineVocab</text><rect x="20" y="82" width="46" height="5" rx="2.5" fill="#111110" opacity=".75"/>', "", "0 0 86 106", "Poster");
+  poster.style.cssText = "right:calc(max(16px,4%) + 170px);top:18px;width:72px";
+  var shelf = svgIn('<rect x="0" y="52" width="170" height="8" rx="3" fill="var(--deskShade)"/><rect x="10" y="12" width="14" height="40" rx="2" fill="#3B6FD6"/><rect x="26" y="20" width="12" height="32" rx="2" fill="#D9573E"/><rect x="40" y="8" width="16" height="44" rx="2" fill="#2F9E6D"/><rect x="58" y="22" width="12" height="30" rx="2" fill="#E0A64A"/><rect x="76" y="30" width="24" height="22" rx="3" fill="var(--pot)"/><path class="f-plant" d="M88 30 Q70 8 78 0 Q92 12 88 30z"/><path class="f-plant" d="M88 30 Q100 6 112 6 Q106 22 88 30z"/><rect x="118" y="38" width="22" height="14" rx="2" fill="#F4F0E6"/><path d="M140 42 q8 0 0 8" fill="none" stroke="#F4F0E6" stroke-width="3"/><rect x="146" y="14" width="18" height="38" rx="2" fill="#8E5BD8"/>', "", "0 0 170 62");
+  shelf.style.cssText = "right:max(16px,4%);top:56px;width:clamp(110px,13vw,170px)";
+  w.append(a, clk, poster, shelf);
+}
+function tickClock(){
+  var d = new Date(), hh = document.getElementById("hh"), mm = document.getElementById("mm"), ss = document.getElementById("ss");
+  if (!hh) return;
+  var h = (d.getHours() % 12) + d.getMinutes() / 60, m = d.getMinutes() + d.getSeconds() / 60, sec = d.getSeconds();
+  hh.setAttribute("transform", "rotate(" + (h * 30) + " 40 40)"); mm.setAttribute("transform", "rotate(" + (m * 6) + " 40 40)"); ss.setAttribute("transform", "rotate(" + (sec * 6) + " 40 40)");
+}
+
+// ---- masa hücreleri ----
+function bubbleEl(text, empty){ var b = el("div", "bubble" + (empty ? " empty" : "")); b.appendChild(el("span", "", text)); return b; }
+
+function deskCell(name, role, x, v, now, look){
+  var cell = el("section", "cell s-" + v), plate = el("div", "plate"), nm = el("div", "nm"), when = el("div", "when", stamp(x, now));
+  var msg = x && x.last ? x.last : (v === "henuz" ? "Bu oturumda henüz görev almadı." : "Henüz sinyal gelmedi.");
+  if (v === "bekliyor" && !(x && x.last)) msg = "İzin bekliyor";
+  var svg = deskScene(look, v, name + ": " + LABEL[v]);
+  nm.append(el("b", "", name), badge(v));
+  plate.append(nm);
+  if (role) plate.appendChild(el("small", "", role));
+  if (v === "bilinmiyor" && x && x.status === "calisiyor") when.textContent += " · sinyal kesildi";
+  plate.appendChild(when);
+  cell.append(bubbleEl(msg, !(x && x.last)), svg, plate);
+  return cell;
+}
+
+// Diğer ajanlar: uzun masada oturan küçük figürler (solda) + liste (sağda)
+function othersCell(list, now, started){
+  var cell = el("section", "cell wide"), v = "henuz";
+  if (list.length) v = view(best(list, now), now); else if (!started) v = "bilinmiyor";
+  cell.className = "cell wide s-" + v;
+  var sorted = list.slice().sort(function(a, b){ return (b.at || 0) - (a.at || 0); }).slice(0, 6), s = "", i, n = Math.max(sorted.length, 1);
+  var W = 520, step = W / Math.max(n, 4), sc = .62, x0 = (W - step * n) / 2;
+  s += '<rect class="f-top" x="6" y="150" width="508" height="22" rx="7"/><rect class="f-shade" x="6" y="168" width="508" height="4" rx="2" opacity=".55"/><rect class="f-front" x="20" y="172" width="480" height="52" rx="4"/>';
+  for (i = 0; i < n; i++){
+    var a = sorted[i], av = a ? view(a, now) : "henuz", cx = x0 + step * (i + .5), look = LOOKS[(a ? hash(a.id || a.type || "x") : 3) % LOOKS.length];
+    s += '<g transform="translate(' + (cx - 130 * sc).toFixed(1) + ',26) scale(' + sc + ')"' + (av === "bilinmiyor" ? ' style="filter:grayscale(1) opacity(.62)"' : "") + '>' + miniDesk(look, av) + '</g>';
+  }
+  var svg = svgIn(s, "scene", "0 0 520 232", "Diğer ajanlar masası");
+  var left = el("div", "left"), right = el("div", "right"), plate = el("div", "plate"), nm = el("div", "nm");
+  left.append(bubbleEl(sorted.length ? sorted.length + " ajan ortak masada" : "Ortak masa boş", !sorted.length), svg);
+  nm.append(el("b", "", "Diğer ajanlar"), badge(v));
+  plate.append(nm, el("small", "", "Adı tanımlı olmayan ajanlar (tür ve son iş)"));
+  if (!sorted.length) plate.appendChild(el("div", "when", started ? "Bu oturumda tanımsız ajan çalışmadı." : "Henüz sinyal gelmedi."));
+  else {
+    var ul = el("ul", "rows");
+    sorted.forEach(function(a){
+      var li = el("li"), r1 = el("div", "r1"), ty = el("span", "ty", a.type || "tür belirtilmemiş"), av = view(a, now), st = badge(av);
+      st.style.setProperty("--c", "var(--" + ({ calisiyor: "work", bitirdi: "done", bosta: "idle", bekliyor: "wait", bilinmiyor: "unk", henuz: "idle" }[av]) + ")");
+      if (a.inferred) ty.appendChild(el("small", "", " (istekten tahmin)"));
+      r1.append(ty, st);
+      li.append(r1, el("p", "tx", a.last || "—"), el("div", "wh", stamp(a, now)));
+      ul.appendChild(li);
+    });
+    plate.appendChild(ul);
+  }
+  right.appendChild(plate);
+  var wrap = el("div", "others"); wrap.append(left, right); cell.appendChild(wrap);
+  return cell;
+}
+// kahve köşesi: masalar satırı eksik kalırsa boşluğu doldurur; boşta olanları sayar
+function coffeeCell(n){
+  var cell = el("section", "cell"), plate = el("div", "plate"), nm = el("div", "nm");
+  var s = '<rect class="f-chair" x="14" y="150" width="40" height="70" rx="8" opacity=".0"/>';
+  s += '<rect class="f-pot" x="20" y="150" width="30" height="26" rx="4"/><path class="f-plant" d="M35 150 Q16 120 22 100 Q34 120 35 150z"/><path class="f-plant" d="M35 150 Q46 112 62 108 Q54 134 35 150z"/>';
+  s += '<rect class="f-top" x="66" y="128" width="182" height="24" rx="6"/><rect class="f-front" x="74" y="152" width="166" height="72" rx="4"/><rect class="f-shade" x="84" y="162" width="68" height="50" rx="3" opacity=".5"/><rect class="f-shade" x="160" y="162" width="68" height="50" rx="3" opacity=".5"/>';
+  s += '<rect x="104" y="58" width="58" height="72" rx="8" fill="#2A2D33"/><rect x="112" y="66" width="42" height="22" rx="4" fill="#FFD42B" opacity=".9"/><rect x="118" y="73" width="22" height="3.5" rx="1.7" fill="#1A1500"/><rect x="118" y="79" width="14" height="3.5" rx="1.7" fill="#1A1500"/><circle cx="144" cy="98" r="3.6" fill="#D9573E"/><rect x="120" y="106" width="22" height="22" rx="3" fill="#3A3D44"/><rect x="124" y="114" width="14" height="13" rx="2" fill="#F4F0E6"/>';
+  if (n > 0) s += '<path class="steam" d="M129 110 q-3 -4 0 -8" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2" stroke-linecap="round"/><path class="steam b" d="M135 110 q-3 -4 0 -8" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2" stroke-linecap="round"/>';
+  s += '<rect x="184" y="70" width="34" height="58" rx="5" fill="#2A2D33"/><path d="M188 72 h26 v32 a13 13 0 0 1 -26 0z" fill="#7FB8E8" opacity=".85"/><rect x="194" y="108" width="6" height="8" fill="#B9C2CF"/><rect x="226" y="112" width="14" height="16" rx="2" fill="#F4F0E6"/><path d="M240 116 q7 0 0 9" fill="none" stroke="#F4F0E6" stroke-width="3"/>';
+  var svg = svgIn(s, "scene", "0 0 260 232", "Kahve köşesi");
+  nm.append(el("b", "", "Kahve köşesi"));
+  plate.append(nm, el("small", "", n ? n + " kişi molada" : "Şu an kimse molada değil"));
+  cell.append(bubbleEl(n ? "Mola zamanı" : "Kahve taze", false), svg, plate);
+  return cell;
+}
+// ortak masa için küçük: laptop + gövde + kafa
+function miniDesk(l, v){
+  var s = "", cx = 130, scr = { calisiyor: "#7FA6FF", bitirdi: "#6CC48C", bekliyor: "#E0A64A", bosta: "#3A3D44", bilinmiyor: "#5A5C61", henuz: "#3A3D44" }[v];
+  s += '<g style="' + lookStyle(l) + '">';
+  s += '<rect class="f-chair" x="84" y="116" width="92" height="64" rx="22"/><path class="f-shirt" d="M82 180 L82 146 Q82 128 104 124 L156 124 Q178 128 178 146 L178 180 Z"/>';
+  s += '<rect class="f-skin" x="121" y="112" width="18" height="16" rx="6" style="filter:brightness(.88)"/>' + head(l, cx, 100);
+  s += '<g class="' + (v === "calisiyor" ? "typL" : "") + '"><path class="s-shirt" d="M93 152 L110 196" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="112" cy="200" r="6.5"/></g><g class="' + (v === "calisiyor" ? "typR" : "") + '"><path class="s-shirt" d="M167 152 L150 196" stroke-width="13" stroke-linecap="round" fill="none"/><circle class="f-skin" cx="148" cy="200" r="6.5"/></g>';
+  // laptop (arkası bize bakar, ekranın parıltısı ışık verir)
+  s += '<path d="M92 206 L168 206 L162 160 L98 160z" fill="#23262C"/><circle cx="130" cy="188" r="6" fill="' + scr + '" opacity="' + (v === "calisiyor" || v === "bitirdi" || v === "bekliyor" ? 1 : .5) + '"/>';
+  s += '</g>';
+  return s;
 }
 
 function render(state, cfg){
+  uidN = 0;
   var now = Date.now() / 1000, started = !!(state && state.updated), desks = (state && state.desks) || {};
   var ags = state && state.agents ? Object.keys(state.agents).map(function(k){ var a = state.agents[k]; a.id = k; return a; }) : [];
-  var known = {}, cards = [];
-  (cfg.desks || []).forEach(function(c){
+  var known = {}, cells = [];
+  (cfg.desks || []).forEach(function(c, i){
     known[c.id] = 1;
+    var look = LOOKS[i % LOOKS.length];
     if (c.id === "ana"){
-      var x = desks.ana; cards.push(deskCard(c.name, c.role, x, x ? view(x, now) : (started ? "henuz" : "bilinmiyor"), now));
+      var x = desks.ana; cells.push(deskCell(c.name, c.role, x, x ? view(x, now) : (started ? "henuz" : "bilinmiyor"), now, look));
       return;
     }
     var mine = ags.filter(function(a){ return a.type === c.id; });
-    if (mine.length){ var b = best(mine, now); cards.push(deskCard(c.name, c.role, b, view(b, now), now)); }
-    else cards.push(deskCard(c.name, c.role, null, started ? "henuz" : "bilinmiyor", now));
+    if (mine.length){ var b = best(mine, now); cells.push(deskCell(c.name, c.role, b, view(b, now), now, look)); }
+    else cells.push(deskCell(c.name, c.role, null, started ? "henuz" : "bilinmiyor", now, look));
   });
   var others = ags.filter(function(a){ return !known[a.type]; });
-  cards.push(othersCard(others, now, started));
-  grid.replaceChildren.apply(grid, cards);
+  var idle = cells.filter(function(c){ return c.classList.contains("s-bosta"); }).length, cols = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(" ").length);
+  if (cols > 1 && cells.length % cols !== 0) cells.push(coffeeCell(idle));
+  cells.push(othersCell(others, now, started));
+  grid.replaceChildren.apply(grid, cells);
+  // her hücrenin kendi insan renkleri
+  Array.prototype.forEach.call(grid.querySelectorAll(".cell"), function(c, i){
+    if (c.classList.contains("wide") || i >= (cfg.desks || []).length) return;
+    c.querySelector(".scene").setAttribute("style", lookStyle(LOOKS[i % LOOKS.length]));
+  });
 
   // hook'ların gerçek verisi
   var log = document.getElementById("log"), keys = document.getElementById("keys"), ks = (state && state.keys) || {};
@@ -194,6 +464,7 @@ function tick(){
     if (!res[1]) { conn.textContent = "durum.json yok: hook çalışmadı mı?"; conn.className = "pill bad"; }
   }).catch(function(){ conn.textContent = "sunucuya ulaşılamıyor"; conn.className = "pill bad"; });
 }
+wallSVG(); tickClock(); setInterval(tickClock, 1000);
 tick(); setInterval(tick, 3000);
 </script>
 </body>
