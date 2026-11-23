@@ -9,12 +9,11 @@ Her başlık için: link, tarih, kısaca ne soruluyor, o sitenin tanıtım kural
 Puanı 4-5 olanlar için cevap taslağı yaz:
 - Dil: taslağı başlığın dilinde yaz (İspanyolca başlığa İspanyolca, Almanca başlığa Almanca, Arapçaya Arapça...). Dilden emin değilsen İngilizce.
 - Önce soruya gerçekten cevap ver (eklentisiz de işe yarayan bir öneri dahil). Amaç dikkat çekip tıklama almak: ilk cümle soruyu sahiplenen, somut ve merak uyandıran bir ipucuyla başlasın.
-- Sonra kısaca CineVocab'dan bahset, geliştiricisi olduğumu açıkça yaz ve iki linki ver (aşağıda).
-- Her taslakta iki link olsun, ikisi de sayaçlı ve ikisinde AYNI etiket kullanılsın (örn. quora-es):
-  - Eklenti: https://cinevocab.up.railway.app/get?src=<etiket>
-  - Tanıtım videosu: https://cinevocab.up.railway.app/video?src=<etiket>
-  Etiket: site kısa adı ve dil kodu (quora-es, forum-de...), küçük harf, rakam, "-" ve "_", en çok 24 karakter. Aksi halde sayaç "direct" yazar ve hangi siteden geldiği anlaşılmaz. Etiketin başına "v:" ekleme, sunucu bunu video linkinde kendisi ekler.
-  Başlık Türkçeyse iki linkin sonuna da &hl=tr ekle (Türkçe video ve Türkçe mağaza sayfası açılır): .../get?src=<etiket>&hl=tr ve .../video?src=<etiket>&hl=tr. Başka her dilde &hl ekleme: o zaman İngilizce video açılır. Sunucuda yalnızca İngilizce ve Türkçe video var; diğer dillerde bile İngilizce video gider.
+- Sonra kısaca CineVocab'dan bahset, geliştiricisi olduğumu açıkça yaz ve linki ver (aşağıda).
+- Taslakta YALNIZCA sayaçlı mağaza linki olsun: https://cinevocab.up.railway.app/get?src=<etiket>
+  Etiket: site kısa adı ve dil kodu (quora-es, forum-de...), küçük harf, rakam, "-" ve "_", en çok 24 karakter. Aksi halde sayaç "direct" yazar ve hangi siteden geldiği anlaşılmaz.
+  Başlık Türkçeyse linkin sonuna &hl=tr ekle (Türkçe mağaza sayfası açılır): .../get?src=<etiket>&hl=tr. Başka dillerde &hl ekleme.
+  /video linkini taslaklara KOYMA. Tanıtım videosu gerekiyorsa yalnızca çağıranın verdiği düz YouTube adresini yaz (sayaçsız, olduğu gibi); çağıran video adresi vermediyse hiç video linki koyma ve uydurma.
 - Abartı yok, "en iyi" yok, sahte kullanıcı ağzından yazma yok. Dikkat çekmek doğruyu etkili söylemekle olur, şişirmekle değil.
 - Özellik iddiaları: yalnızca extension/ kodundan ve mağazada yayındaki sürümün (2.3.0) davranışından doğrula. docs/store/LISTING_*.md dosyalarına güvenme (eski olabilir). Önce docs/store/FORUM_DOGRULANMIS_OZELLIKLER.md dosyasını oku; özellik iddialarını oradaki "Söylenebilir" maddeleriyle sınırla ve "Yazma" bölümündekileri yazma. Dosyada olmayan bir özellik için kodu aç, doğrulayamazsan yazma. extension/ klasörü yayındakinden yeni bir sürüme geçmişse (manifest.json sürümü 2.3.0'dan büyükse) yeni özellikleri yazma. Başka ürünleri kötüleme ya da karşılaştırma yapma.
 Kendini tanıtmayı yasaklayan siteleri listele ama taslak yazma.
