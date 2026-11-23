@@ -29,14 +29,15 @@ const extAnon = ext.map((x) => Math.round(x * 0.62));
 const sum = (a, n) => a.slice(-n).reduce((s, x) => s + x, 0);
 
 function traffic(days) {
-  const daily = Array.from({ length: 14 }, (_, i) => ({ day: dd(dayOf(i)), site: site[i], ext: ext[i], clicks: clicks[i], signups: signups[i], ...(ANON ? { ext_anon: extAnon[i] } : {}) }));
-  const totals = { site: sum(site, days), ext: sum(ext, days), clicks: sum(clicks, days), signups: sum(signups, days), ...(ANON ? { ext_anon: sum(extAnon, days), ext_acct: sum(ext, days) - sum(extAnon, days) } : {}) };
+  const daily = Array.from({ length: 14 }, (_, i) => ({ day: dd(dayOf(i)), site: site[i], ext: ext[i], clicks: clicks[i], signups: signups[i], ...(ANON ? { ext_anon: i < 4 ? null : extAnon[i] } : {}) }));
+  const totals = { site: sum(site, days), ext: sum(ext, days), clicks: sum(clicks, days), signups: sum(signups, days), ...(ANON ? { ext_anon: sum(extAnon, days), ext_acct: sum(ext, days) - sum(extAnon, days) - sum(ext.map((x) => Math.round(x * 0.2)), days), ext_unknown: sum(ext.map((x) => Math.round(x * 0.2)), days) } : {}) };
   const f = days === 1 ? 0.14 : days === 7 ? 1 : 3.4;
   const e = (n) => (EMPTY ? 0 : Math.round(n * f));
   const countries = EMPTY ? [] : [
     { country: "TR", site: e(410), ext: e(260), clicks: e(96) }, { country: "US", site: e(88), ext: e(61), clicks: e(14) }, { country: "DE", site: e(52), ext: e(37), clicks: e(9) },
     { country: "dil:tr", site: e(46), ext: e(31), clicks: e(6) }, { country: "GB", site: e(34), ext: e(22), clicks: e(5) }, { country: "dil:en", site: e(21), ext: e(12), clicks: e(2) },
-    { country: "NL", site: e(18), ext: e(11), clicks: e(3) }, { country: "?", site: e(14), ext: e(9), clicks: e(1) }, { country: "FR", site: e(12), ext: e(7), clicks: e(2) }, { country: "BR", site: e(9), ext: e(6), clicks: e(1) }];
+    { country: "NL", site: e(18), ext: e(11), clicks: e(3) }, { country: "?", site: e(14), ext: e(9), clicks: e(1) }, { country: "FR", site: e(12), ext: e(7), clicks: e(2) }, { country: "BR", site: e(9), ext: e(6), clicks: e(1) },
+    ...["IT", "ES", "PL", "SE", "AT", "CH", "CA", "AU"].map((c, i) => ({ country: c, site: e(8 - i), ext: e(4), clicks: e(1) }))];
   const hours = { site: z(Array.from({ length: 24 }, (_, i) => Math.round(8 + 36 * Math.exp(-(((i - 21) % 24) ** 2) / 22) + 18 * Math.exp(-((i - 13) ** 2) / 18)))), clicks: z(Array.from({ length: 24 }, (_, i) => Math.round(2 + 9 * Math.exp(-((i - 20) ** 2) / 14)))) };
   const kinds = ["tıklama", "site", "eklenti", "site", "tıklama", "eklenti"], devs = ["telefon", "bilgisayar", "telefon", "bilgisayar", "tablet"], oss = ["Android", "Windows", "iOS", "macOS", "Android"], cc = ["TR", "US", "dil:tr", "DE", "?", "GB"];
   const recent = EMPTY ? [] : Array.from({ length: 15 }, (_, i) => ({ at: `23.11 ${String(14 - Math.floor(i / 3)).padStart(2, "0")}:${String(58 - i * 3).padStart(2, "0")}`, kind: kinds[i % 6], what: i % 3 === 0 ? "yt-tr" : i % 3 === 1 ? "google.com" : "", device: devs[i % 5], os: oss[i % 5], country: cc[i % 6] }));

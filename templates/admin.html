@@ -433,7 +433,13 @@ function countryRows(list) {
   const mk = (label, r, sub) => ({ label, total: tot(r), pct: pct(tot(r), all), sub,
     parts: [[r.clicks, C.click, "Tıklama: " + r.clicks], [r.site, C.site, "Site: " + r.site], [r.ext, C.ext, "Eklenti: " + r.ext]] });
   const detail = (r) => [r.clicks ? r.clicks + " tıklama" : "", r.site ? r.site + " site" : "", r.ext ? r.ext + " eklenti" : ""].filter(Boolean).join(" · ");
-  const rows = known.sort((a, b) => tot(b) - tot(a)).map((r) => mk(countryLabel(r.country), r, detail(r)));
+  known.sort((a, b) => tot(b) - tot(a));
+  const rows = known.slice(0, 10).map((r) => mk(countryLabel(r.country), r, detail(r)));
+  const rest = known.slice(10);
+  if (rest.length) {
+    const agg = rest.reduce((a, r) => ({ site: a.site + r.site, ext: a.ext + r.ext, clicks: a.clicks + r.clicks }), { site: 0, ext: 0, clicks: 0 });
+    rows.push(mk("🏳 Diğer ülkeler (" + rest.length + ")", agg, detail(agg)));
+  }
   const unkTot = tot(unk);
   if (unkTot) rows.push(mk("🌐 Ülke bilinmiyor", unk, Object.entries(unk.langs).sort((a, b) => b[1] - a[1]).map(([k, n]) => k + " " + n).join(" · ")));
   return { rows, known: all - unkTot, unknown: unkTot, all };
@@ -454,9 +460,10 @@ async function viewTraffic() {
   let anonReq = null;
   const kp = [kpi({ label: "Siteye giren", value: T.site || 0, color: C.site, spark: col("site"), sub: [todayYest("site"), siteDev ? " · %" + pct(dv.site.telefon || 0, siteDev) + " telefon" : ""] }),
     kpi({ label: "Eklentiyi kullanan", value: T.ext || 0, color: C.ext, spark: col("ext"), sub: todayYest("ext") })];
-  if (T.ext_anon != null) {
+  if (T.ext_anon != null && (T.ext_anon || 0) + (T.ext_acct || 0) > 0) {
     kp.push(kpi({ label: "Hesapsız kullanan", value: T.ext_anon, color: C.anon, spark: daily.some((x) => x.ext_anon != null) ? col("ext_anon") : null,
-      sub: h("span", {}, "hesaplı ", h("b", {}, fmt(T.ext_acct || 0)), " · hesapsız payı ", h("b", {}, "%" + pct(T.ext_anon, (T.ext_anon || 0) + (T.ext_acct || 0))))}));
+      sub: h("span", {}, "hesaplı ", h("b", {}, fmt(T.ext_acct || 0)), " · hesapsız payı ", h("b", {}, "%" + pct(T.ext_anon, (T.ext_anon || 0) + (T.ext_acct || 0))),
+        T.ext_unknown ? [" · ", h("b", {}, fmt(T.ext_unknown)), " eski kayıtta bilinmiyor"] : "") }));
   } else if (st && st.usage && st.usage.length) {
     const win = Math.min(days, 14), tdy = (d.now || "").slice(0, 10).split(".");
     // Bugünün İstanbul tarihi: sunucudan gelen saat, gelmediyse tarayıcıdan
@@ -472,7 +479,7 @@ async function viewTraffic() {
     kpi({ label: "Yeni kayıt", value: T.signups || 0, color: C.reg, spark: col("signups"), sub: todayYest("signups") }));
 
   const bits = [[last.site, "siteye girdi"], [last.ext, "eklentiyi kullandı"]];
-  if (T.ext_anon != null && last.ext_anon != null) bits.push([last.ext_anon, "hesapsız kullandı"]);
+  if (last.ext_anon != null) bits.push([last.ext_anon, "hesapsız kullandı"]);
   else if (anonReq != null) bits.push([anonReq, "hesapsız çeviri isteği"]);
   bits.push([last.clicks, "mağaza linkine tıkladı"], [last.signups, "kayıt oldu"]);
   const todayStrip = h("div", { class: "today", role: "group", "aria-label": "Bugünün sayıları" }, h("b", {}, "Bugün"),
@@ -500,13 +507,14 @@ async function viewTraffic() {
       h("details", { class: "dt" }, h("summary", {}, "Sayıları tablo olarak göster"),
         tbl(["Gün", ...seriesTop.map((x) => x.label)], daily.map((x) => [x.day, ...seriesTop.map((y) => fmt(x[y.key]))])))),
     h("div", { class: "grid2" },
-      h("div", { class: "panel" }, h("h3", {}, "Hangi ülkelerden? (tahmin)"),
+      h("div", { class: "panel" }, h("h3", {}, "Hangi ülkelerden?"),
         cty.all ? [h("div", { class: "meter", role: "img", "aria-label": "Ülkesi belli " + pct(cty.known, cty.all) + " yüzde" },
           h("i", { style: `width:${pct(cty.known, cty.all)}%;background:#d9d3c5` }), h("i", { style: `width:${100 - pct(cty.known, cty.all)}%;background:${UNK}` })),
           h("div", { class: "meter-l" }, h("span", {}, "Ülkesi belli ", h("b", {}, "%" + pct(cty.known, cty.all))), h("span", {}, "Bilinmiyor ", h("b", {}, "%" + (100 - pct(cty.known, cty.all)))))] : "",
         hbars(cty.rows, "Henüz veri yok."),
         h("div", { class: "keys" }, [["Tıklama", C.click], ["Site", C.site], ["Eklenti", C.ext]].map(([t, c]) => h("span", { class: "key", style: "--c:" + c }, h("i"), t))),
-        h("p", { class: "hint" }, "Ülke, tarayıcının dil ayarından tahmin edilir; gerçek konuma bakılmaz. Dil ayarı ülke içermiyorsa (ör. yalnızca \"Türkçe\") ülke belli olmaz. Bu kişiler \"Ülke bilinmiyor\" satırında toplanır, altında hangi dili kullandıkları yazar. Yüzdeler listedeki ilk 10 kayda göredir.")),
+        h("p", { class: "hint" }, "Ülke, ziyaretçinin IP adresinden bulunur (IP kaydedilmez); VPN kullananlar gerçek ülkelerinden görünmeyebilir. Eski kayıtlarda ülke tarayıcının dil ayarından tahmin edilmişti, o yüzden \"bilinmiyor\" eski günlerde daha kalabalıktır. Bulunamayanlar \"Ülke bilinmiyor\" satırında toplanır, altında tarayıcı dilleri yazar. Yüzdeler en kalabalık 40 kayıt üzerinden hesaplanır. IP konum verisi: ",
+          h("a", { href: "https://db-ip.com", target: "_blank", rel: "noopener" }, "DB-IP.com"), ".")),
       h("div", { class: "panel" }, h("h3", {}, "Telefon mu bilgisayar mı?"),
         h("p", { class: "sub" }, "Siteye girenler"), donut(DEVS.map((k) => [DEV[k][0], dv.site[k] || 0, DEV[k][1]]), "giren"),
         h("p", { class: "sub", style: "margin-top:18px" }, "Mağaza linkine tıklayanlar"), donut(DEVS.map((k) => [DEV[k][0], dv.clicks[k] || 0, DEV[k][1]]), "tıklayan"),
