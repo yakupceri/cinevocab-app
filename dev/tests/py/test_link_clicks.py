@@ -5,7 +5,11 @@ Postgres araçları (initdb, pg_ctl) yoksa atlanır. Gerçek sunucuya hiç bağl
 import os
 
 import pytest
-from fastapi.testclient import TestClient
+
+try:
+    from fastapi.testclient import TestClient
+except (ImportError, RuntimeError) as e:   # starlette TestClient httpx (ya da httpx2) ister; yoksa yalnızca bu dosya atlanır, takım bozulmaz
+    pytest.skip(f"TestClient kullanılamıyor ({e}); pip install httpx", allow_module_level=True)
 
 import accounts
 from test_visits import req
