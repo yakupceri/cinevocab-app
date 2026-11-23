@@ -22,7 +22,8 @@
     bank: { enabled: true, src: "es", dst: "en", boxTip: 1, keptFirst: 1, bank: BANK, stars: { "es>en": Object.values(BANK)[0].map((x) => x.w) }, box: BOX },
   };
   const store = JSON.parse(JSON.stringify(PRESET[scene] || {}));
-  if (q.get("kf")) store.keptFirst = 1;   // ?kf=1: "ilk kelime tutuldu" notu çıkmasın (reklam karesi)
+  if (q.get("kf")) store.keptFirst = 1;
+  if (q.get("noask")) store.startAsk = "no";   // ?noask=1: "CineVocab kapalı, çevireyim mi?" uyarısı çıkmasın (arka plan karesi)   // ?kf=1: "ilk kelime tutuldu" notu çıkmasın (reklam karesi)
   if (q.get("bs") && store.box) store.box.s = +q.get("bs");   // ?bs=1.7: dikey video için kutu ölçeği
   if (q.get("bankN") && store.bank) store.bank["es>en"] = store.bank["es>en"].slice(0, +q.get("bankN"));
   if (q.get("src")) store.src = q.get("src");   // ?src=ar&dst=en: sağdan sola dil denemesi
@@ -51,8 +52,10 @@
     "No sé qué decir cuando me preguntan por el futuro": "I don't know what to say when they ask me about the future.",
     "أهم شيء في الحياة هو حب النفس": "The most important thing in life is self-love.",
     "You told me it was a lie.": "Bana bunun bir yalan olduğunu söyledin.",
+    "Never believe lies.": "Yalanlara asla inanma.",
+    "Nunca creas mentiras": "Never believe lies.",
   };
-  const DICT = { "أهم": "most important", "شيء": "thing", "الحياة": "life", "حب": "love", "النفس": "self", más: "more", importante: "important", vida: "life", tener: "to have", amor: "love", propio: "own", sé: "I know", decir: "to say", cuando: "when", preguntan: "they ask", futuro: "future", qué: "what", por: "for", feliz: "happy", mundo: "world", pregunta: "question", you: "sen", told: "söyledin", me: "bana", it: "bunun", was: "idi", a: "bir", lie: "yalan" };
+  const DICT = { "أهم": "most important", "شيء": "thing", "الحياة": "life", "حب": "love", "النفس": "self", más: "more", importante: "important", vida: "life", tener: "to have", amor: "love", propio: "own", sé: "I know", decir: "to say", cuando: "when", preguntan: "they ask", futuro: "future", qué: "what", por: "for", feliz: "happy", mundo: "world", pregunta: "question", you: "sen", told: "söyledin", me: "bana", it: "bunun", was: "idi", a: "bir", lie: "yalan", never: "asla", believe: "inanmak", lies: "yalanlar", nunca: "never", creas: "believe", mentiras: "lies" };
   const TAB = q.get("tab") === "yt" ? "https://www.youtube.com/watch?v=mECAxJYzj0Y" : "https://example.com/";
 
   const noop = () => {};

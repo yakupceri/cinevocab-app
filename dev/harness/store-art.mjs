@@ -1,7 +1,7 @@
 // Chrome Web Store görselleri: dev/out/release-<sürüm>/ içine 5 ekran görüntüsü (1280x800), küçük tanıtım kutusu (440x280), büyük afiş (1400x560).
 // Kullanım (dev/ klasöründen): node harness/store-art.mjs [sürüm=2.3.0] [tr]   ("tr": Türkçe sürüm, dev/out/release-<sürüm>/tr/ içine; önce  node harness/ad2-assets.mjs tr  çalışmış olmalı)
 import { chromium } from "playwright";
-import { mkdirSync, copyFileSync } from "node:fs";
+import { mkdirSync, copyFileSync, readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -21,6 +21,7 @@ const jobs = [
 for (const j of jobs) {
   const ctx = await b.newContext({ viewport: { width: j.w, height: j.h }, deviceScaleFactor: 1 });
   const p = await ctx.newPage(); p.on("pageerror", (e) => console.log("SAYFA HATASI:", e.message));
+  const tj = join(HERE, "..", "out", "ad2", TR ? "assets-tr" : "assets", "thumb.json"); if (existsSync(tj)) await p.addInitScript(`window.THUMB = ${readFileSync(tj, "utf8")};`);
   await p.goto(URL_(j.q)); await p.waitForFunction("document.title === 'ready'"); await p.evaluate("document.fonts.ready"); await new Promise((r) => setTimeout(r, 350));
   await p.screenshot({ path: j.file, type: "png" }); console.log("yazıldı:", j.file.replace(OUT + "/", ""));
   await ctx.close();

@@ -93,19 +93,21 @@ if (K === "shot") {
     ${frame("chips.png", 760, 70, 700, 490, 0, 0, 700)}</div>`;
 } else if (K === "thumb") {
   W = 1280; Hh = 720; th = "k";
-  // dikkat çekici kapak: iri üç satır büyük harf, sarı vurgu, büyütülmüş altyazı kutusu, kırmızı halka, ücretsiz etiketi
+  // YouTube kapağı: sinematik koyu arka plan, üç satır iri yazı (orta satır vurgu), altta logo + etiket, sağda gerçek çeviri kutusu ve imleç
+  const D = window.THUMB || { x: 500, y: 880, w: 660, h: 210, chip: { x: 730, y: 908, w: 208, h: 153 } };
   const C = LANG === "tr"
-    ? { lines: ["DİZİ İZLE", "İNGİLİZCE", "*ÖĞREN*"], free: "ÜCRETSİZ", crop: { x: 960, y: 872, w: 600, h: 380 }, ring: { x: 1322, y: 892, w: 172, h: 118 } }
-    : { lines: ["EVERY WORD", "TRANSLATED", "*INSTANTLY*"], free: "FREE", crop: { x: 1020, y: 872, w: 760, h: 380 }, ring: { x: 1530, y: 892, w: 214, h: 118 } };
-  const bw = 580, k = bw / C.crop.w, bh = Math.round(C.crop.h * k), bx = 672, by = 186;
-  const hl = C.lines.map((l) => l.startsWith("*") ? `<span style="background:#FFD42B;color:#111110;padding:0 .12em;border-radius:.14em">${l.replace(/\*/g, "")}</span>` : l).join("<br>");
-  const rg = C.ring;
-  html = `<div class="cv k" style="width:1280px;height:720px">
-    <div class="abs" style="left:56px;top:40px;display:flex;align-items:center;gap:14px;font:800 36px/1 'CV Display',sans-serif"><img src="${ICON}" style="width:64px;height:64px;border-radius:15px">CineVocab</div>
-    <div class="abs" style="left:56px;top:${LANG === 'tr' ? 150 : 170}px;width:640px;font:800 ${LANG === 'tr' ? 112 : 92}px/1.02 'CV Display',sans-serif;letter-spacing:-.03em">${hl}</div>
-    <div class="shot" style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;border-radius:20px;box-shadow:0 0 0 6px #FFD42B, 0 30px 60px rgba(0,0,0,.5)"><img src="${A}kept.png" style="left:${-C.crop.x * k}px;top:${-C.crop.y * k}px;width:${2000 * k}px"></div>
-    <div class="abs" style="left:${bx + (rg.x - C.crop.x) * k - 10}px;top:${by + (rg.y - C.crop.y) * k - 10}px;width:${rg.w * k + 20}px;height:${rg.h * k + 20}px;border:9px solid #E5322D;border-radius:50%"></div>
-    <div class="abs" style="left:56px;bottom:46px;padding:14px 34px;border-radius:99px;background:#FFD42B;color:#111110;font:800 44px/1 'CV Display',sans-serif;letter-spacing:.02em;transform:rotate(-3deg)">${C.free}</div></div>`;
+    ? { l1: "HER KELİME", l2: "ANINDA", l3: "ÇEVRİLİR", free: "ÜCRETSİZ", fs: 124 }
+    : { l1: "EVERY WORD", l2: "INSTANTLY", l3: "TRANSLATED", free: "FREE", fs: 104 };
+  const cw = 584, k = cw / D.w, ch = Math.round(D.h * k), cx = 664, cy = 452;
+  const tipX = cx + 14 + (D.chip.x + D.chip.w * 0.82 - D.x) * k, tipY = cy + 14 + (D.chip.y + D.chip.h * 0.78 - D.y) * k;
+  html = `<div class="cv k" style="width:1280px;height:720px;background:#0b0b0a">
+    <img src="${A}stage.png" class="abs" style="left:0;top:-90px;width:1280px;filter:blur(7px) brightness(1.9) saturate(1.2)"><div class="abs" style="left:560px;top:-160px;width:760px;height:760px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,170,80,.55),rgba(255,170,80,0))"></div>
+    <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(8,8,7,.78) 0%,rgba(8,8,7,.42) 50%,rgba(8,8,7,.12) 100%)"></div>
+    <div class="abs" style="left:52px;top:46px;width:700px;font:800 ${C.fs}px/.98 'CV Display',sans-serif;letter-spacing:-.025em;text-shadow:0 6px 24px rgba(0,0,0,.45)">${C.l1}<br><span style="color:#FFD42B">${C.l2}</span><br>${C.l3}</div>
+    <div class="abs" style="left:${cx}px;top:${cy}px;width:${cw + 28}px;height:${ch + 28}px;border-radius:22px;background:rgba(14,14,13,.9);box-shadow:0 0 0 2px rgba(255,255,255,.2), 0 26px 60px rgba(0,0,0,.55)"></div>
+    <div class="abs" style="left:${cx + 14}px;top:${cy + 14}px;width:${cw}px;height:${ch}px;overflow:hidden;border-radius:12px"><img src="${A}thumb-kept.png" style="position:absolute;left:${-D.x * k}px;top:${-D.y * k}px;width:${2000 * k}px"></div>
+    <svg class="abs" style="left:${tipX - 4}px;top:${tipY - 2}px" width="46" height="46" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L9.6 19z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    <div class="abs" style="left:52px;bottom:42px;display:flex;align-items:center;gap:16px"><img src="${ICON}" style="width:72px;height:72px;border-radius:17px;box-shadow:0 8px 22px rgba(0,0,0,.5)"><span style="font:800 40px/1 'CV Display',sans-serif">CineVocab</span><span style="padding:12px 26px;border-radius:99px;background:#FFD42B;color:#111110;font:800 32px/1 'CV Display',sans-serif;letter-spacing:.03em">${C.free}</span></div></div>`;
 }
 document.body.innerHTML = html; document.documentElement.style.width = W + "px"; document.documentElement.style.height = Hh + "px";
 document.title = "ready";

@@ -15,10 +15,10 @@ const EXT = resolve(HERE, "..", "..", "extension");
 const TR = process.argv[2] === "tr";
 const CFG = TR
   ? { dir: "assets-tr", locale: "tr-TR", ui: "tr", src: "en", dst: "tr", line: 3, kw: "lie", kwT: "yalan", ep: "YouTube · Dizi sahnesi",
-      LINE: "You told me it was a lie.", TRN: "Bana bunun bir yalan olduğunu söyledin.",
+      LINE: "You told me it was a lie.", TRN: "Bana bunun bir yalan olduğunu söyledin.", tline: 4, tkw: "believe",
       others: [["believe", "inanmak"], ["trust", "güvenmek"], ["truth", "gerçek"], ["secret", "sır"], ["promise", "söz"], ["future", "gelecek"]] }
   : { dir: "assets", locale: "en-US", ui: "en", src: "es", dst: "en", line: 0, kw: "propio", kwT: "own", ep: "Easy Spanish 344",
-      LINE: "Lo más importante en la vida es tener amor propio", TRN: "The most important thing in life is to have self-love.",
+      LINE: "Lo más importante en la vida es tener amor propio", TRN: "The most important thing in life is to have self-love.", tline: 5, tkw: "creas",
       others: [["amor", "love"], ["importante", "important"], ["vida", "life"], ["mundo", "world"], ["feliz", "happy"], ["pregunta", "question"]] };
 const PAIR = CFG.src + ">" + CFG.dst;
 const OUT = resolve(HERE, "..", "out", "ad2", CFG.dir);
@@ -34,7 +34,7 @@ const coords = {};
   const b = await chromium.launch();
   const c = await b.newContext({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: 2, colorScheme: "dark" });
   const p = await c.newPage();
-  await p.goto(`http://127.0.0.1:${PORT}/__video.html?scene=new&ui=${CFG.ui}&line=${CFG.line}&src=${CFG.src}&dst=${CFG.dst}`); await sleep(500);
+  await p.goto(`http://127.0.0.1:${PORT}/__video.html?scene=new&ui=${CFG.ui}&line=${CFG.line}&src=${CFG.src}&dst=${CFG.dst}&noask=1`); await sleep(500);
   await p.screenshot({ path: join(OUT, "stage.png") });
   await p.goto(`http://127.0.0.1:${PORT}/__video.html?scene=on&ui=${CFG.ui}&line=${CFG.line}&bs=1.8&kf=1&src=${CFG.src}&dst=${CFG.dst}`);
   await p.locator(".chip").first().waitFor(); await sleep(900);
@@ -47,6 +47,16 @@ const coords = {};
   await p.mouse.move(980, 20); await sleep(500);
   await p.locator(`.chip[data-w="${CFG.kw}"]`).click(); await p.mouse.move(980, 20); await sleep(900);
   await p.screenshot({ path: join(OUT, "kept.png") });
+  // YouTube kapağı için: üç kelimelik çeviri kutusu (ilk üç kelime, ortadaki ★ vurgulu)
+  await p.goto(`http://127.0.0.1:${PORT}/__video.html?scene=on&ui=${CFG.ui}&line=${CFG.tline}&bs=1.8&kf=1&src=${CFG.src}&dst=${CFG.dst}`);
+  await p.locator(".chip").first().waitFor(); await sleep(900);
+  await p.locator(`.chip[data-w="${CFG.tkw}"]`).click(); await p.mouse.move(980, 20); await sleep(900);
+  await p.screenshot({ path: join(OUT, "thumb-kept.png") });
+  { const cs = await p.locator(".chip").all(), bb = [];
+    for (const c of cs.slice(0, 3)) bb.push(await c.boundingBox());
+    const kb = await p.locator(`.chip[data-w="${CFG.tkw}"]`).boundingBox();
+    const x0 = bb[0].x - 16, x1 = bb[2].x + bb[2].width + 16, y0 = Math.min(...bb.map((b) => b.y)) - 7, y1 = Math.max(...bb.map((b) => b.y + b.height)) + 14;
+    writeFileSync(join(OUT, "thumb.json"), JSON.stringify({ x: x0 * 2, y: y0 * 2, w: (x1 - x0) * 2, h: (y1 - y0) * 2, chip: { x: kb.x * 2, y: kb.y * 2, w: kb.width * 2, h: kb.height * 2 }, n: cs.length })); }
   coords.view = { w: 1000, h: 700 };
   await b.close();
 }
