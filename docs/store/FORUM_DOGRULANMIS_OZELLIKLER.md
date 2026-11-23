@@ -25,13 +25,18 @@ Satır numaraları 2026-11-23 tarihli kod içindir. Kod değişirse numaralar ka
 
 ### Ücretsiz hesapla
 14. **Canlı düello ve sıralama** (haftalık, aylık, yıllık, tüm zamanlar; kişi ya da ülke): `templates/account.html:988-1001`, `accounts.py:674` (`/api/leaderboard`); eklentide kart: `popup.js:4`, `popup.js:569`.
-15. **Günlük meydan okuma:** `daily.py:152-207` (`need_user`, yani giriş ister), sayfa `main.py:1492` (`/daily`); eklentide kart: `popup.js:4`, `popup.js:569`.
+15. **Günlük meydan okuma:** `daily.py:152-207` (`need_user`, yani giriş ister), sayfa `main.py:1523` (`/daily`); eklentide kart: `popup.js:4`, `popup.js:569`.
 16. **Videodan kelime ekleme** (YouTube): giriş ister: `popup.js:211`.
-17. **Ücretsiz.** Kodda ödeme, abonelik ya da premium izi yok (aranıp bulunamadı); ürün sahibi de ücretsiz olduğunu belirtti.
+17. **Konuşma düellosu** ("Say the word out loud (Chrome / Edge) or type it."): kelimeyi sesli söyleyerek ya da yazarak cevaplanır. Tarayıcının konuşma tanıması kullanılır; Chrome sesi Google'ın konuşma tanıma hizmetine gönderebilir, sunucumuz yalnızca tanınan metni alır, mikrofon yalnızca düğmeye basınca açılır: `static/i18n.js:430`, `templates/game.html:317`, `main.py:1359`, gizlilik `accounts.py:789`.
+18. **Kelimeleri sesli okutma:** cihazın kendi sesleriyle, sunucuya bir şey gitmez: `accounts.py:789`, `templates/game.html:221`. (Ayrı bir "dinleme" modu ya da dinleme alıştırması YOK; yalnızca sesli okuma ve konuşma düellosu var.)
+19. **"Büyük ekran (sınıf / grup)" oda modu:** kurucu (örneğin öğretmen) oyuncu değil, ekranı gösterir; sorular kurucunun kendi kelimelerinden gelir; diğerleri oda koduyla katılıp cevaplar, büyük ekranda "x/y yanıtladı" görünür. Soru sayısı 4-30, soru süresi 5-60 sn ayarlanır: `static/i18n.js:698`, `main.py:1194`, `main.py:1230`, `main.py:1353-1354`, `templates/game.html:392`.
+20. **Ücretsiz.** Kodda ödeme, abonelik ya da premium izi yok (aranıp bulunamadı); ürün sahibi de ücretsiz olduğunu belirtti.
 
 ## Yazma (doğrulanmadı ya da kodda yok)
 - **Sayılar:** çeviri hızı (ms), doğruluk yüzdesi, kullanıcı sayısı, "X kelime öğrendik". Kodda bu sayıların kanıtı yok.
 - **"Her sitede çalışır."** Kodda isteğe bağlı site izni ve içerik betiği kaydı var (`manifest.json` `optional_host_permissions`, `background.js:125-146`) ama kullanıcıya nasıl sunulduğunu doğrulamadım. Yalnızca madde 1'deki dört siteyi say.
+- **Öğretmen aracı gibi anlatma.** Öğretmen paneli, sınıf listesi, ödev, not verme, ilerleme raporu YOK. "Sınıf" yalnızca madde 19'daki büyük ekran oda modu ve davet kodlu özel ligler (madde 14 ile aynı lig sistemi: `leagues.py`). Öğretmenler için yönetim özelliği varmış gibi yazma.
+- **"Dinleme (listening) modu" yazma.** Yok (madde 18).
 - **Mobil uygulama.** Ayrı bir depoda; buradan doğrulanamaz. Özelliklerini ya da çıkış tarihini söyleme.
 - **Başka ürünler:** kötüleme ve karşılaştırma yok, adlarını da anma (marka kuralı).
 - **Zaman sözleri:** "hemen öğrenirsin", "30 günde akıcı" gibi sonuç vaatleri. Ödül yalnızca gerçek öğrenmeye bağlı anlatılır.
