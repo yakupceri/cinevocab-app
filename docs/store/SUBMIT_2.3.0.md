@@ -39,29 +39,30 @@ Paket temiz ve olduğu gibi yüklenebilir. Ama **gizlilik sayfası (`/privacy`) 
 - Mağaza metni davranışla birebir: kurulumdan sonra KAPALI, açınca altyazı satırı sunucuya gider, tutulan kelime ve cümle cihazda kalır, hesaba giderken cümle gitmez.
 - İnceleme genelde birkaç gün sürer. Reddedilirse sebep e-postayla gelir; paketi değiştirmeden metni düzeltmek çoğu zaman yeterli olur.
 
-## Tanıtım videosu için YouTube bilgileri
+## İngilizce YouTube videosu
 **Başlık:** Translate every YouTube subtitle word instantly | CineVocab (free Chrome extension)
 (alternatif, marka adsız: Learn a language from what you watch | CineVocab (free Chrome extension))
 
 **Açıklama:**
 ```
-CineVocab is a free Chrome extension that translates every subtitle word live while you watch, lets you keep the words you like, and brings them back as fill-in-the-blank questions in the line you heard them in. Spaced review, streaks, live duels and leaderboards (free account).
+CineVocab is a free Chrome extension that translates every subtitle word live on YouTube (any video with captions), Prime Video, Netflix and Udemy. Click a word to keep it, then practise it as fill-in-the-blank questions in the line you heard it in, with spaced reviews, streaks, live duels and leaderboards (free account).
 
-Works on YouTube, Prime Video, Netflix and Udemy. Free. No account to start.
+Free. No account to start.
 
 0:00 Every subtitle word, translated live
-0:12 Click a word to keep it
-0:17 The box is yours
+0:12 Keep a word, make the box yours
 0:22 Practise what you kept
-0:37 Keep the streak
-0:41 Duel friends, climb the leaderboard
+0:37 Streaks, duels and leaderboards
 0:53 16 languages, free to start
 
-https://cinevocab.up.railway.app
-```
-**Etiketler:** learn spanish, language learning, chrome extension, subtitles, vocabulary, flashcards, spaced repetition, learn english
+Install (free): https://cinevocab.up.railway.app/install?src=yt-en&hl=en
+Website: https://cinevocab.up.railway.app
 
-Not: videodaki müzik kodla üretilmiş özgün bir parçadır (telif sorunu yoktur). Kendi şarkını eklemek için: `node harness/ad3.mjs wide audio audio=/yol/sarki.mp3`.
+#learnspanish #chromeextension #languagelearning #learnenglish #subtitles #vocabulary
+```
+**Etiketler:** learn spanish, language learning, chrome extension, subtitles, vocabulary, spaced repetition, learn english, flashcards, youtube subtitles, youtube translator
+
+Ayarlar: Education · Not made for kids · English · "Altered or synthetic content": No · Kapak: `youtube-thumbnail-1280x720.png`.
 
 ## Türkçe YouTube videosu
 **Başlık:** Dizi ve YouTube izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
@@ -71,7 +72,7 @@ Not: videodaki müzik kodla üretilmiş özgün bir parçadır (telif sorunu yok
 ```
 CineVocab, YouTube'da (altyazısı olan her videoda), Prime Video'da, Netflix'te ve Udemy'de her altyazı kelimesini canlı olarak Türkçeye çeviren ücretsiz bir Chrome eklentisidir. Bir kelimeye tıkla, tutulsun; sonra duyduğun cümlenin içinde boşluk doldurma soruları olarak çalış. Aralıklı tekrar, seri, canlı düello ve sıralama da var (ücretsiz hesapla).
 
-YouTube, Prime Video, Netflix ve Udemy'de çalışır. Ücretsiz. Başlamak için hesap gerekmez.
+Ücretsiz. Başlamak için hesap gerekmez.
 
 0:00 Her altyazı kelimesi canlı çevrilir
 0:12 Kelimeyi tut, kutuyu özelleştir
@@ -79,8 +80,22 @@ YouTube, Prime Video, Netflix ve Udemy'de çalışır. Ücretsiz. Başlamak içi
 0:37 Seri, düello ve sıralama
 0:53 16 dil, başlamak ücretsiz
 
+Kur (ücretsiz): https://cinevocab.up.railway.app/install?src=yt-tr&hl=tr
 Web sitesi: https://cinevocab.up.railway.app
+
+#ingilizceöğren #chromeeklentisi #dilöğrenme #altyazı #kelimeöğrenme #diziizle
 ```
 **Etiketler:** ingilizce öğren, dil öğrenme, chrome eklentisi, altyazı, kelime öğrenme, dizi izleyerek ingilizce, youtube altyazı çeviri, aralıklı tekrar
 
-Ayarlar: Kategori Eğitim · Çocuklara özel değil · Dil Türkçe · "Değiştirilmiş veya sentetik içerik": Hayır. Chrome Web Store bağlantısını onaylanınca açıklamaya ekle.
+Ayarlar: Eğitim · Çocuklara özel değil · Türkçe · "Değiştirilmiş veya sentetik içerik": Hayır · Kapak: `tr/youtube-kapak-1280x720.png`.
+
+## Sayaçlı kurulum bağlantıları
+Sunucudaki `/install` (ve `/get`) adresi Chrome Web Store'a yönlendirir ve tıklamayı `?src=` etiketine göre sayar (gün + etiket + cihaz türü + ülke; IP ve çerez saklanmaz, botlar sayılmaz). Admin panelinde kaynak tablosunda etiket adıyla satır olarak görünür.
+
+| Nerede | Bağlantı |
+|---|---|
+| İngilizce YouTube videosu | `https://cinevocab.up.railway.app/install?src=yt-en&hl=en` |
+| Türkçe YouTube videosu | `https://cinevocab.up.railway.app/install?src=yt-tr&hl=tr` |
+| Başka yer için | `...install?src=<etiket>` (en çok 24 karakter; harf, rakam, `-` ve `_`). Örn. `short-tr`, `reddit`, `insta` |
+
+Sayaç **tıklamayı** sayar, kurulumu değil. Gerçek kurulum sayısı Chrome Web Store Dashboard'da görünür.
