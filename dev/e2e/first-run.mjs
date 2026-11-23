@@ -23,7 +23,7 @@ const DICT = { más: "more", importante: "important", vida: "life", tener: "to h
 const SENT = { "Lo más importante en la vida es tener amor propio": "The most important thing in life is to have self-love." };
 const RESULTS = `<!doctype html><title>easy Spanish street interviews - YouTube</title><body style="font:16px system-ui;background:#0f0f0f;color:#fff;padding:24px"><h2>Results (captions filter)</h2><p><a id="v1" style="color:#8cf" href="/watch?v=FAKE0001">What's the Most Important Thing in Life? | Easy Spanish 344</a></p><p><a style="color:#8cf" href="/watch?v=FAKE0002">Another street interview</a></p>`;
 const WATCH = `<!doctype html><html><head><title>What's the Most Important Thing in Life? | Easy Spanish 344 - YouTube</title></head><body style="margin:0;background:#000;color:#fff">
-<div id="player" style="position:relative;width:960px;height:540px"><video id="v" muted playsinline style="width:960px;height:540px;background:#123"></video>
+<div id="movie_player" style="position:relative;width:960px;height:540px"><video id="v" muted playsinline style="width:960px;height:540px;background:#123"></video>
 <div class="ytp-caption-window-container" style="position:absolute;bottom:40px;left:0;right:0;text-align:center;font:24px system-ui"></div>
 <button class="ytp-subtitles-button" aria-pressed="false" style="position:absolute;right:10px;bottom:6px;font:14px system-ui">CC</button></div>
 <h1 class="ytd-watch-metadata" style="font:18px system-ui"><yt-formatted-string>What's the Most Important Thing in Life? | Easy Spanish 344</yt-formatted-string></h1>

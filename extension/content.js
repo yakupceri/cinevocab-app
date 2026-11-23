@@ -461,8 +461,20 @@ function readUdemySubtitle() {
     .join(" ");
 }
 
+// Asıl oynatıcı: yalnızca izleme sayfalarında (/watch, /shorts/, /live/, /embed/) ve yalnızca #movie_player içi.
+// Ana sayfada, arama sonuçlarında ve kanal sayfalarında altyazı OKUNMAZ: oradaki küçük resim önizleme oynatıcıları
+// ve gizli oynatıcı yüzünden video açık olmadan altyazı kutusu çıkıyordu. Gerçek YouTube'da ana sayfada da gizli bir
+// #movie_player vardır (genişlik 0), bu yüzden yalnızca kimliğe değil sayfa türüne de bakılır (dev/e2e/yt-dom-probe.mjs).
+function ytMainPlayer() {
+  const p = location.pathname;
+  if (!(p === "/watch" || p.startsWith("/shorts/") || p.startsWith("/live/") || p.startsWith("/embed/"))) return null;
+  return (p.startsWith("/shorts/") && document.querySelector("#shorts-player")) || document.querySelector("#movie_player");
+}
+
 function readYouTubeSubtitle() {
-  return [...document.querySelectorAll("span.ytp-caption-segment")]
+  const root = ytMainPlayer();
+  if (!root) return "";
+  return [...root.querySelectorAll("span.ytp-caption-segment")]
     .map((n) => (n.textContent ? n.textContent.trim() : ""))
     .filter(Boolean)
     .join(" ");
@@ -852,7 +864,7 @@ function showMismatch(lang) {
 // 1) Eklenti kapalıyken sayfada altyazı varsa: videonun üstünde "Çeviriyi başlat" düğmesi (sayfa başına bir kez).
 //    Altyazı yalnızca sayfada okunur; düğmeye basılana kadar sunucuya hiçbir şey gitmez.
 // 2) Eklenti açık, video oynuyor ama altyazı yoksa: "altyazıyı (CC) aç" bilgisi (video başına bir kez).
-let ASK = true, askShown = false, askTick = 0, ccPlayed = 0, ccFor = "";
+let ASK = false, askShown = false, askTick = 0, ccPlayed = 0, ccFor = "";
 function guide(text, btnText, onBtn, closeText, onClose, ms) {
   sentenceId++;
   ovContent.textContent = "";
@@ -871,22 +883,28 @@ function guide(text, btnText, onBtn, closeText, onClose, ms) {
   hideTimer = setTimeout(() => { noticeUntil = 0; showBox(false); }, ms);
 }
 function askStart() {
-  askShown = true;
+  askShown = true; ASK = false;
+  // Soru en çok BİR kez gösterilir: gösterildiği anda "bir daha sorma" yazılır (kullanıcı hiçbir şeye basmasa da).
+  // Düğmeye basarsa aşağıda enabled: true yazılır ve eklenti açılır.
+  try { chrome.storage.local.set({ startAsk: "no" }); } catch (e) {}
   guide(CVL.t("askStart"), CVL.t("startNow"), () => { try { chrome.storage.local.set({ enabled: true, startAsk: null }); } catch (e) {} },
     CVL.t("notNow"), () => { ASK = false; try { chrome.storage.local.set({ startAsk: "no" }); } catch (e) {} }, 25000);
 }
 function playingVideo() {
-  for (const v of document.querySelectorAll("video")) if (!v.paused && !v.ended && v.readyState > 2 && v.offsetWidth >= 300) return v;
+  const root = IS_YT ? ytMainPlayer() : document;
+  if (!root) return null;
+  for (const v of root.querySelectorAll("video")) if (!v.paused && !v.ended && v.readyState > 2 && v.offsetWidth >= 300) return v;
   return null;
 }
 function ccGuide() {
   // Altyazı az önce göründüyse (konuşma arası) ya da YouTube'da CC zaten açıksa uyarma
   if (Date.now() < noticeUntil || Date.now() - seenAt < 60000 || !playingVideo()) return;
-  if (IS_YT && document.querySelector(".ytp-subtitles-button[aria-pressed='true']")) return;
+  const ytRoot = IS_YT ? ytMainPlayer() : null;
+  if (ytRoot && ytRoot.querySelector(".ytp-subtitles-button[aria-pressed='true']")) return;
   ccPlayed += POLL_MS;
   if (ccPlayed < 3000 || ccFor === location.href) return; // 3 sn: kullanıcı boş ekranda uzun beklemesin (e2e ölçümünde 8 sn sürtünmeydi)
   ccFor = location.href;
-  const yt = IS_YT ? document.querySelector(".ytp-subtitles-button[aria-pressed='false']") : null;
+  const yt = ytRoot ? ytRoot.querySelector(".ytp-subtitles-button[aria-pressed='false']") : null;
   if (!yt) { guide(CVL.t("ccOff"), "", null, "", null, 14000); return; }
   guide(CVL.t("ccOff"), CVL.t("ccOn"), () => {
     const at = Date.now();
@@ -898,7 +916,7 @@ function ccGuide() {
 setInterval(() => {
   if (!ENABLED) {
     // Kapalıyken saniyede bir bak: altyazı görünüyorsa başlatma düğmesini göster
-    if (ASK && !askShown && Date.now() - askTick > 1000) { askTick = Date.now(); if (readSubtitle().replace(/\s+/g, " ").trim().length > 2) askStart(); }
+    if (ASK && !askShown && Date.now() - askTick > 1000) { askTick = Date.now(); if (playingVideo() && readSubtitle().replace(/\s+/g, " ").trim().length > 2) askStart(); }
     return;
   }
   const text = readSubtitle().replace(/\s+/g, " ").trim();
@@ -962,14 +980,16 @@ function applyPair() {
 try {
   chrome.storage.local.get(["enabled", "src", "dst", "hideOrig", "startAsk"], (r) => {
     if (!r) return;
-    ASK = r.startAsk !== "no";
+    // Soru yalnızca HİÇ seçim yapmamış kullanıcıya: enabled hiç yazılmadıysa (kurulumdan beri açıp kapatmadı) ve daha önce sorulmadıysa.
+    // Eklentiyi kapatmış (enabled: false) ya da "şimdi değil" demiş kullanıcıya hiç sorulmaz.
+    ASK = r.startAsk !== "no" && r.enabled === undefined;
     SRC = r.src || "tr"; DST = r.dst || "en"; ENABLED = !!r.enabled; HIDE_ORIG = r.hideOrig !== false; applyEnabledAll(); loadStars(); paintHead(); loadWordCache();
   });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area !== "local") return;
     if (ch.src || ch.dst) { if (ch.src) SRC = ch.src.newValue || "tr"; if (ch.dst) DST = ch.dst.newValue || "en"; applyPair(); }
     if (ch.enabled) { ENABLED = !!ch.enabled.newValue; applyEnabledAll(); }
-    if (ch.startAsk) ASK = ch.startAsk.newValue !== "no";
+    if ((ch.startAsk && ch.startAsk.newValue === "no") || (ch.enabled && ch.enabled.newValue !== undefined)) ASK = false; // sonradan seçim yapıldı: bir daha sorma
     if (ch.hideOrig) { HIDE_ORIG = ch.hideOrig.newValue !== false; applyHide(); }
     if (ch.stars) { starSet = new Set((ch.stars.newValue || {})[SRC + ">" + DST] || []); paintStars(); }
     if (ch.bank) { keptN = BANK.list(ch.bank.newValue, SRC + ">" + DST).length; paintHead(); }

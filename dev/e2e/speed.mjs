@@ -17,7 +17,7 @@ let LAT = 300;
 const calls = [];
 
 const WATCH = `<!doctype html><html><head><title>Easy Spanish 344 - YouTube</title></head><body style="margin:0;background:#000;color:#fff">
-<div id="player" style="position:relative;width:960px;height:540px"><video id="v" muted playsinline style="width:960px;height:540px;background:#123"></video>
+<div id="movie_player" style="position:relative;width:960px;height:540px"><video id="v" muted playsinline style="width:960px;height:540px;background:#123"></video>
 <div id="cw" class="ytp-caption-window-container" style="position:absolute;bottom:40px;left:0;right:0;text-align:center;font:24px system-ui"><div id="win" class="caption-window"></div></div></div>
 <h1 class="ytd-watch-metadata"><yt-formatted-string>Easy Spanish 344</yt-formatted-string></h1>
 <script>
