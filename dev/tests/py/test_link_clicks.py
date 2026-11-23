@@ -22,6 +22,7 @@ finally:
 
 STORE = main.STORE_URL
 YT = "https://www.youtube.com/watch?v=ornek123"
+YT_TR = "https://www.youtube.com/watch?v=ornekTR456"
 PHONE = {"user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1", "accept-language": "es-ES,es;q=0.9"}
 PC = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36", "accept-language": "tr-TR,tr;q=0.9"}
 TODAY = "(now() AT TIME ZONE 'Europe/Istanbul')::date"
@@ -31,6 +32,7 @@ TODAY = "(now() AT TIME ZONE 'Europe/Istanbul')::date"
 def client(pg, monkeypatch):
     accounts.q("DELETE FROM link_clicks; DELETE FROM link_hits;")
     monkeypatch.delenv("VIDEO_URL", raising=False)
+    monkeypatch.delenv("VIDEO_URL_TR", raising=False)
     return TestClient(main.app, follow_redirects=False)
 
 
@@ -90,11 +92,59 @@ def test_video_ignores_an_unsafe_or_malformed_VIDEO_URL(client, monkeypatch, bad
     assert client.get("/video", params={"src": "x"}, headers=PC).headers["location"] == "/"
 
 
-def test_video_url_is_not_hardcoded_in_the_code():
+def test_video_urls_are_not_hardcoded_in_the_code():
     import inspect
-    src = inspect.getsource(main.video_redirect)
+    src = inspect.getsource(main.video_redirect) + inspect.getsource(main._https_env)
     assert "youtube" not in src.lower() and "youtu.be" not in src.lower()
-    assert "VIDEO_URL" in src
+    assert "VIDEO_URL" in src and "VIDEO_URL_TR" in src
+
+
+# ---------------------------------------------------------------- iki dil: VIDEO_URL (İngilizce) ve VIDEO_URL_TR (Türkçe)
+@pytest.fixture
+def two_videos(client, monkeypatch):
+    monkeypatch.setenv("VIDEO_URL", YT)
+    monkeypatch.setenv("VIDEO_URL_TR", YT_TR)
+    return client
+
+
+@pytest.mark.parametrize("hl", ["tr", "TR", " tr ", "tr-TR", "tr_tr", "Tr-tr"])
+def test_hl_tr_goes_to_the_turkish_video(two_videos, hl):
+    assert two_videos.get("/video", params={"src": "x", "hl": hl}, headers=PC).headers["location"] == YT_TR
+
+
+@pytest.mark.parametrize("hl", ["", "en", "es", "de", "ar", "tur", "trx", "t", "tr-", "tr-tur", "turkish", "xtr", "tr.", "1tr"])
+def test_everything_else_goes_to_the_english_video(two_videos, hl):
+    assert two_videos.get("/video", params={"src": "x", "hl": hl}, headers=PC).headers["location"] == YT
+
+
+def test_no_hl_at_all_goes_to_the_english_video(two_videos):
+    assert two_videos.get("/video", params={"src": "x"}, headers=PC).headers["location"] == YT
+
+
+def test_turkish_falls_back_to_english_when_the_turkish_url_is_missing_or_unsafe(client, monkeypatch):
+    monkeypatch.setenv("VIDEO_URL", YT)
+    assert client.get("/video", params={"src": "x", "hl": "tr"}, headers=PC).headers["location"] == YT          # VIDEO_URL_TR yok
+    for bad in ("http://example.com/tr", "javascript:alert(1)", "//evil.example", "https://a b", "   "):
+        monkeypatch.setenv("VIDEO_URL_TR", bad)
+        assert client.get("/video", params={"src": "x", "hl": "tr"}, headers=PC).headers["location"] == YT, bad
+
+
+def test_turkish_goes_to_the_home_page_only_when_neither_video_is_set(client, monkeypatch):
+    assert client.get("/video", params={"src": "x", "hl": "tr"}, headers=PC).headers["location"] == "/"
+    monkeypatch.setenv("VIDEO_URL_TR", YT_TR)                       # yalnız Türkçe tanımlı: Türkçe istek ona gider, diğerleri ana sayfaya
+    assert client.get("/video", params={"src": "x", "hl": "tr"}, headers=PC).headers["location"] == YT_TR
+    assert client.get("/video", params={"src": "x"}, headers=PC).headers["location"] == "/"
+
+
+def test_the_language_does_not_change_the_counter_tag(two_videos):
+    two_videos.get("/video", params={"src": "quora-tr", "hl": "tr"}, headers=PC)
+    two_videos.get("/video", params={"src": "quora-tr"}, headers=PC)
+    assert clicks() == {"v:quora-tr": 2}
+
+
+def test_bots_with_hl_tr_are_redirected_to_the_turkish_video_but_not_counted(two_videos):
+    r = two_videos.get("/video", params={"src": "x", "hl": "tr"}, headers={"user-agent": "Googlebot/2.1"})
+    assert r.headers["location"] == YT_TR and clicks() == {}
 
 
 def test_video_without_a_tag_and_with_a_long_tag(client, monkeypatch):

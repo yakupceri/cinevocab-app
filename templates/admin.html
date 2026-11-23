@@ -539,7 +539,7 @@ async function viewTraffic() {
         h("div", { class: "subh" }, h("span", { class: "tag s-video" }, "Tanıtım videosu"), "/video?src=… · YouTube'a gider"),
         hbars(vidRows, "Henüz video tıklaması yok. Linki şöyle kullan: /video?src=quora-es"),
         h("div", { class: "keys" }, DEVS.map((k) => h("span", { class: "key", style: "--c:" + DEV[k][1] }, h("i"), DEV[k][0])), h("span", { class: "key", style: "--c:" + UNK }, h("i"), "Cihaz bilinmiyor")),
-        h("p", { class: "hint" }, "Etiket küçük harf, rakam, \"-\" ve \"_\" olabilir, en çok 24 karakter. İkisinde aynı etiketi kullan (ör. quora-es), böylece aynı yerden gelen eklenti ve video tıklamalarını yan yana görürsün.")),
+        h("p", { class: "hint" }, "Etiket küçük harf, rakam, \"-\" ve \"_\" olabilir, en çok 24 karakter. İkisinde aynı etiketi kullan (ör. quora-es), böylece aynı yerden gelen eklenti ve video tıklamalarını yan yana görürsün. Türkçe okuyucuya \"&hl=tr\" ekle: /video Türkçe videoya, /get Türkçe mağaza sayfasına gider.")),
       h("div", { class: "panel" }, h("h3", {}, "Siteye hangi siteden geldiler?"), hbars(refRows, "Henüz veri yok."),
         h("p", { class: "hint" }, "Yalnızca site adı tutulur (ör. google.com). Doğrudan = adresi yazdı, kısayoldan girdi ya da site adı gizlendi."))),
     h("div", { class: "panel" }, h("h3", {}, "Son girenler ", h("span", { class: "dim" }, "(son 15 hareket)")),

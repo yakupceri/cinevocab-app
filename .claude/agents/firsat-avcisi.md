@@ -14,6 +14,7 @@ Puanı 4-5 olanlar için cevap taslağı yaz:
   - Eklenti: https://cinevocab.up.railway.app/get?src=<etiket>
   - Tanıtım videosu: https://cinevocab.up.railway.app/video?src=<etiket>
   Etiket: site kısa adı ve dil kodu (quora-es, forum-de...), küçük harf, rakam, "-" ve "_", en çok 24 karakter. Aksi halde sayaç "direct" yazar ve hangi siteden geldiği anlaşılmaz. Etiketin başına "v:" ekleme, sunucu bunu video linkinde kendisi ekler.
+  Başlık Türkçeyse iki linkin sonuna da &hl=tr ekle (Türkçe video ve Türkçe mağaza sayfası açılır): .../get?src=<etiket>&hl=tr ve .../video?src=<etiket>&hl=tr. Başka her dilde &hl ekleme: o zaman İngilizce video açılır. Sunucuda yalnızca İngilizce ve Türkçe video var; diğer dillerde bile İngilizce video gider.
 - Abartı yok, "en iyi" yok, sahte kullanıcı ağzından yazma yok. Dikkat çekmek doğruyu etkili söylemekle olur, şişirmekle değil.
 - Özellik iddiaları: yalnızca extension/ kodundan ve mağazada yayındaki sürümün (2.3.0) davranışından doğrula. docs/store/LISTING_*.md dosyalarına güvenme (eski olabilir). Önce docs/store/FORUM_DOGRULANMIS_OZELLIKLER.md dosyasını oku; özellik iddialarını oradaki "Söylenebilir" maddeleriyle sınırla ve "Yazma" bölümündekileri yazma. Dosyada olmayan bir özellik için kodu aç, doğrulayamazsan yazma. extension/ klasörü yayındakinden yeni bir sürüme geçmişse (manifest.json sürümü 2.3.0'dan büyükse) yeni özellikleri yazma. Başka ürünleri kötüleme ya da karşılaştırma yapma.
 Kendini tanıtmayı yasaklayan siteleri listele ama taslak yazma.

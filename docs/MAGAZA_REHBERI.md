@@ -9,6 +9,8 @@
 | `ADMIN_SECRET` | rastgele uzun metin (ör. 40 karakter) | Oturum imzası |
 | `GOOGLE_TRANSLATE_API_KEY` | Google Cloud > Cloud Translation API (v2) anahtarı | YouTube'daki `?` sorununu çözer |
 | `CONTACT_EMAIL` | destek e-postan | Gizlilik sayfasında görünür |
+| `VIDEO_URL` | İngilizce tanıtım videosunun https adresi (YouTube) | `/video?src=...` buraya gider; varsayılan video. Yoksa ana sayfaya gider |
+| `VIDEO_URL_TR` | Türkçe tanıtım videosunun https adresi | Yalnızca `/video?src=...&hl=tr` buraya gider. Yoksa İngilizce videoya düşer |
 
 * `ADMIN_USER` / `ADMIN_PASSWORD` tanımlı değilse `/admin` adresi tamamen kapalıdır (404).
 * Admin hesabı veritabanında değil ortam değişkenindedir; kullanıcı tablosundan kimse admin olamaz.

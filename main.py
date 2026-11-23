@@ -1496,15 +1496,22 @@ def install_redirect(request: Request, src: str = "", hl: str = ""):
     return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
 
 
+def _https_env(name: str) -> str:
+    """Ortam değişkeni geçerli bir https adresiyse onu, değilse "" döndürür (http, boşluklu ya da bozuk değerler atılır)."""
+    v = (os.environ.get(name) or "").strip()
+    return v if re.fullmatch(r"https://[^\s]+", v) else ""
+
+
 @app.get("/video")
-def video_redirect(request: Request, src: str = ""):
+def video_redirect(request: Request, src: str = "", hl: str = ""):
     """Tanıtım videosuna kısa adres. /get ile aynı sayaç (bot filtresi, cihaz, ülke, İstanbul günü); etiketin başına
-    "v:" eklenir (ör. v:quora-es), böylece eklenti ve video tıklamaları ayrı sayılır. Video adresi koda gömülü değildir:
-    VIDEO_URL ortam değişkeninden okunur (yalnızca https). Tanımsız ya da geçersizse ana sayfaya gider."""
+    "v:" eklenir (ör. v:quora-es), böylece eklenti ve video tıklamaları ayrı sayılır (dil sayacı etkilemez).
+    Video adresleri koda gömülü değildir: VIDEO_URL (İngilizce, varsayılan) ve VIDEO_URL_TR (Türkçe) ortam değişkenlerinden
+    okunur, yalnızca https. ?hl=tr Türkçe videoya gider, başka her değer ve boş hl İngilizceye. Türkçe adres tanımsız ya da
+    geçersizse İngilizce videoya, o da yoksa ana sayfaya düşer."""
     _count_link(request, "v:" + _link_tag(src))
-    target = (os.environ.get("VIDEO_URL") or "").strip()
-    if not re.fullmatch(r"https://[^\s]+", target):
-        target = "/"
+    turkish = bool(re.fullmatch(r"tr([-_][a-z]{2})?", (hl or "").strip().lower()))
+    target = (_https_env("VIDEO_URL_TR") if turkish else "") or _https_env("VIDEO_URL") or "/"
     return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
 
 
