@@ -40,7 +40,8 @@ Paket temiz ve olduğu gibi yüklenebilir. Ama **gizlilik sayfası (`/privacy`) 
 - İnceleme genelde birkaç gün sürer. Reddedilirse sebep e-postayla gelir; paketi değiştirmeden metni düzeltmek çoğu zaman yeterli olur.
 
 ## Tanıtım videosu için YouTube bilgileri
-**Başlık:** Learn a language from what you watch | CineVocab (free Chrome extension)
+**Başlık:** Translate every YouTube subtitle word instantly | CineVocab (free Chrome extension)
+(alternatif, marka adsız: Learn a language from what you watch | CineVocab (free Chrome extension))
 
 **Açıklama:**
 ```
@@ -63,11 +64,12 @@ https://cinevocab.up.railway.app
 Not: videodaki müzik kodla üretilmiş özgün bir parçadır (telif sorunu yoktur). Kendi şarkını eklemek için: `node harness/ad3.mjs wide audio audio=/yol/sarki.mp3`.
 
 ## Türkçe YouTube videosu
-**Başlık:** Dizi izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
+**Başlık:** YouTube'da altyazıdan İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi)
+(alternatif: Dizi izleyerek İngilizce öğren | CineVocab (ücretsiz Chrome eklentisi))
 
 **Açıklama:**
 ```
-CineVocab, izlerken her altyazı kelimesini canlı olarak Türkçeye çeviren ücretsiz bir Chrome eklentisidir. Bir kelimeye tıkla, tutulsun; sonra duyduğun cümlenin içinde boşluk doldurma soruları olarak çalış. Aralıklı tekrar, seri, canlı düello ve sıralama da var (ücretsiz hesapla).
+CineVocab, YouTube'da (altyazısı olan her videoda), Prime Video'da, Netflix'te ve Udemy'de her altyazı kelimesini canlı olarak Türkçeye çeviren ücretsiz bir Chrome eklentisidir. Bir kelimeye tıkla, tutulsun; sonra duyduğun cümlenin içinde boşluk doldurma soruları olarak çalış. Aralıklı tekrar, seri, canlı düello ve sıralama da var (ücretsiz hesapla).
 
 YouTube, Prime Video, Netflix ve Udemy'de çalışır. Ücretsiz. Başlamak için hesap gerekmez.
 

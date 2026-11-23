@@ -10,7 +10,7 @@ Bu metin yalnızca kodun yaptığını söyler; ad ve özette üçüncü taraf m
 
 Bir kelimeye tıkla, tutulsun. Kelimelerin cihazında kalır, hesap gerekmez. Ücretsiz hesap açtığında tuttuğun kelimeler hesabına kopyalanır; quiz, seri ve düello açılır.
 
-Prime Video, YouTube, Netflix ve Udemy'de, ayrıca "Bu sitede aç" düğmesiyle başka sitelerde çalışır. Ücretsiz.
+Altyazısı olan her YouTube videosunda, ayrıca Prime Video, Netflix ve Udemy'de ve "Bu sitede aç" düğmesiyle başka sitelerde çalışır. Ücretsiz.
 
 NEDEN İŞE YARAR
 Bir sahnede karşılaştığın kelimeyi, listeden ezberlediğinden çok daha iyi hatırlarsın. CineVocab zaten yaptığın şeyi (izlemeyi) pratiğe çevirir: kelimeyi görürsün, beğendiklerini tutarsın, sonra quiz olarak karşına gelir.

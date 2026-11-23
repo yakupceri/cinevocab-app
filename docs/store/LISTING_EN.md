@@ -15,7 +15,7 @@ Stop pausing to look up words. Watch your show, and CineVocab puts the translati
 
 Click a word to keep it. Your words stay on your device, no account needed. When you create a free account, the words you kept are copied to it, and quizzes, streaks and duels unlock.
 
-Works on Prime Video, YouTube, Netflix and Udemy, and on other sites with the "Turn on for this site" button. Free.
+Works on every YouTube video that has captions, and on Prime Video, Netflix and Udemy, and on other sites with the "Turn on for this site" button. Free.
 
 WHY IT WORKS
 You remember words you met in a scene far better than words from a list. CineVocab turns the thing you already do (watching) into practice: you see the word, keep the ones you like, and bring them back later as a quiz.
