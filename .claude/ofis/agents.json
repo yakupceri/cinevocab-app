@@ -1,11 +1,15 @@
 {
   "desks": [
-    { "id": "ana", "name": "Claude (ana oturum)", "role": "Ana oturum" },
-    { "id": "tasarimci", "name": "Tasarımcı", "role": "Arayüzü çizer ve koda döker" },
-    { "id": "elestirmen", "name": "Eleştirmen", "role": "Tasarımı okur, kod değiştirmez" },
-    { "id": "denetci", "name": "Denetçi", "role": "Arayüz kurallarını denetler" },
-    { "id": "hesap-denetcisi", "name": "Hesap denetçisi", "role": "XP, seri, SRS hesaplarını testler" },
-    { "id": "planlayici", "name": "Planlayıcı", "role": "Fikri küçük adımlara böler" },
-    { "id": "yayin-kontrol", "name": "Yayın kontrolü", "role": "Mağazaya yüklemeden önce denetler" }
+    { "id": "ana", "name": "Claude (ana oturum)", "role": "Ana oturum", "prop": "plant" },
+    { "id": "planlayici", "name": "Planlayıcı", "role": "Fikri küçük adımlara böler", "prop": "board" },
+    { "id": "rakip-analizci", "name": "Rakip analizcisi", "role": "Rakipleri ve şikâyetleri kaynaklı inceler", "prop": "chart" },
+    { "id": "reklam-yonetmeni", "name": "Reklam yönetmeni", "role": "Kanca, senaryo ve reklam metni yazar", "prop": "megaphone" },
+    { "id": "video-yapimcisi", "name": "Video yapımcısı", "role": "Reklam videosu ve görselleri üretir", "prop": "clapper" },
+    { "id": "magaza-yazari", "name": "Mağaza yazarı", "role": "Mağaza metnini doğru ve kısa yazar", "prop": "notebook" },
+    { "id": "tasarimci", "name": "Tasarımcı", "role": "Arayüzü çizer ve koda döker", "prop": "palette" },
+    { "id": "elestirmen", "name": "Eleştirmen", "role": "Tasarımı okur, kod değiştirmez", "prop": "magnifier" },
+    { "id": "denetci", "name": "Denetçi", "role": "Arayüz kurallarını denetler", "prop": "clipboard" },
+    { "id": "hesap-denetcisi", "name": "Hesap denetçisi", "role": "XP, seri, SRS hesaplarını testler", "prop": "calculator" },
+    { "id": "yayin-kontrol", "name": "Yayın kontrolü", "role": "Mağazaya yüklemeden önce denetler", "prop": "package" }
   ]
 }

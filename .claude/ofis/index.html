@@ -213,8 +213,30 @@ var LOOKS = [
   { skin: "#E3B48A", hair: "#3A2A1E", style: "cap",        shirt: "#E0A64A" },
   { skin: "#6B4429", hair: "#0F0B09", style: "headphones", shirt: "#35A1B8" },
   { skin: "#F0C7A3", hair: "#C9A04A", style: "short",      shirt: "#C94F7C" },
-  { skin: "#B67A52", hair: "#241812", style: "long",       shirt: "#6E8F3A" }
+  { skin: "#B67A52", hair: "#241812", style: "long",       shirt: "#6E8F3A" },
+  { skin: "#D9A47A", hair: "#2A1A12", style: "bun",        shirt: "#3FA39B" },
+  { skin: "#F1CBA3", hair: "#1D1D22", style: "cap",        shirt: "#7A6FD0" },
+  { skin: "#A9714A", hair: "#0E0A08", style: "headphones", shirt: "#D98E2B" },
+  { skin: "#EDC3A0", hair: "#8B3A22", style: "curly",      shirt: "#4C8BD6" }
 ];
+
+// masadaki iş eşyası (sağ taraf, x 204..240, tabanı y 146)
+function propSVG(kind, v){
+  var work = v === "calisiyor";
+  switch (kind){
+    case "board": return '<rect x="206" y="98" width="32" height="34" rx="3" fill="#C79A63"/><rect x="206" y="98" width="32" height="34" rx="3" fill="none" stroke="#8F6540" stroke-width="2.5"/><rect x="210" y="103" width="10" height="10" fill="#FFD42B" transform="rotate(-6 215 108)"/><rect x="223" y="104" width="10" height="10" fill="#F28CB1" transform="rotate(5 228 109)"/><rect x="211" y="117" width="10" height="10" fill="#7FC8F2" transform="rotate(4 216 122)"/><rect x="225" y="118" width="8" height="8" fill="#8EDC9D"/><path d="M214 132 L210 146 M230 132 L234 146" stroke="#8F6540" stroke-width="3" stroke-linecap="round"/>';
+    case "chart": return '<rect x="204" y="96" width="38" height="36" rx="4" fill="#FFFDF8" stroke="#8F6540" stroke-width="2"/><rect x="210" y="116" width="6" height="10" fill="#3B6FD6"/><rect x="219" y="109" width="6" height="17" fill="#2F9E6D"/><rect x="228" y="102" width="6" height="24" fill="#E0A64A"/><path class="' + (work ? "spark" : "") + '" d="M208 112 L222 102 L236 98" fill="none" stroke="#D9573E" stroke-width="2" stroke-linecap="round"/><path d="M216 132 L212 146 M230 132 L234 146" stroke="#8F6540" stroke-width="3" stroke-linecap="round"/>';
+    case "megaphone": return '<path d="M208 122 L230 108 L230 136 Z" fill="#D9573E"/><rect x="204" y="118" width="8" height="12" rx="2" fill="#2A2D33"/><rect x="212" y="134" width="6" height="12" rx="2" fill="#2A2D33"/><g class="' + (work ? "spark" : "") + '"><path d="M236 114 q6 8 0 16" fill="none" stroke="#FFD42B" stroke-width="3" stroke-linecap="round"/></g><g class="' + (work ? "spark b" : "") + '"><path d="M241 109 q10 13 0 26" fill="none" stroke="#FFD42B" stroke-width="3" stroke-linecap="round"/></g>';
+    case "clapper": return '<rect x="206" y="114" width="30" height="24" rx="2" fill="#2A2D33"/><rect x="209" y="124" width="24" height="3" rx="1" fill="#8D93A0"/><rect x="209" y="130" width="16" height="3" rx="1" fill="#8D93A0"/><g class="' + (work ? "wave" : "") + '"><path d="M204 102 L238 98 L240 108 L206 112 Z" fill="#F4F0E6"/><path d="M212 111 L216 100 L222 99 L218 110Z M226 109 L230 99 L236 98 L232 108Z" fill="#2A2D33"/></g>';
+    case "notebook": return '<path d="M204 112 L222 116 L240 112 L240 140 L222 144 L204 140 Z" fill="#FFFDF8" stroke="#8F6540" stroke-width="2"/><path d="M222 116 L222 144" stroke="#8F6540" stroke-width="2"/><path d="M208 122 L218 124 M208 128 L218 130 M226 124 L236 122 M226 130 L236 128" stroke="#9AA0AB" stroke-width="1.8" stroke-linecap="round"/><path class="' + (work ? "typL" : "") + '" d="M236 100 L224 128" stroke="#3B6FD6" stroke-width="3" stroke-linecap="round"/>';
+    case "palette": return '<path d="M206 126 Q204 104 224 102 Q242 102 240 118 Q238 128 228 126 Q220 126 222 134 Q224 144 212 143 Q206 140 206 126Z" fill="#E7C9A0" stroke="#8F6540" stroke-width="2"/><circle cx="214" cy="114" r="3.4" fill="#D9573E"/><circle cx="224" cy="110" r="3.4" fill="#FFD42B"/><circle cx="233" cy="116" r="3.4" fill="#3B6FD6"/><circle cx="215" cy="127" r="3.4" fill="#2F9E6D"/><path class="' + (work ? "wave" : "") + '" d="M238 96 L228 124" stroke="#8D5A3B" stroke-width="3" stroke-linecap="round"/>';
+    case "magnifier": return '<circle cx="223" cy="116" r="13" fill="#CFE8F5" fill-opacity=".55" stroke="#2A2D33" stroke-width="4"/><path d="M232 126 L240 142" stroke="#2A2D33" stroke-width="5" stroke-linecap="round"/><path d="M215 112 q3 -5 9 -5" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2" stroke-linecap="round"/>';
+    case "clipboard": return '<rect x="208" y="98" width="30" height="42" rx="3" fill="#E6D6BC" stroke="#8F6540" stroke-width="2"/><rect x="216" y="94" width="14" height="8" rx="2" fill="#2A2D33"/><path d="M213 112 l2 2 4 -4 M213 122 l2 2 4 -4 M213 132 l2 2 4 -4" fill="none" stroke="#2F9E6D" stroke-width="2" stroke-linecap="round"/><path d="M222 112 h11 M222 122 h11 M222 132 h8" stroke="#8F6540" stroke-width="2" stroke-linecap="round"/>';
+    case "calculator": return '<rect x="210" y="98" width="26" height="44" rx="4" fill="#2A2D33"/><rect x="214" y="102" width="18" height="9" rx="2" fill="#B7E3A5"/><g fill="#8D93A0"><circle cx="217" cy="118" r="2.2"/><circle cx="223" cy="118" r="2.2"/><circle cx="229" cy="118" r="2.2"/><circle cx="217" cy="125" r="2.2"/><circle cx="223" cy="125" r="2.2"/><circle cx="229" cy="125" r="2.2"/><circle cx="217" cy="132" r="2.2"/><circle cx="223" cy="132" r="2.2"/></g><circle cx="229" cy="132" r="2.2" fill="#FFD42B"/>';
+    case "package": return '<path d="M206 118 L222 110 L238 118 L238 140 L222 146 L206 140 Z" fill="#C79A63" stroke="#8F6540" stroke-width="2"/><path d="M206 118 L222 126 L238 118 M222 126 L222 146" fill="none" stroke="#8F6540" stroke-width="2"/><rect x="218" y="112" width="8" height="14" fill="#E6D6BC" opacity=".8"/><g class="' + (work ? "pulse" : "") + '"><circle cx="236" cy="112" r="8" fill="#6CC48C"/><path d="M232 112 l3 3 5 -6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>';
+    default: return '<rect class="f-pot" x="206" y="124" width="26" height="22" rx="4"/><path class="f-plant" d="M219 124 Q204 104 208 92 Q218 104 219 124z"/><path class="f-plant" d="M219 124 Q226 98 238 96 Q232 112 219 124z"/><path class="f-plant" d="M219 124 Q216 100 222 88 Q226 108 219 124z" style="filter:brightness(.88)"/>';
+  }
+}
 function lookStyle(l){ return "--skin:" + l.skin + ";--hair:" + l.hair + ";--shirt:" + l.shirt + ";"; }
 
 // kafa ve saç (arkadan görünüm), merkez (cx, cy), yarıçap 22
@@ -292,14 +314,14 @@ function screen(v, id){
 }
 
 // tek masa sahnesi: lamba + monitör + masa + klavye + bitki + insan
-function deskScene(look, v, label){
+function deskScene(look, v, label, prop){
   var id = "x" + (++uidN), glow = { calisiyor: "#7FA6FF", bitirdi: "#6CC48C", bekliyor: "#E0A64A" }[v] || "transparent";
   var s = '<defs><clipPath id="c' + id + '"><rect x="68" y="28" width="124" height="76" rx="4"/></clipPath><linearGradient id="g' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD87A" stop-opacity=".55"/><stop offset="1" stop-color="#FFD87A" stop-opacity="0"/></linearGradient></defs>';
   // lamba
   s += '<ellipse cx="34" cy="146" rx="13" ry="3.5" fill="#2A2D33"/><path d="M34 144 L40 116 L62 108" fill="none" stroke="#2A2D33" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 104 L78 110 L70 122 L52 114z" fill="#2A2D33"/>';
   if (v === "calisiyor" || v === "bekliyor") s += '<path class="lampglow" d="M58 118 L36 150 L98 150 L76 118z" fill="url(#g' + id + ')"/>';
-  // bitki
-  s += '<rect class="f-pot" x="206" y="124" width="26" height="22" rx="4"/><path class="f-plant" d="M219 124 Q204 104 208 92 Q218 104 219 124z"/><path class="f-plant" d="M219 124 Q226 98 238 96 Q232 112 219 124z"/><path class="f-plant" d="M219 124 Q216 100 222 88 Q226 108 219 124z" style="filter:brightness(.88)"/>';
+  // iş eşyası (rolüne göre)
+  s += propSVG(prop, v);
   // monitör
   s += '<g class="' + (glow !== "transparent" ? "mon-on" : "") + '" style="--glowc:' + glow + '"><rect class="f-mon" x="62" y="22" width="136" height="88" rx="9"/>' + screen(v, id) + '<rect x="68" y="28" width="124" height="76" rx="4" fill="none" stroke="rgba(255,255,255,.07)"/></g>';
   s += '<rect x="122" y="110" width="16" height="18" fill="#2A2D33"/><rect x="104" y="126" width="52" height="6" rx="3" fill="#2A2D33"/>';
@@ -342,11 +364,11 @@ function tickClock(){
 // ---- masa hücreleri ----
 function bubbleEl(text, empty){ var b = el("div", "bubble" + (empty ? " empty" : "")); b.appendChild(el("span", "", text)); return b; }
 
-function deskCell(name, role, x, v, now, look){
+function deskCell(name, role, x, v, now, look, prop){
   var cell = el("section", "cell s-" + v), plate = el("div", "plate"), nm = el("div", "nm"), when = el("div", "when", stamp(x, now));
   var msg = x && x.last ? x.last : (v === "henuz" ? "Bu oturumda henüz görev almadı." : "Henüz sinyal gelmedi.");
   if (v === "bekliyor" && !(x && x.last)) msg = "İzin bekliyor";
-  var svg = deskScene(look, v, name + ": " + LABEL[v]);
+  var svg = deskScene(look, v, name + ": " + LABEL[v], prop);
   nm.append(el("b", "", name), badge(v));
   plate.append(nm);
   if (role) plate.appendChild(el("small", "", role));
@@ -427,12 +449,12 @@ function render(state, cfg){
     known[c.id] = 1;
     var look = LOOKS[i % LOOKS.length];
     if (c.id === "ana"){
-      var x = desks.ana; cells.push(deskCell(c.name, c.role, x, x ? view(x, now) : (started ? "henuz" : "bilinmiyor"), now, look));
+      var x = desks.ana; cells.push(deskCell(c.name, c.role, x, x ? view(x, now) : (started ? "henuz" : "bilinmiyor"), now, look, c.prop));
       return;
     }
     var mine = ags.filter(function(a){ return a.type === c.id; });
-    if (mine.length){ var b = best(mine, now); cells.push(deskCell(c.name, c.role, b, view(b, now), now, look)); }
-    else cells.push(deskCell(c.name, c.role, null, started ? "henuz" : "bilinmiyor", now, look));
+    if (mine.length){ var b = best(mine, now); cells.push(deskCell(c.name, c.role, b, view(b, now), now, look, c.prop)); }
+    else cells.push(deskCell(c.name, c.role, null, started ? "henuz" : "bilinmiyor", now, look, c.prop));
   });
   var others = ags.filter(function(a){ return !known[a.type]; });
   var idle = cells.filter(function(c){ return c.classList.contains("s-bosta"); }).length, cols = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(" ").length);
