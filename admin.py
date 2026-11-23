@@ -236,18 +236,38 @@ def traffic(request: Request, days: int = 7):
         clicks = q("SELECT coalesce(sum(n), 0) FROM link_clicks WHERE " + win_v + ";", (days,), True)[0][0]
         signups = q("SELECT count(*) FROM users WHERE " + _tr_ts("created_at") + "::date > " + TR_TODAY + " - %s;",
                     (days,), True)[0][0]
-        return {"site": int(site), "ext": int(ext), "clicks": int(clicks), "signups": int(signups)}
+        res = {"site": int(site), "ext": int(ext), "clicks": int(clicks), "signups": int(signups)}
+        try:  # Eklentiyi kullananlar: hesaplı / hesapsız / bilinmiyor (acct sütunundan önceki kayıtlar). Hata diğer sayıları bozmaz.
+            anon, acct, unk = q("SELECT count(*) FILTER (WHERE kind = 'ext' AND acct = false), "
+                                "count(*) FILTER (WHERE kind = 'ext' AND acct = true), "
+                                "count(*) FILTER (WHERE kind = 'ext' AND acct IS NULL) "
+                                "FROM visits_daily WHERE " + win_v + ";", (days,), True)[0]
+            res.update(ext_anon=int(anon), ext_acct=int(acct), ext_unknown=int(unk))
+        except Exception as e:
+            print(f"Hesaplı/hesapsız sayısı okunamadı: {e}")
+        return res
     _block(out, "totals", totals, {})
 
-    _block(out, "daily", lambda: [
-        {"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4])} for r in q(
+    def daily():
+        rows = [{"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4])} for r in q(
             "WITH d AS (SELECT g::date AS day FROM generate_series(" + TR_TODAY + " - 13, " + TR_TODAY + ", interval '1 day') g) "
             "SELECT to_char(d.day, 'DD.MM'), "
             "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'site'), "
             "(SELECT count(*) FROM visits_daily v WHERE v.day = d.day AND v.kind = 'ext'), "
             "(SELECT coalesce(sum(n), 0) FROM link_clicks c WHERE c.day = d.day), "
             "(SELECT count(*) FROM users u WHERE " + _tr_ts("u.created_at") + "::date = d.day) "
-            "FROM d ORDER BY d.day;", (), True)], [])
+            "FROM d ORDER BY d.day;", (), True)]
+        try:  # günlük hesapsız kullanan; o gün hiç "bilinen" kayıt yoksa None (eski günler)
+            known = {r[0]: (int(r[1]), int(r[2])) for r in q(
+                "SELECT to_char(day, 'DD.MM'), count(*) FILTER (WHERE acct = false), count(*) FILTER (WHERE acct IS NOT NULL) "
+                "FROM visits_daily WHERE kind = 'ext' AND day > " + TR_TODAY + " - 14 GROUP BY day;", (), True)}
+            for r in rows:
+                a, k = known.get(r["day"], (0, 0))
+                r["ext_anon"] = a if k else None
+        except Exception as e:
+            print(f"Günlük hesapsız sayısı okunamadı: {e}")
+        return rows
+    _block(out, "daily", daily, [])
 
     def devices():
         res = {"site": {}, "clicks": {}, "os": {}}
@@ -285,7 +305,7 @@ def traffic(request: Request, days: int = 7):
             c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0}).update(site=int(s_), ext=int(e))
         for k, n in q("SELECT country, count(*) FROM link_hits WHERE " + win_h + " GROUP BY country;", (days,), True):
             c.setdefault(k or "?", {"site": 0, "ext": 0, "clicks": 0})["clicks"] = int(n)
-        top = sorted(c.items(), key=lambda kv: -(kv[1]["site"] + kv[1]["ext"] + kv[1]["clicks"]))[:10]
+        top = sorted(c.items(), key=lambda kv: -(kv[1]["site"] + kv[1]["ext"] + kv[1]["clicks"]))[:40]  # panel ilk 10 ülkeyi gösterir, kalanını "diğer"de toplar
         return [{"country": k, **v} for k, v in top]
     _block(out, "countries", countries, [])
 

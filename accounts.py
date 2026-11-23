@@ -124,6 +124,8 @@ def init_accounts(db_config: dict):
         "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS ref TEXT NOT NULL DEFAULT '';",
         "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS first_at TIMESTAMPTZ;",
         "ALTER TABLE visits_daily ALTER COLUMN first_at SET DEFAULT now();",
+        # O gün oturum açık mıydı (true/false); NULL: bu alan eklenmeden önceki kayıt, bilinmiyor. Kimlik içermez.
+        "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS acct BOOLEAN;",
         "CREATE TABLE IF NOT EXISTS usage_pairs (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
         "calls INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst));",
     ):
@@ -166,11 +168,39 @@ def _visit_key() -> bytes:
     return k.encode()
 
 
+_GEO = None  # None: henüz açılmadı, False: veritabanı ya da paket yok
+
+
+def _ip_country(ip: str) -> str:
+    """IP adresinden ülke (iki harf). Çevrimdışı DB-IP Lite veritabanına (data/) bellekte bakılır; IP hiçbir yere yazılmaz
+    ve hiçbir servise gönderilmez. Bulunamazsa ya da veritabanı yoksa ''."""
+    global _GEO
+    try:
+        if _GEO is None:
+            _GEO = False
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "dbip-country-lite.mmdb")
+            if os.path.exists(path):
+                import maxminddb
+                _GEO = maxminddb.open_database(path)
+        if not _GEO or not ip or ip == "?":
+            return ""
+        rec = _GEO.get(ip) or {}
+        code = str((rec.get("country") or {}).get("iso_code") or "").upper()
+        return code if re.fullmatch(r"[A-Z]{2}", code) and code not in ("XX", "ZZ") else ""
+    except Exception as e:
+        if _GEO is False:
+            print(f"Ülke veritabanı açılamadı: {e}")
+        return ""
+
+
 def _visit_country(request: Request) -> str:
     cf = (request.headers.get("cf-ipcountry") or "").strip().upper()  # Cloudflare arkadaysa gerçek ülke
     if re.fullmatch(r"[A-Z]{2}", cf) and cf not in ("XX", "T1"):
         return cf
-    al = (request.headers.get("accept-language") or "").split(",")[0].strip()
+    ip_cc = _ip_country(client_ip(request))
+    if ip_cc:
+        return ip_cc
+    al = (request.headers.get("accept-language") or "").split(",")[0].strip()  # son çare: tarayıcı dili
     m = re.match(r"^([a-zA-Z]{2,3})(?:-[A-Za-z]{4})?-([A-Za-z]{2})\b", al)
     if m:
         return m.group(2).upper()
@@ -234,7 +264,9 @@ def record_visit(request: Request, kind: str):
             _SEEN.clear()
             _SEEN_DAY[0] = day
         vid = hmac.new(_visit_key(), f"{day}|{client_ip(request)}|{ua}".encode(), "sha256").hexdigest()[:16]
-        key = (kind, vid)
+        ah = request.headers.get("authorization", "")
+        tok = ah[7:] if ah.startswith("Bearer ") else request.cookies.get(COOKIE)
+        key = (kind, vid, bool(tok))  # anahtarsız girip sonra oturum açan kişi bir kez daha yazılır ("hesaplı"ya yükselir)
         if key in _SEEN:
             return
         _SEEN.add(key)
@@ -247,8 +279,10 @@ def record_visit(request: Request, kind: str):
 
         def write():
             try:
-                q("INSERT INTO visits_daily (day, kind, vid, country, device, os, ref) VALUES (" + TR_TODAY + ", %s, %s, %s, %s, %s, %s) "
-                  "ON CONFLICT DO NOTHING;", (kind, vid, country, device, os_, ref))
+                acct = bool(user_from_token(tok)) if tok else False  # arka planda: istek yavaşlamaz
+                q("INSERT INTO visits_daily (day, kind, vid, country, device, os, ref, acct) VALUES (" + TR_TODAY + ", %s, %s, %s, %s, %s, %s, %s) "
+                  "ON CONFLICT (day, kind, vid) DO UPDATE SET acct = coalesce(visits_daily.acct, false) OR EXCLUDED.acct;",
+                  (kind, vid, country, device, os_, ref, acct))
             except Exception as e:
                 print(f"Ziyaret sayacı hatası: {e}")
         _VISIT_EXEC.submit(write)
@@ -729,7 +763,7 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <li><b>Kelime listen:</b> İzlerken karşılaştığın kelimeler, çevirileri, "biliyorum" dediğin kelimeler ve izlediğin bölümün ya da videonun adı. Panelde göstermek için videonun küçük resminin adresi de saklanır (görselin kendisi değil, YouTube/Udemy/Amazon sunucularındaki adresi).</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
-<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li>\n<li><b>Anonim ziyaretçi sayacı:</b> Günde kaç farklı kişinin siteyi ya da eklentiyi kullandığını görmek için, IP adresinden ve tarayıcı bilgisinden her gün değişen, geri döndürülemeyen kısa bir iz üretilir; IP adresin kendisi kaydedilmez ve ertesi gün seninle eşleştirilemez. Bununla birlikte tarayıcı dilinden tahmin edilen ülke bilgisi tutulur.</li></ul>
+<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li>\n<li><b>Anonim ziyaretçi sayacı:</b> Günde kaç farklı kişinin siteyi ya da eklentiyi kullandığını görmek için, IP adresinden ve tarayıcı bilgisinden her gün değişen, geri döndürülemeyen kısa bir iz üretilir; IP adresin kendisi kaydedilmez ve ertesi gün seninle eşleştirilemez. Bununla birlikte iki bilgi tutulur: ülke ve o sırada oturum açıp açmadığın (evet ya da hayır). Ülke, isteğin geldiği IP adresinden sunucuda çevrimdışı bir veritabanıyla bulunur; IP adresin bu arama için hiçbir servise gönderilmez ve kaydedilmez. IP'den bulunamazsa tarayıcı dilinden tahmin edilir. IP konum verisi: <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
 <h2>Sesli okuma ve mikrofon (isteğe bağlı)</h2><p>Kelimeleri seslendirme özelliği cihazının kendi sesini kullanır; sunucuya hiçbir şey gönderilmez. Konuşma düellosunda mikrofonu yalnızca sen düğmeye dokununca kullanabilirsin. Konuşmayı yazıya çevirme işini tarayıcın yapar (Chrome, sesi bu iş için Google'ın konuşma tanıma hizmetine gönderebilir). Sunucumuz yalnızca tanınan <b>metni</b> alır; ses kaydı almaz, saklamaz. İstersen mikrofon yerine cevabı yazabilirsin.</p>
 <h2>Günlük meydan okuma ve bulmaca</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür. Günün bulmacasında çözme süren ve sonucun saklanır.</p>
 <h2>Android uygulaması</h2><p>CineVocab Android uygulaması aynı hesabı ve yukarıdaki aynı verileri kullanır. Uygulama oturum anahtarını ve ayarlarını (dil, günlük hedef) yalnızca telefonunda saklar. Uygulamaya bir metin yapıştırdığında ya da bir altyazı dosyası seçtiğinde metin yalnızca telefonunda okunur; sunucumuza yalnızca metindeki kelimelerin listesi ve senin verdiğin ad gönderilir. Uygulama hiçbir siteden içerik çekmez. Uygulama konumunu, rehberini, fotoğraflarını ya da mikrofonunu kullanmaz; reklam ve izleme (analitik) aracı içermez. Hatırlatma bildirimleri telefonunda oluşturulur ve yalnızca sen izin verirsen gösterilir. Sonucunu ya da davet bağlantını paylaşmak tamamen senin seçimindir.</p>
@@ -751,7 +785,7 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <li><b>Your word list:</b> The words you meet while watching, their translations, the words you mark as "known", and the name of the episode or video. To show it in your panel we also store the address of the video's thumbnail (not the image itself, only its address on YouTube/Udemy/Amazon servers).</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>
-<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li>\n<li><b>Anonymous visitor counter:</b> To see how many different people use the site or the extension each day, we derive a short irreversible token from your IP address and browser details that changes every day; your IP address itself is not stored and the token cannot be matched to you the next day. We also keep a country estimate taken from your browser language.</li></ul>
+<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li>\n<li><b>Anonymous visitor counter:</b> To see how many different people use the site or the extension each day, we derive a short irreversible token from your IP address and browser details that changes every day; your IP address itself is not stored and the token cannot be matched to you the next day. We also keep two details: your country and whether you were signed in at the time (yes or no). The country is found from the IP address of the request with an offline database on our server; the IP address is not sent to any service for this lookup and is not stored. If it cannot be found from the IP address, it is estimated from your browser language. IP geolocation by <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
 <h2>Read-aloud and microphone (optional)</h2><p>The read-aloud feature uses your device's own voices; nothing is sent to our server. In the speaking duel the microphone is used only when you tap the button. Your browser converts speech to text (Chrome may send the audio to Google's speech-recognition service for this). Our server receives only the recognised <b>text</b>; we do not receive, record or store audio. You can type your answer instead of using the microphone.</p>
 <h2>Daily challenge and puzzle</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard. In the daily puzzle, your solving time and result are stored.</p>
 <h2>Android app</h2><p>The CineVocab Android app uses the same account and the same data described above. The app keeps your session key and settings (language, daily goal) only on your phone. When you paste a text or pick a subtitle file, it is read only on your phone; only the list of words in it and the name you give it are sent to our server. The app does not fetch content from any site. The app does not use your location, contacts, photos or microphone, and contains no advertising or tracking (analytics) tools. Reminder notifications are created on your phone and shown only if you allow them. Sharing your result or your invite link is entirely your choice.</p>

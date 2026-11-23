@@ -1,0 +1,8 @@
+dbip-country-lite.mmdb: IP Geolocation by DB-IP (https://db-ip.com)
+Veri: DB-IP Country Lite (2026-11 sürümü), lisans: Creative Commons Attribution 4.0 (CC BY 4.0)
+Kaynak: https://download.db-ip.com/free/dbip-country-lite-2026-11.mmdb.gz
+SHA-256 (açılmış dosya): 145ce5dfb812d8de28547e6289bb5c5f8b3df2f1dea21d324d5b575e0431311f
+
+Kullanım: accounts.py _ip_country(), ziyaretçinin ülkesini IP adresinden bulur. Bellekte aranır; IP kaydedilmez ve hiçbir servise gönderilmez.
+Kaynak belirtme (CC BY 4.0 şartı): gizlilik sayfasında ve yönetim panelinde "IP konum verisi: DB-IP.com" bağlantısı vardır.
+Güncelleme: ülkeler yavaş değişir, yılda bir kez yenilemek yeter (aynı adresten yeni ayın dosyasını indir, bu dosyanın üstüne yaz, SHA-256 satırını güncelle).
