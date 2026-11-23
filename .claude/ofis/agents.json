@@ -10,6 +10,7 @@
     { "id": "elestirmen", "name": "Eleştirmen", "role": "Tasarımı okur, kod değiştirmez", "prop": "magnifier" },
     { "id": "denetci", "name": "Denetçi", "role": "Arayüz kurallarını denetler", "prop": "clipboard" },
     { "id": "hesap-denetcisi", "name": "Hesap denetçisi", "role": "XP, seri, SRS hesaplarını testler", "prop": "calculator" },
-    { "id": "yayin-kontrol", "name": "Yayın kontrolü", "role": "Mağazaya yüklemeden önce denetler", "prop": "package" }
+    { "id": "yayin-kontrol", "name": "Yayın kontrolü", "role": "Mağazaya yüklemeden önce denetler", "prop": "package" },
+    { "id": "firsat-avcisi", "name": "Fırsat avcısı", "role": "Forumlarda uygun başlıkları bulur, taslak yazar", "prop": "binoculars" }
   ]
 }
