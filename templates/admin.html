@@ -237,16 +237,16 @@ $("out").onclick = async () => { await api("/logout", "POST").catch(() => {}); s
 
 // ---------- sekmeler (soldaki menü) ----------
 openTab.seq = 0; api.seq = 0;
-const TABS = { "Ziyaretçiler": viewTraffic, "Özet": viewStats, "Huni": viewFunnel, "Kullanıcılar": viewUsers, "Davetler": viewRefs, "Odalar": viewRooms,
+const TABS = { "Ziyaretçiler": viewTraffic, "Özet": viewStats, "Huni": viewFunnel, "Kullanıcılar": viewUsers, "Mobil uygulama": viewApp, "Davetler": viewRefs, "Odalar": viewRooms,
   "Sağlık": viewHealth, "Kelimeler": viewWords, "Veri talepleri": viewData, "Sistem": viewSystem, "Günlük": viewLog };
-const NAV = [["Trafik ve büyüme", ["Ziyaretçiler", "Özet", "Huni"]], ["İnsanlar", ["Kullanıcılar", "Davetler", "Odalar"]],
+const NAV = [["Trafik ve büyüme", ["Ziyaretçiler", "Özet", "Huni"]], ["İnsanlar", ["Kullanıcılar", "Mobil uygulama", "Davetler", "Odalar"]],
   ["Ürün", ["Sağlık", "Kelimeler"]], ["Yönetim", ["Veri talepleri", "Sistem", "Günlük"]]];
 const SUB = { "Ziyaretçiler": "Siteye ve eklentiye kimler, nereden, hangi cihazla, saat kaçta giriyor.", "Özet": "Hesaplar, çeviri istekleri ve en çok kullanılan içerikler.",
-  "Huni": "Kayıt olanların ne kadarı kelime kaydedip geri geliyor.", "Kullanıcılar": "Hesap ara, ayrıntıya gir, gerekirse işlem yap.", "Davetler": "Arkadaş davetiyle kayıt olanlar.",
+  "Huni": "Kayıt olanların ne kadarı kelime kaydedip geri geliyor.", "Kullanıcılar": "Hesap ara, ayrıntıya gir, gerekirse işlem yap.", "Mobil uygulama": "Mobil uygulamayı kimler kullanıyor, şu an kimler açık (canlı).", "Davetler": "Arkadaş davetiyle kayıt olanlar.",
   "Odalar": "Şu an açık düello odaları.", "Sağlık": "Eklenti düzgün çalışıyor mu: toplu sayılar, kimsenin kelimesi görünmez.", "Kelimeler": "Yanlış çevirileri düzelt ya da sil.",
   "Veri talepleri": "\"Verimi ver\" ve \"verimi sil\" istekleri.", "Sistem": "Çeviri servislerinin durumu.", "Günlük": "Yönetim işlemleri kaydı." };
 const ICON = { "Ziyaretçiler": "M3 3v18h18M7 15l4-5 3 3 5-6", "Özet": "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z", "Huni": "M3 4h18l-7 8v7l-4 2v-9z",
-  "Kullanıcılar": "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0", "Davetler": "M4 6h16v12H4zM4 7l8 6 8-6", "Odalar": "M5 21V4h10v17M15 8h4v13M11 12h.01",
+  "Kullanıcılar": "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0", "Davetler": "M4 6h16v12H4zM4 7l8 6 8-6", "Mobil uygulama": "M8 3h8a1 1 0 011 1v16a1 1 0 01-1 1H8a1 1 0 01-1-1V4a1 1 0 011-1zM11 18h2", "Odalar": "M5 21V4h10v17M15 8h4v13M11 12h.01",
   "Sağlık": "M3 12h4l2-5 4 10 2-5h6", "Kelimeler": "M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h11", "Veri talepleri": "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
   "Sistem": "M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6", "Günlük": "M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" };
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -558,7 +558,7 @@ async function viewTraffic() {
 async function viewStats() {
   const s = await api("/stats");
   const groups = [["Hesaplar", [["Toplam kullanıcı", s.users, C.reg], ["Bugün kayıt", s.users_today, C.reg], ["7 günde kayıt", s.users_week, C.reg]]],
-    ["Şu an", [["Çevrimiçi (5 dk)", s.online_now, C.ext], ["24 saatte aktif", s.active_24h, C.ext], ["Banlı", s.banned, "var(--bad)"]]],
+    ["Şu an", [["Çevrimiçi (5 dk)", s.online_now, C.ext], ["24 saatte aktif", s.active_24h, C.ext], ["Mobil uygulamada (5 dk)", s.app_online, C.click], ["Banlı", s.banned, "var(--bad)"]]],
     ["İçerik ve oyun", [["Çevrilmiş kelime", s.words, C.site], ["Kullanıcı kelime kaydı", s.user_words, C.site], ["Oynanan oyun", s.games, C.click], ["Açık oda", s.rooms, C.click]]]];
   const fd = (x) => x.slice(8, 10) + "." + x.slice(5, 7);
   const callsAll = s.usage.reduce((a, x) => a + x.calls, 0), anonAll = s.usage.reduce((a, x) => a + x.anon, 0);
@@ -613,6 +613,36 @@ async function viewUsers() {
   };
   search.addEventListener("input", () => { clearTimeout(load.t); load.t = setTimeout(() => load().catch(() => {}), 300); });
   $("view").append(h("div", { class: "bar" }, search), box); await load();
+}
+
+// Mobil uygulama: sunucu uygulamadan gelen oturumlu istekleri görüp hesabı işaretler. Sekme açıkken 15 saniyede bir yenilenir.
+async function viewApp() {
+  const box = h("div"), seq = openTab.seq; $("view").append(box);
+  const render = async () => {
+    const d = await api("/app-users"), t = d.totals || {}, list = d.users || [];
+    box.textContent = "";
+    put(box,
+      h("div", { class: "kpis" }, [["Şu an açık (5 dk)", t.online, C.click], ["Son 24 saatte", t.h24, C.ext], ["Son 7 günde", t.d7, C.ext], ["Toplam hesap", t.total, C.reg]]
+        .map(([label, value, color]) => kpi({ label, value: value == null ? "—" : value, color }))),
+      h("div", { class: "panel" }, h("h3", {}, "Mobil uygulamayı kullananlar"),
+        h("p", { class: "sub" }, "Giriş yapmış hesaplar · son görülene göre · her 15 saniyede yenilenir (şimdi " + d.now + ")"),
+        list.length ? h("div", { class: "wrap" }, h("table", {},
+          h("tr", {}, ["#", "Kullanıcı", "Durum", "Uygulamada son", "Hesap", "Kelime", "Oyun"].map((x) => h("th", {}, x))),
+          list.map((u) => h("tr", rowLink(() => showUser(u.id)),
+            h("td", {}, u.id), h("td", {}, u.username),
+            h("td", {}, u.online ? h("span", { class: "tag ok" }, "şimdi açık") : h("span", { class: "tag" }, u.last_app ? "kapalı" : "bilinmiyor")),
+            h("td", { class: "dim" }, u.last_app || "—"), h("td", { class: "dim" }, u.via === "mobil" ? "uygulamadan açıldı" : (u.via || "—")),
+            h("td", {}, u.words), h("td", {}, u.games)))))
+          : h("p", { class: "empty" }, "Henüz mobil uygulamadan giriş görülmedi. Telefonda uygulamayı açıp giriş yapınca burada çıkar.")),
+      h("p", { class: "hint" }, "Yalnızca hesabı olanlar görünür; hesapsız kullanım sayılmaz. Uygulama, istek başlığındaki WebView işaretinden tanınır (IP ya da cihaz bilgisi saklanmaz). Sayaç sunucu güncellendikten sonra başlar: eski kullanıcılar uygulamayı bir kez daha açınca listeye girer."),
+      d.errors ? h("p", { class: "err" }, d.errors.join(" · ")) : "");
+  };
+  await render();
+  const timer = setInterval(() => {
+    if (openTab.seq !== seq || !document.body.contains(box)) { clearInterval(timer); return; }
+    if (document.hidden) return;
+    render().catch((e) => { if (e.stale) clearInterval(timer); });
+  }, 15000);
 }
 
 // Hesap nereden açıldı: arkadaş daveti varsa o, yoksa kayıt yeri (web / eklenti / mobil). Eski hesaplarda bilinmez.

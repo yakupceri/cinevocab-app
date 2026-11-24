@@ -51,7 +51,7 @@ function traffic(days) {
       ...(NOVIDEO ? [] : [{ kind: "video", src: "quora-es", n: e(14), telefon: e(10), bilgisayar: e(3), tablet: 0 }, { kind: "video", src: "yt-tr", n: e(9), telefon: e(5), bilgisayar: e(4), tablet: 0 }])],
     countries, hours, recent };
 }
-const stats = () => ({ users: EMPTY ? 0 : 412, users_today: 4, users_week: 23, active_24h: 61, online_now: 3, banned: 0, words: 18452, user_words: 9120, games: 307, rooms: 1,
+const stats = () => ({ users: EMPTY ? 0 : 412, users_today: 4, users_week: 23, active_24h: 61, online_now: 3, app_total: EMPTY ? 0 : 5, app_online: EMPTY ? 0 : 1, app_24h: EMPTY ? 0 : 3, banned: 0, words: 18452, user_words: 9120, games: 307, rooms: 1,
   signups: Array.from({ length: 14 }, (_, i) => ({ day: iso(dayOf(i)), n: signups[i] })),
   usage: EMPTY ? [] : Array.from({ length: 14 }, (_, i) => ({ day: iso(dayOf(i)), calls: ext[i] * 9, anon: Math.round(ext[i] * 9 * 0.58), words: ext[i] * 30 })),
   pairs: EMPTY ? [] : [{ pair: "es→en", calls: 2210 }, { pair: "en→tr", calls: 1544 }, { pair: "tr→en", calls: 902 }, { pair: "de→en", calls: 311 }],
@@ -61,7 +61,17 @@ const funnel = () => ({ days: 30, clicks: 340, errors: [], steps: { signups: 120
   invited: 6, countries: [{ name: "TR", n: 60 }, { name: "(seçmemiş)", n: 40 }], cohorts: [{ week: "2026-11-16", signups: 30, word1: 24, word20: 12, practiced: 9, returned: 8, kept7: 0, old7: 0 }] });
 const health = () => ({ days: 14, errors: [], notes: [{ level: "ok", text: "Her şey normal görünüyor." }], total: { rows: 9120, no_trans_pct: 2, untagged_pct: 11, same_pct: 4 },
   pairs: [{ pair: "es>en", rows: 4100, users: 90, no_trans: 40, same: 120 }], platforms: [{ platform: "YouTube", rows: 6000, users: 100, no_trans: 50 }], daily: [{ day: "2026-11-22", rows: 600, users: 40, no_trans: 3, untagged: 50, same: 20 }] });
+let appCalls = 0;   // canlı yenileme denemesi: her çağrıda "şimdi açık" sayısı ve saat değişir
+const appUsers = () => { appCalls++; const on = appCalls > 1 ? 2 : 1;
+  return EMPTY ? { totals: { total: 0, online: 0, h24: 0, d7: 0, seen: 0 }, users: [], now: "19:20:0" + appCalls }
+    : { totals: { total: 5, online: on, h24: 3, d7: 4, seen: 4 }, now: "19:20:" + String(appCalls * 15).padStart(2, "0"), users: [
+      { id: 9, username: "mina", created: "2026-11-02 10:00", last_app: "2026-11-24 19:18", last_seen: "2026-11-24 19:18", via: "mobil", online: true, words: 84, games: 3 },
+      ...(appCalls > 1 ? [{ id: 4, username: "deniz", created: "2026-10-11 09:00", last_app: "2026-11-24 19:20", last_seen: "2026-11-24 19:20", via: "eklenti", online: true, words: 40, games: 1 }] : []),
+      { id: 4 + 100, username: "kaan", created: "2026-10-11 09:00", last_app: "2026-11-24 08:02", last_seen: "2026-11-24 08:02", via: "web", online: false, words: 40, games: 1 },
+      { id: 7, username: "ece", created: "2026-11-20 21:00", last_app: "2026-11-19 20:10", last_seen: "2026-11-19 20:10", via: "mobil", online: false, words: 12, games: 0 },
+      { id: 8, username: "yeni", created: "2026-11-23 21:00", last_app: null, last_seen: null, via: "mobil", online: false, words: 0, games: 0 }] }; };
 const mocks = {
+  "/app-users": appUsers,
   "/session": () => ({ admin: true }), "/stats": stats, "/funnel": funnel, "/health": health, "/bot-check": () => ({ verdict: "Yeterli veri yok.", days: [{ day: "2026-11-22", installs: 0, users: 0, calls: 700, anon: 400, entered: false }] }),
   "/referrals": () => ({ total: 6, top: [{ id: 1, username: "zeri", n: 4, active: 3, last: "2026-11-20" }], recent: [{ id: 2, username: "ali", inviter_id: 1, inviter: "zeri", active: true, at: "2026-11-20" }], errors: [] }),
   "/users": () => [{ id: 1, username: "zeri", method: "parola", invited_by: "", via: "eklenti", created: "2026-10-01", last_seen: "2026-11-23 13:50", words: 210, games: 12, score: 4200, ban: "", game_ban: "" }],
@@ -133,6 +143,20 @@ if (!ONLY) {
   await page.locator("#nav button", { hasText: "Huni" }).first().click();
   await page.waitForTimeout(900);
   console.log("hızlı sekme değişiminde başlık:", await page.locator("#title").textContent(), "· Özet kartı karışmış mı:", (await page.locator("#view .kpis").count()) > 0 ? "EVET" : "hayır");
+}
+if (!ONLY || ONLY === "Mobil uygulama") {
+  // Canlı yenileme: sekme açıkken 15 sn sonra liste kendiliğinden güncellenmeli, başka sekmeye geçince durmalı
+  await page.locator("#nav button", { hasText: "Mobil uygulama" }).first().click();
+  await page.waitForSelector("#view table, #view .empty", { timeout: 5000 });
+  const before = await page.locator("#view .sub").first().innerText();
+  const c0 = appCalls;
+  await page.waitForTimeout(16500);
+  const after = await page.locator("#view .sub").first().innerText();
+  console.log("mobil uygulama canlı yenileme:", appCalls > c0 && before !== after ? "çalıştı (" + before.split("şimdi ")[1] + " → " + after.split("şimdi ")[1] + ")" : "ÇALIŞMADI", "· çağrı", c0, "→", appCalls);
+  await page.screenshot({ path: path.join(out, tag + "Mobil-uygulama-canli.png"), fullPage: true });
+  await page.locator("#nav button", { hasText: "Özet" }).first().click();
+  const c1 = appCalls; await page.waitForTimeout(16500);
+  console.log("başka sekmeye geçince yenileme durdu mu:", appCalls === c1 ? "evet" : "HAYIR (" + c1 + " → " + appCalls + ")");
 }
 console.log(errors.length ? "HATALAR:\n" + errors.join("\n") : "konsol hatası yok");
 await browser.close();

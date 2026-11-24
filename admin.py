@@ -190,7 +190,16 @@ _METHOD = ("CASE WHEN u.google_sub IS NOT NULL THEN 'Google' WHEN u.email IS NOT
 def stats(request: Request):
     need_admin(request)
     one = lambda sql: q(sql, (), True)[0][0]
+
+    def app_n(cond):  # mobil uygulama sayıları: sütun yoksa ya da sorgu bozulursa özetin geri kalanı düşmesin
+        try:
+            return one("SELECT count(*) FROM users WHERE " + cond + ";")
+        except Exception:
+            return None
     return {
+        "app_total": app_n(_APP_USER.replace("u.", "")),
+        "app_online": app_n("last_app > now() - interval '5 minutes'"),
+        "app_24h": app_n("last_app > now() - interval '1 day'"),
         "users": one("SELECT count(*) FROM users;"),
         "users_today": one("SELECT count(*) FROM users WHERE created_at > now() - interval '1 day';"),
         "users_week": one("SELECT count(*) FROM users WHERE created_at > now() - interval '7 days';"),
@@ -214,6 +223,36 @@ def stats(request: Request):
             "SELECT coalesce(nullif(episode, ''), '(etiketsiz)') e, count(*) FROM user_words GROUP BY e "
             "ORDER BY count(*) DESC LIMIT 8;", (), True)],
     }
+
+
+# Mobil uygulamayı kullanan hesap: sunucu uygulamadan gelen oturumlu bir isteği gördüyse (last_app) ya da hesap
+# uygulamadan açıldıysa (signup_via = mobil). Eski hesaplarda last_app, kişi uygulamayı bir sonraki açışında dolar.
+_APP_USER = "(u.last_app IS NOT NULL OR u.signup_via = 'mobil')"
+
+
+@router.get("/admin/api/app-users")
+def app_users(request: Request, limit: int = 100):
+    """Mobil uygulamayı kullanan giriş yapmış hesaplar, en son görülenden başlayarak. Panel bunu birkaç saniyede bir yeniler."""
+    need_admin(request)
+    limit = max(1, min(limit, 300))
+    out = {}
+    _block(out, "totals", lambda: dict(zip(("total", "online", "h24", "d7", "seen"), [int(x) for x in q(
+        "SELECT count(*), count(*) FILTER (WHERE u.last_app > now() - interval '5 minutes'), "
+        "count(*) FILTER (WHERE u.last_app > now() - interval '1 day'), "
+        "count(*) FILTER (WHERE u.last_app > now() - interval '7 days'), count(*) FILTER (WHERE u.last_app IS NOT NULL) "
+        "FROM users u WHERE " + _APP_USER + ";", (), True)[0]])), {})
+    _block(out, "users", lambda: [
+        {"id": r[0], "username": r[1], "created": _iso(r[2]), "last_app": _iso(r[3]), "last_seen": _iso(r[4]),
+         "via": r[5], "online": bool(r[6]), "words": int(r[7]), "games": int(r[8])}
+        for r in q(
+            "SELECT u.id, u.username, u.created_at, u.last_app, u.last_seen, coalesce(u.signup_via, ''), "
+            "coalesce(u.last_app > now() - interval '5 minutes', false), "
+            "(SELECT count(DISTINCT tr) FROM user_words w WHERE w.user_id = u.id) + "
+            "(SELECT count(DISTINCT (src, dst, word)) FROM user_words_ml m WHERE m.user_id = u.id), "
+            "(SELECT count(*) FROM game_results g WHERE g.user_id = u.id) "
+            "FROM users u WHERE " + _APP_USER + " ORDER BY u.last_app DESC NULLS LAST, u.id DESC LIMIT %s;", (limit,), True)])
+    out["now"] = datetime.now(_TR).strftime("%H:%M:%S")
+    return out
 
 
 # ---------- Ziyaretçiler: kim, nereden, hangi cihazdan, saat kaçta (hepsi İstanbul saati) ----------

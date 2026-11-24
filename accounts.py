@@ -1,6 +1,7 @@
 """CineVocab hesap sistemi: kayıt, giriş, kişisel kelimeler, liderlik tablosu."""
 import hashlib
 import hmac
+import ipaddress
 import os
 import re
 import secrets
@@ -108,6 +109,8 @@ def init_accounts(db_config: dict):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash TEXT;",
         # hesabın nereden açıldığı: web / eklenti / mobil (yönetim panelindeki toplu sayılar için)
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_via TEXT;",
+        # mobil uygulamadan gelen son oturumlu istek (yönetim panelindeki "mobil uygulama" listesi); IP ya da cihaz bilgisi saklanmaz
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_app TIMESTAMP;",
         "CREATE TABLE IF NOT EXISTS episode_meta (episode TEXT PRIMARY KEY, thumb TEXT NOT NULL DEFAULT '');",
         "CREATE TABLE IF NOT EXISTS admin_log (id SERIAL PRIMARY KEY, at TIMESTAMP DEFAULT now(), "
         "action TEXT NOT NULL, target TEXT, detail TEXT, ip TEXT);",
@@ -197,7 +200,7 @@ def _visit_country(request: Request) -> str:
     cf = (request.headers.get("cf-ipcountry") or "").strip().upper()  # Cloudflare arkadaysa gerçek ülke
     if re.fullmatch(r"[A-Z]{2}", cf) and cf not in ("XX", "T1"):
         return cf
-    ip_cc = _ip_country(client_ip(request))
+    ip_cc = _ip_country(visit_ip(request))
     if ip_cc:
         return ip_cc
     al = (request.headers.get("accept-language") or "").split(",")[0].strip()  # son çare: tarayıcı dili
@@ -263,7 +266,7 @@ def record_visit(request: Request, kind: str):
         if _SEEN_DAY[0] != day or len(_SEEN) > 50000:
             _SEEN.clear()
             _SEEN_DAY[0] = day
-        vid = hmac.new(_visit_key(), f"{day}|{client_ip(request)}|{ua}".encode(), "sha256").hexdigest()[:16]
+        vid = hmac.new(_visit_key(), f"{day}|{visit_ip(request)}|{ua}".encode(), "sha256").hexdigest()[:16]
         ah = request.headers.get("authorization", "")
         tok = ah[7:] if ah.startswith("Bearer ") else request.cookies.get(COOKIE)
         key = (kind, vid, bool(tok))  # anahtarsız girip sonra oturum açan kişi bir kez daha yazılır ("hesaplı"ya yükselir)
@@ -353,7 +356,13 @@ def user_from_token(t):
 
 def user_from_request(req: Request):
     h = req.headers.get("authorization", "")
-    return user_from_token(h[7:] if h.startswith("Bearer ") else req.cookies.get(COOKIE))
+    u = user_from_token(h[7:] if h.startswith("Bearer ") else req.cookies.get(COOKIE))
+    if u and client_kind(req) == "app":
+        try:  # dakikada en fazla 1 yazma; hata isteği bozmaz
+            q("UPDATE users SET last_app = now() WHERE id = %s AND (last_app IS NULL OR last_app < now() - interval '1 minute');", (u["id"],))
+        except Exception:
+            pass
+    return u
 
 
 def need_user(req: Request) -> dict:
@@ -403,6 +412,47 @@ def client_ip(request: Request) -> str:
     if xff:
         return xff.split(",")[-1].strip()
     return request.client.host if request.client else "?"
+
+
+def _public_ip(raw: str):
+    """Herkese açık (global) bir adresse metin olarak döner; özel, paylaşımlı (100.64/10), yerel ya da bozuksa None."""
+    try:
+        ip = ipaddress.ip_address((raw or "").strip().strip("[]"))
+    except ValueError:
+        return None
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return str(ip) if ip.is_global else None
+
+
+def visit_ip(request: Request) -> str:
+    """Ziyaret sayacı için (ülke ve günlük kimlik) istemci adresi. Hız sınırı için kullanılan client_ip() değişmez.
+    Railway'in kenar sunucusu zincire kendi adreslerini (100.x gibi) katabiliyor; en sağdaki adres bu yüzden bazen
+    istemci değil, altyapı adresi olur ve ülke "bilinmiyor" çıkar. Burada soldan sağa ilk HERKESE AÇIK adres alınır,
+    sonra X-Real-IP, sonra eski davranış. Ziyaret istatistiği güvenlik kararı değildir, sahtelenmesi yalnızca sayıyı bozar."""
+    h = request.headers
+    for raw in (h.get("x-forwarded-for") or "").split(",") + [h.get("x-real-ip") or ""]:
+        ip = _public_ip(raw)
+        if ip:
+            return ip
+    return client_ip(request)
+
+
+def client_kind(request: Request) -> str:
+    """İstek nereden geliyor: 'ext' (Chrome eklentisi), 'app' (mobil uygulama) ya da 'web'. Yalnızca başlıklara bakılır.
+    Mobil uygulama (Capacitor, Android) isteği yerel HTTP ile gönderir: Origin yoktur, kullanıcı ajanında WebView
+    işareti '; wv)' bulunur. Uygulama ve eklenti /api/ext/ uçlarını ve Bearer anahtarını kullanır, site çerez kullanır;
+    bu yüzden başka uygulamaların içindeki tarayıcılar (aynı '; wv)') siteyi gezerken 'app' sayılmaz."""
+    h = request.headers
+    origin = (h.get("origin") or "").lower()
+    if origin.startswith("chrome-extension://"):
+        return "ext"
+    if "://localhost" in origin:  # Capacitor (Android: https://localhost, iOS: capacitor://localhost)
+        return "app"
+    if "; wv)" in (h.get("user-agent") or "").lower() and not origin.startswith("http") and (
+            (h.get("authorization") or "").startswith("Bearer ") or request.url.path.startswith("/api/ext/")):
+        return "app"
+    return "web"
 
 
 def _throttle_ip(request: Request, limit: int = 10, window: int = 60, bucket: str = "auth"):
@@ -468,13 +518,8 @@ def note_origin(uid: int, request: Request, ext: bool = False):
     """Yeni hesabın nereden açıldığını yazar: web / eklenti / mobil. İsteğin Origin başlığından anlaşılır;
     IP, cihaz ya da tarayıcı bilgisi saklanmaz. Hata olursa kayıt etkilenmez."""
     try:
-        o = (request.headers.get("origin") or "").lower()
-        if o.startswith("chrome-extension://"):
-            via = "eklenti"
-        elif "://localhost" in o:  # Capacitor (Android: https://localhost, iOS: capacitor://localhost)
-            via = "mobil"
-        else:
-            via = "eklenti" if ext else "web"
+        kind = client_kind(request)  # mobil uygulama /api/ext/ uçlarını kullanır: eskiden "eklenti" yazılıyordu
+        via = "mobil" if kind == "app" else ("eklenti" if (kind == "ext" or ext) else "web")
         q("UPDATE users SET signup_via = %s WHERE id = %s AND signup_via IS NULL;", (via, uid))
     except Exception as e:
         print(f"   [origin] {e}")
