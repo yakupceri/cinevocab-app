@@ -9,7 +9,7 @@ const T = CVL.t;
 document.documentElement.lang = CVL.ui();
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function icon(d) { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", d); s.append(p); return s; }
-const IC = { check: "M5 12.5l4.5 4.5L19 7.500", eye: "M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", duel: "M6 3l12 12M14 19l5-5M18 3L6 15M5 14l5 5M3 21l3-3M21 21l-3-3", day: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4" };
+const IC = { grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z", check: "M5 12.5l4.5 4.5L19 7.500", eye: "M2 12s3.500-7 10-7 10 7 10 7-3.500 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", duel: "M6 3l12 12M14 19l5-5M18 3L6 15M5 14l5 5M3 21l3-3M21 21l-3-3", day: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 14l2 2 4-4" };
 IC.lines = "M4 6h16M4 12h10M4 18h13";
 
 let st = { enabled: false, src: "tr", dst: "en", key: "" };
@@ -367,7 +367,7 @@ function renderLocalPractice(v) {
     if (s.usable < NEED) {
       const bar = el("div", "bar"), fi = el("i"); fi.style.width = Math.round((s.usable / NEED) * 100) + "%"; bar.append(fi); bar.style.margin = "12px 0";
       c.append(el("h2", "", T("pTitle")), el("p", "", T("lpNeed")), bar, el("p", "lp-line", T("lpOf", s.usable, NEED)));
-      return v.replaceChildren(...[c, st.key ? homeLink() : null].filter(Boolean));
+      return v.replaceChildren(...[c, matchCard(), st.key ? homeLink() : null].filter(Boolean));
     }
     const streak = SRS.streak(r && r.reviewDays, day), b = el("button", "btn p", s.ready > 0 ? T("lpStart") : T("lpAnyway"));
     b.onclick = () => startLocal(items, pair, day);
@@ -384,7 +384,7 @@ function renderLocalPractice(v) {
     }
     if (!s.ready) c.append(el("p", "lp-line", T("lpNothing")));
     c.append(b);
-    v.replaceChildren(...[c, st.key ? homeLink() : null].filter(Boolean));
+    v.replaceChildren(...[c, matchCard(), st.key ? homeLink() : null].filter(Boolean));
   });
 }
 
@@ -550,12 +550,111 @@ function localResult(v) {
   v.replaceChildren(...kids);
 }
 
+// ---------- Kelime eşleştirme (oyun): cihazda tutulan kelimelerle, hesapsız. Tekrar kutularını ve seriyi DEĞİŞTİRMEZ, yalnızca oyundur. ----------
+let mg = null;
+const MG = { secs: 60, cols: 4, rows: 4, start: 6, need: 6, maxLen: 14 };
+// Saf: taşa uygun, tekrarsız (kelime, çeviri) çiftleri. Aynı çeviri ya da kelime iki kez gelmez (tahtada iki doğru eş olmasın).
+function matchPairs(items) {
+  const sw = new Set(), stt = new Set(), out = [];
+  for (const it of items || []) {
+    const w = String((it && it.w) || "").trim(), t = String((it && it.t) || "").trim(), lw = w.toLowerCase(), lt = t.toLowerCase();
+    if (!w || !t || lw === lt || w.length > MG.maxLen || t.length > MG.maxLen || sw.has(lw) || stt.has(lt) || sw.has(lt) || stt.has(lw)) continue;
+    sw.add(lw); stt.add(lt); out.push({ w, t });
+  }
+  return out;
+}
+function matchCard() {
+  const c = el("button", "opt2"), d = el("div"); c.id = "mgCard";
+  d.append(el("b", "", T("mgT")), el("span", "", T("mgS"))); c.append(icon(IC.grid), d);
+  c.onclick = () => chrome.storage.local.get("bank", (r) => {
+    const pairs = matchPairs(BANK.list(r && r.bank, st.src + ">" + st.dst));
+    if (pairs.length >= MG.need) return startMatch(pairs);
+    toast(T("mgNeed", MG.need));                       // yeterli kelime yoksa: sitedeki oyun ortak kelimelerle açılır
+    chrome.tabs.create({ url: SERVER + "/match?src=" + encodeURIComponent(st.src) + "&dst=" + encodeURIComponent(st.dst) });
+  });
+  return c;
+}
+function startMatch(pairs) {
+  clearInterval(mg && mg.timer);
+  mg = { queue: shuffle(pairs.slice()), left: MG.secs, score: 0, combo: 0, maxCombo: 0, matched: 0, missed: new Map(), sel: null, tiles: [], uid: 0, done: false, pairs, timer: 0 };
+  for (let i = 0; i < MG.start; i++) mgAdd();
+  mg.timer = setInterval(() => { if (!mg || mg.done) return; if (tab !== "practice") return mgEnd(true); mg.left--; if (mg.left <= 0) return mgEnd(); mgHud(); }, 1000);
+  renderPractice();
+}
+// Yeni çift hep iki taşıyla gelir (tahta çözülebilir kalır); taşlar en boş sütunların üstüne düşer.
+function mgAdd() {
+  if (!mg.queue.length || mg.tiles.length > MG.cols * MG.rows - 2) return;
+  const p = mg.queue.pop(), id = ++mg.uid;
+  for (const [text, side] of shuffle([[p.w, "src"], [p.t, "dst"]])) {
+    const n = (c) => mg.tiles.filter((x) => x.col === c).length, free = [...Array(MG.cols).keys()].filter((c) => n(c) < MG.rows), min = Math.min(...free.map(n));
+    mg.tiles.push({ id, side, text, p, col: shuffle(free.filter((c) => n(c) === min))[0], k: ++mg.uid, fresh: true });
+  }
+}
+function mgHud() {
+  const s = $("mgScore"); if (!s) return;
+  s.textContent = mg.score; $("mgCombo").textContent = mg.combo > 1 ? "x" + mg.combo : "–"; $("mgTime").textContent = Math.max(0, mg.left);
+  $("mgFill").style.width = Math.max(0, (mg.left / MG.secs) * 100) + "%";
+}
+function matchBoard(v) {
+  const hud = el("div", "mg-hud"), cell = (id, lab) => { const d = el("div"), b = el("b", "", ""); b.id = id; d.append(el("small", "", lab), b); return d; };
+  const quit = el("button", "x", "×"); quit.setAttribute("aria-label", T("pBack")); quit.onclick = () => mgEnd(true);
+  hud.append(cell("mgScore", T("mgScore")), cell("mgCombo", T("mgCombo")), cell("mgTime", T("mgTime")), quit);
+  const bar = el("div", "bar"), fi = el("i"); fi.id = "mgFill"; bar.append(fi);
+  const board = el("div", "mg-board");
+  for (let c = 0; c < MG.cols; c++) {
+    const col = el("div", "mg-col");
+    for (const tl of mg.tiles.filter((x) => x.col === c).reverse()) {     // son gelen en üstte
+      const b = el("button", "mg-tile " + (tl.side === "src" ? "mg-w" : "mg-t") + (tl.text.length > 9 ? " long" : "") + (tl.fresh ? " drop" : "") + (mg.sel === tl ? " sel" : ""), tl.text);
+      b.type = "button"; b.dataset.pair = tl.id; b.dataset.side = tl.side; b.setAttribute("aria-pressed", mg.sel === tl ? "true" : "false");
+      b.onclick = () => mgTap(tl, b); tl.fresh = false; col.append(b);
+    }
+    board.append(col);
+  }
+  v.replaceChildren(hud, bar, board); mgHud();
+}
+function mgTap(tl, b) {
+  if (!mg || mg.done) return;
+  if (mg.sel === tl) { mg.sel = null; return renderPractice(); }
+  if (!mg.sel) { mg.sel = tl; return renderPractice(); }
+  const a = mg.sel; mg.sel = null;
+  if (a.id === tl.id) {
+    mg.combo++; mg.maxCombo = Math.max(mg.maxCombo, mg.combo); mg.matched++; mg.score += 10 * Math.min(mg.combo, 5);
+    mg.tiles = mg.tiles.filter((x) => x.id !== tl.id); mgAdd();
+    if (!mg.tiles.length) return mgEnd();
+  } else { mg.combo = 0; mg.missed.set(a.p.w, a.p.t); mg.missed.set(tl.p.w, tl.p.t); mg.bad = [a.k, tl.k]; }
+  renderPractice();
+  if (mg && mg.bad) { const bad = mg.bad; mg.bad = null; document.querySelectorAll(".mg-tile").forEach((x) => { const t2 = mg.tiles.find((y) => String(y.id) === x.dataset.pair && y.side === x.dataset.side); if (t2 && bad.includes(t2.k)) x.classList.add("bad"); }); }
+}
+function mgEnd(quit) {
+  if (!mg) return;
+  clearInterval(mg.timer);
+  if (quit && !mg.matched && !mg.missed.size) { mg = null; return tab === "practice" ? renderPractice() : undefined; }
+  mg.done = true;
+  chrome.storage.local.get("matchBest", (r) => {
+    const best = Number(r && r.matchBest) || 0; mg.best = Math.max(best, mg.score); mg.isBest = mg.score > best && mg.score > 0;
+    if (mg.isBest) try { chrome.storage.local.set({ matchBest: mg.score }); } catch (e) {}
+    if (tab === "practice") renderPractice();
+  });
+}
+function matchResult(v) {
+  const again = el("button", "btn p", T("mgAgain")), back = el("button", "link", T("pBack")), pairs = mg.pairs;
+  again.onclick = () => startMatch(pairs); back.onclick = () => { mg = null; renderPractice(); };
+  const kids = [el("div", "big", String(mg.score)), el("div", "bigs", (mg.isBest ? T("mgBest") + " · " : "") + T("mgMatched", mg.matched) + (mg.maxCombo > 1 ? " · x" + mg.maxCombo : ""))];
+  if (mg.missed.size) {
+    const c = el("div", "go"); c.append(el("div", "lp-lab", T("mgMissed"))); c.style.margin = "0 0 14px";
+    for (const [w, t] of [...mg.missed].slice(0, 5)) { const row = el("div", "mg-miss"); row.append(el("b", "", w), el("span", "", t)); c.append(row); }
+    kids.push(c);
+  }
+  kids.push(again, back); v.replaceChildren(...kids);
+}
+
 // ---------- Pratik (açılır pencerenin içinde hızlı tur) ----------
 let quiz = null;
 const N_Q = 8;
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function renderPractice() {
   const v = $("v-practice");
+  if (mg) return mg.done ? matchResult(v) : matchBoard(v);
   if (!st.key || useLocal) return SRS ? renderLocalPractice(v) : guestCard(v, T("guestPractice"));
   if (quiz) return quiz.done ? renderResult(v) : renderQuestion(v);
   if (!home) return loading(v);
@@ -566,7 +665,7 @@ function renderPractice() {
   const sent = el("button", "opt2"), sd = el("div"); // cihazdaki kelimelerle cümle alıştırması (boşluk doldurma + cümle kurma); hesapsız modla aynı ekran
   sd.append(el("b", "", T("lpEntryT")), el("span", "", T("lpEntryS"))); sent.append(icon(IC.lines), sd);
   sent.onclick = () => { useLocal = true; lq = null; renderPractice(); };
-  v.replaceChildren(go, ...(SRS ? [sent] : []), card(IC.duel, T("duelT"), T("duelS"), "duel"), card(IC.day, T("dailyT"), T("dailyS"), "daily"));
+  v.replaceChildren(go, ...(SRS ? [sent] : []), matchCard(), card(IC.duel, T("duelT"), T("duelS"), "duel"), card(IC.day, T("dailyT"), T("dailyS"), "daily"));
 }
 async function startQuiz(btn) {
   if (btn) btn.disabled = true;
