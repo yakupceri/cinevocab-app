@@ -73,7 +73,8 @@ test("welcome: 9 dilin hepsinde tüm metinler dolu, düğme metninde {0} var", (
 test("welcome: tarayıcı diline göre metin seçer, bilinmeyen dil İngilizce", () => {
   assert.match(loadWelcome("tr-TR").els.title.textContent, /öğren/);
   assert.match(loadWelcome("es-MX").els.title.textContent, /Aprende/);
-  assert.match(loadWelcome("ja-JP").els.title.textContent, /Learn from what/);
+  assert.match(loadWelcome("ja-JP").els.title.textContent, /Learn the words from what you watch/);   // bilinmeyen dil: İngilizce söz
+  assert.equal(loadWelcome("tr-TR").els.title.textContent, "İzlediğin dizinin kelimelerini öğren.");     // marka sözü (mobil uygulamayla aynı)
 });
 
 test("welcome: düğme dil çiftine göre yazılır (İngilizce tarayıcı -> İspanyolca video)", () => {

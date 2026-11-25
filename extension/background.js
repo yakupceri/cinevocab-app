@@ -66,8 +66,8 @@ async function refreshBadge() {
     }
     if (n > 0) {
       chrome.action.setBadgeText({ text: n > 99 ? "99+" : String(n) });
-      chrome.action.setBadgeBackgroundColor({ color: "#F0CB4A" });
-      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#1A1500" });
+      chrome.action.setBadgeBackgroundColor({ color: "#FFD21E" });
+      if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ color: "#170E12" });
     } else {
       chrome.action.setBadgeText({ text: r.enabled ? "ON" : "" });
       chrome.action.setBadgeBackgroundColor({ color: "#2f9e6d" });
