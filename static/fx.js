@@ -40,8 +40,8 @@
     cv.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:300";
     var W = (cv.width = innerWidth), H = (cv.height = innerHeight), g = cv.getContext("2d");
     document.body.appendChild(cv);
-    var cs = getComputedStyle(document.documentElement), acc = (cs.getPropertyValue("--fill") || "#F0CB4A").trim();
-    var cols = [acc, "#F0CB4A", "#EDE8DA", "#86C79A", "#C9A52A"], n = Math.round(90 * (power || 1)), ps = [];
+    var cs = getComputedStyle(document.documentElement), acc = (cs.getPropertyValue("--fill") || "#FFD21E").trim();
+    var cols = [acc, "#FFD21E", "#F3E9D2", "#7BD39A", "#C9A52A"], n = Math.round(90 * (power || 1)), ps = [];
     for (var i = 0; i < n; i++) ps.push({ x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.45, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 15 - 5, r: 4 + Math.random() * 5, c: cols[i % cols.length], a: Math.random() * 6, va: (Math.random() - 0.5) * 0.4 });
     var t0 = performance.now();
     (function frame(t) {

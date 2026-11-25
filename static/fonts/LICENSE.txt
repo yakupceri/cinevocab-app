@@ -1,0 +1,6 @@
+bigshoulders-latin.woff2, bigshoulders-latin-ext.woff2: "Big Shoulders Display" (variable, weight 600-800),
+  Copyright 2019 The Big Shoulders Project Authors (https://github.com/xotypeco/big_shoulders).
+instrumentsans-latin.woff2, instrumentsans-latin-ext.woff2: "Instrument Sans" (variable, weight 400-700),
+  Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans).
+Both are licensed under the SIL Open Font License 1.1; full text in OFL.txt. Files are the unmodified
+Latin and Latin Extended subsets as served by Google Fonts.

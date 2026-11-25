@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CineVocab</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0B0B0A">
+<meta name="theme-color" content="#170E12">
+<link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>
@@ -592,20 +591,23 @@ function ring(frac, center, cls) {
 // Paylaşılabilir ilerleme kartı (1080x1350 PNG): kelime sayısı, seri, seviye. Düz renk, emoji yok.
 async function shareProgress() {
   const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
-  const SANS = "'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", MONO = "ui-monospace, Menlo, Consolas, monospace";
-  x.fillStyle = "#0B0B0A"; x.fillRect(0, 0, W, H);
-  x.fillStyle = "#151513"; x.fillRect(80, 200, W - 160, 700);
-  x.strokeStyle = "rgba(237,232,218,.18)"; x.lineWidth = 2; x.strokeRect(80, 200, W - 160, 700);
+  const DISP = "'Big Shoulders', 'Arial Narrow', system-ui, sans-serif", SANS = "'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", MONO = "ui-monospace, Menlo, Consolas, monospace";
+  // Canvas yazı tiplerini kendiliğinden yüklemez: önce yükle (olmazsa sistem yazı tipine düşer), logoyu da çek
+  try { await Promise.all([document.fonts.load("800 280px 'Big Shoulders'"), document.fonts.load("800 72px 'Instrument Sans'")]); } catch (e) {}
+  const logo = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = "/static/icons/isaret.svg"; });
+  x.fillStyle = "#170E12"; x.fillRect(0, 0, W, H);                       // Gece Seansı: koyu zemin, tek vurgu altyazı sarısı
+  x.fillStyle = "#25161C"; x.fillRect(80, 200, W - 160, 700);
+  x.strokeStyle = "#3D3035"; x.lineWidth = 2; x.strokeRect(80, 200, W - 160, 700);
   const n = uniqWords().length, st = streakNow(), lv = levelOf(G.xp);
   x.textAlign = "center";
-  x.fillStyle = "#F0CB4A"; x.font = "800 280px " + SANS; x.fillText(String(n), 540, 560);
-  x.fillStyle = "#EDE8DA"; x.font = "500 44px " + MONO; x.fillText(t("shWords").toUpperCase(), 540, 650);
-  x.font = "800 72px " + SANS; x.fillText((me && me.username) || "CineVocab", 540, 790);
-  x.fillStyle = "#A19C8E"; x.font = "500 40px " + MONO;
+  x.fillStyle = "#FFD21E"; x.font = "800 320px " + DISP; x.fillText(String(n), 540, 570);
+  x.fillStyle = "#F3E9D2"; x.font = "500 44px " + MONO; x.fillText(t("shWords").toUpperCase(), 540, 650);
+  x.font = "800 84px " + DISP; x.fillText((me && me.username) || "CineVocab", 540, 790);
+  x.fillStyle = "#AC9C92"; x.font = "500 40px " + MONO;
   const bits = [t("shLevel") + " " + lv]; if (st) bits.push(st + " " + t("shStreak")); x.fillText(bits.join("   ·   "), 540, 860);
-  x.fillStyle = "#F0CB4A"; x.fillRect(80, 1040, 56, 34); x.fillStyle = "#1A1500"; x.fillRect(92, 1062, 32, 4);
-  x.textAlign = "left"; x.fillStyle = "#EDE8DA"; x.font = "800 64px " + SANS; x.fillText("CineVocab", 160, 1074);
-  x.fillStyle = "#A19C8E"; x.font = "500 36px " + MONO; x.fillText("cinevocab.up.railway.app", 80, 1150);
+  if (logo) x.drawImage(logo, 80, 1000, 78, 91);                          // "altı çizili Cv" işareti (340x398 oranı)
+  x.textAlign = "left"; x.fillStyle = "#F3E9D2"; x.font = "800 80px " + DISP; x.fillText("CineVocab", 180, 1074);
+  x.fillStyle = "#AC9C92"; x.font = "500 36px " + MONO; x.fillText("cinevocab.up.railway.app", 80, 1160);
   const blob = await new Promise((r) => c.toBlob(r, "image/png")), url = "https://cinevocab.up.railway.app/?utm_source=progress_card", txt = t("shareTxt", n);
   const file = new File([blob], "cinevocab-progress.png", { type: "image/png" });
   try {

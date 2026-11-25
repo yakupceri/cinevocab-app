@@ -1,23 +1,24 @@
-/* CineVocab tema: Gece Seansı (eklentiyle aynı marka dili).
+/* CineVocab tema: Gece Seansı (eklenti ve mobil uygulamayla aynı marka dili).
    Not: bu dosya hiçbir sayfadan bağlanmaz ve sunucudan servis edilmez; sitenin gerçek stili static/app.css'tir.
-   Burada yalnızca aynı renk jetonları ve kuralların kısa özeti durur (eski "ada alacakaranlığı" teması kaldırıldı).
-   Kurallar: gradyan yok, emoji ikon yok (satır içi SVG), köşe 3 kademe (8 kontrol, 12 kart, 99 hap),
-   tek vurgu altyazı sarısı, kart gölgesi yalnızca yüzen öğede, hareket prefers-reduced-motion ile kapanır. */
+   Burada yalnızca aynı renk jetonları ve kuralların kısa özeti durur.
+   Kurallar: gradyan yok, emoji ikon yok (satır içi SVG), köşe 6 (kontrol) / 10 (kart) / 99 (hap),
+   tek vurgu altyazı sarısı (açık temada vurgu yazısı bordo), opak kenar renkleri, kart gölgesi yalnızca yüzen öğede,
+   hareket prefers-reduced-motion ile kapanır. Yazı: başlık/düğme/büyük sayı Big Shoulders 800, metin Instrument Sans. */
 :root, :root[data-theme="dark"] {
-  --bg:#0B0B0A; --panel:#151513; --panel2:#1D1D1A; --line:rgba(237,232,218,.12); --line2:rgba(237,232,218,.22);
-  --ink:#EDE8DA; --dim:#A19C8E; --faint:#8C877A;
-  --accent:#F0CB4A; --on-accent:#1A1500; --ok:#86C79A; --bad:#FF8F80;
+  --bg:#170E12; --panel:#25161C; --panel2:#321E26; --line:#3D3035; --line2:#54444A;
+  --ink:#F3E9D2; --dim:#AC9C92; --faint:#968780;
+  --accent:#FFD21E; --on-accent:#170E12; --ok:#7BD39A; --bad:#FF8A96;
   color-scheme:dark;
 }
 :root[data-theme="light"] {
-  --bg:#F4F3EE; --panel:#FFFFFF; --panel2:#F0EEE6; --line:rgba(23,23,20,.12); --line2:rgba(23,23,20,.26);
-  --ink:#171714; --dim:#5F5C52; --faint:#6E6A5F;
-  --accent:#8A6A00; --on-accent:#FFFFFF; --ok:#1D7A3F; --bad:#B3321F;
+  --bg:#F1E8D6; --panel:#FBF6EA; --panel2:#E7DBC2; --line:#CBC1B3; --line2:#A89B88;
+  --ink:#1B0F14; --dim:#66564C; --faint:#75655A;
+  --accent:#8E1B2B; --on-accent:#FFFFFF; --ok:#1E6E41; --bad:#A81C2B;
   color-scheme:light;
 }
-:root { --r-ctl:8px; --r-card:12px; --r-pill:99px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+:root { --r-ctl:6px; --r-card:10px; --r-pill:99px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
 html { background:var(--bg); }
 body { min-height:100vh; background:var(--bg); color:var(--ink); }
-::selection { background:#F0CB4A; color:#1A1500; }
+::selection { background:#FFD21E; color:#170E12; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }

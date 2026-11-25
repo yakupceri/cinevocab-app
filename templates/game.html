@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CineVocab · Duel</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <style>
   .stage { max-width:640px; margin:0 auto; }
@@ -19,7 +16,7 @@
   .roomcode.xl { margin:18px 0; } .roomcode.xl .dg { width:clamp(72px,13vw,160px); font-size:clamp(64px,11vw,140px); border-radius:var(--r-card); }
   .roomcode .dg { width:clamp(54px,17vw,92px); aspect-ratio:3/4; display:grid; place-items:center; background:var(--bg); border:1px solid var(--line2); border-radius:var(--r-card); font:700 clamp(40px,12vw,68px)/1 var(--mono); color:var(--accent); font-variant-numeric:tabular-nums; }
   /* büyük ekran (sunum) modu: dört şık tek renk, harfle ayrılır */
-  .scr-word { font:700 clamp(48px,9vw,120px)/1.05 var(--display); letter-spacing:-.03em; text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
+  .scr-word { font:700 clamp(48px,9vw,120px)/1.05 var(--display); letter-spacing:.01em; text-align:center; margin:22px 0 28px; overflow-wrap:anywhere; }
   .scr-opts { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .scr-opts .o { position:relative; border-radius:var(--r-card); padding:22px 24px; background:var(--panel2); border:1px solid var(--line2); font:700 clamp(22px,3.6vw,44px)/1.1 var(--display); color:var(--ink); display:flex; align-items:center; gap:16px; overflow:hidden; }
   .scr-opts .o b { font:700 .6em var(--mono); color:var(--dim); border:1.5px solid var(--line2); border-radius:var(--r-ctl); width:1.9em; height:1.9em; display:grid; place-items:center; flex:none; }
@@ -32,7 +29,9 @@
 </style>
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0B0B0A">
+<meta name="theme-color" content="#170E12">
+<link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>if("serviceWorker"in navigator)addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})</script>

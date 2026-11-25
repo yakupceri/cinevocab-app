@@ -38,7 +38,7 @@
     eNet: "Can't reach the server.", eLogin: "Please log in first.", eBanned: "You can't join game rooms.", ePair: "Invalid language pair.", eNeed4: "You need at least 4 words (you have {0}).",
     eNoRoom: "Room not found or the game already started.", ePw: "Wrong room password.", eRate: "Too many attempts. Try again in a moment.", eUser: "Username must be 3–16 characters (letters, digits, _).",
     ePass6: "Password must be at least 6 characters.", eTaken: "That username is taken.", eCreds: "Wrong username or password.", eSusp: "Your account is suspended.", eWrongPw: "Wrong password.", eCountry: "Invalid country.", eBig: "Data too large.",
-    landH1: "Turn every subtitle into vocabulary.", landLead: "CineVocab shows the translation under each subtitle word while you watch, in any language pair, and keeps the words for you to practise.",
+    landH1: "Learn the words from what you watch.", landHint: "Tap a word to keep it.", landKept: "Kept. Later it comes back as a question in this same line.", landLead: "CineVocab shows the translation under each subtitle word while you watch, in any language pair, and keeps the words for you to practise.",
     landCta: "Create a free account", landHow: "How it works", landSites: "Works on Prime Video, YouTube and Udemy.",
     landS1T: "Install the extension", landS1: "Add it to Chrome, paste your key and pick the subtitle language and your language.",
     landS2T: "Switch it on and watch", landS2: "It only runs when you turn it on, and only when the subtitles are in the language you chose.",
@@ -83,7 +83,7 @@
     eNet: "Sunucuya ulaşılamıyor.", eLogin: "Önce giriş yapmalısın.", eBanned: "Oyun odalarına girişin kısıtlandı.", ePair: "Dil çifti geçersiz.", eNeed4: "En az 4 kelime gerekiyor (şu an {0}).",
     eNoRoom: "Oda bulunamadı veya oyun başlamış.", ePw: "Oda şifresi yanlış.", eRate: "Çok fazla deneme. Biraz sonra tekrar dene.", eUser: "Kullanıcı adı 3-16 karakter olmalı (harf, rakam, _).",
     ePass6: "Parola en az 6 karakter olmalı.", eTaken: "Bu kullanıcı adı alınmış.", eCreds: "Kullanıcı adı ya da parola hatalı.", eSusp: "Hesabın askıya alındı.", eWrongPw: "Parola hatalı.", eCountry: "Ülke geçersiz.", eBig: "Veri çok büyük.",
-    landH1: "Her altyazıyı kelime dağarcığına çevir.", landLead: "CineVocab, izlerken her altyazı kelimesinin altında çevirisini gösterir; hangi dil çifti olursa olsun. Kelimeler pratik yapman için saklanır.",
+    landH1: "İzlediğin dizinin kelimelerini öğren.", landHint: "Bir kelimeye tıkla, kaydet.", landKept: "Kaydedildi. Sonra bu cümlede soru olarak karşına çıkar.", landLead: "CineVocab, izlerken her altyazı kelimesinin altında çevirisini gösterir; hangi dil çifti olursa olsun. Kelimeler pratik yapman için saklanır.",
     landCta: "Ücretsiz hesap oluştur", landHow: "Nasıl çalışır", landSites: "Prime Video, YouTube ve Udemy'de çalışır.",
     landS1T: "Eklentiyi kur", landS1: "Chrome'a ekle, anahtarını yapıştır; altyazı dilini ve kendi dilini seç.",
     landS2T: "Aç ve izle", landS2: "Yalnızca sen açınca çalışır ve yalnızca altyazı seçtiğin dildeyse çevirir.",
@@ -128,7 +128,7 @@
     eNet: "Impossible de joindre le serveur.", eLogin: "Connecte-toi d'abord.", eBanned: "Tu ne peux pas rejoindre les salles.", ePair: "Paire de langues invalide.", eNeed4: "Il faut au moins 4 mots (tu en as {0}).",
     eNoRoom: "Salle introuvable ou partie déjà commencée.", ePw: "Mot de passe de la salle incorrect.", eRate: "Trop de tentatives. Réessaie dans un instant.", eUser: "Le nom doit faire 3 à 16 caractères (lettres, chiffres, _).",
     ePass6: "Le mot de passe doit faire au moins 6 caractères.", eTaken: "Ce nom d'utilisateur est pris.", eCreds: "Nom d'utilisateur ou mot de passe incorrect.", eSusp: "Ton compte est suspendu.", eWrongPw: "Mot de passe incorrect.", eCountry: "Pays invalide.", eBig: "Données trop volumineuses.",
-    landH1: "Transforme chaque sous-titre en vocabulaire.", landLead: "CineVocab affiche la traduction sous chaque mot du sous-titre pendant que tu regardes, pour n'importe quelle paire de langues, et garde les mots pour t'entraîner.",
+    landH1: "Apprends les mots de ce que tu regardes.", landHint: "Clique sur un mot pour le garder.", landKept: "Gardé. Il reviendra plus tard en question dans cette même phrase.", landLead: "CineVocab affiche la traduction sous chaque mot du sous-titre pendant que tu regardes, pour n'importe quelle paire de langues, et garde les mots pour t'entraîner.",
     landCta: "Créer un compte gratuit", landHow: "Comment ça marche", landSites: "Fonctionne sur Prime Video, YouTube et Udemy.",
     landS1T: "Installe l'extension", landS1: "Ajoute-la à Chrome, colle ta clé et choisis la langue des sous-titres et la tienne.",
     landS2T: "Active et regarde", landS2: "Elle ne tourne que si tu l'actives, et seulement si les sous-titres sont dans la langue choisie.",
@@ -173,7 +173,7 @@
     eNet: "Impossibile raggiungere il server.", eLogin: "Prima devi accedere.", eBanned: "Non puoi entrare nelle stanze di gioco.", ePair: "Coppia di lingue non valida.", eNeed4: "Servono almeno 4 parole (ne hai {0}).",
     eNoRoom: "Stanza non trovata o partita già iniziata.", ePw: "Password della stanza errata.", eRate: "Troppi tentativi. Riprova tra poco.", eUser: "Il nome utente deve avere 3–16 caratteri (lettere, cifre, _).",
     ePass6: "La password deve avere almeno 6 caratteri.", eTaken: "Nome utente già in uso.", eCreds: "Nome utente o password errati.", eSusp: "Il tuo account è sospeso.", eWrongPw: "Password errata.", eCountry: "Paese non valido.", eBig: "Dati troppo grandi.",
-    landH1: "Trasforma ogni sottotitolo in vocabolario.", landLead: "CineVocab mostra la traduzione sotto ogni parola del sottotitolo mentre guardi, per qualsiasi coppia di lingue, e conserva le parole per esercitarti.",
+    landH1: "Impara le parole di ciò che guardi.", landHint: "Clicca una parola per tenerla.", landKept: "Tenuta. Più tardi tornerà come domanda in questa stessa frase.", landLead: "CineVocab mostra la traduzione sotto ogni parola del sottotitolo mentre guardi, per qualsiasi coppia di lingue, e conserva le parole per esercitarti.",
     landCta: "Crea un account gratuito", landHow: "Come funziona", landSites: "Funziona su Prime Video, YouTube e Udemy.",
     landS1T: "Installa l'estensione", landS1: "Aggiungila a Chrome, incolla la chiave e scegli la lingua dei sottotitoli e la tua.",
     landS2T: "Attiva e guarda", landS2: "Funziona solo quando la attivi e solo se i sottotitoli sono nella lingua scelta.",
@@ -218,7 +218,7 @@
     eNet: "Server nicht erreichbar.", eLogin: "Bitte zuerst anmelden.", eBanned: "Du darfst keinen Spielräumen beitreten.", ePair: "Ungültiges Sprachpaar.", eNeed4: "Mindestens 4 Wörter nötig (du hast {0}).",
     eNoRoom: "Raum nicht gefunden oder Spiel läuft bereits.", ePw: "Falsches Raumpasswort.", eRate: "Zu viele Versuche. Bitte gleich nochmal.", eUser: "Benutzername: 3–16 Zeichen (Buchstaben, Ziffern, _).",
     ePass6: "Das Passwort braucht mindestens 6 Zeichen.", eTaken: "Dieser Benutzername ist vergeben.", eCreds: "Benutzername oder Passwort falsch.", eSusp: "Dein Konto ist gesperrt.", eWrongPw: "Falsches Passwort.", eCountry: "Ungültiges Land.", eBig: "Daten zu groß.",
-    landH1: "Mach jeden Untertitel zu Vokabeln.", landLead: "CineVocab zeigt beim Schauen unter jedem Untertitelwort die Übersetzung, für jedes Sprachpaar, und speichert die Wörter zum Üben.",
+    landH1: "Lerne die Wörter aus dem, was du schaust.", landHint: "Klick ein Wort an, um es zu behalten.", landKept: "Behalten. Später kommt es als Frage in genau diesem Satz wieder.", landLead: "CineVocab zeigt beim Schauen unter jedem Untertitelwort die Übersetzung, für jedes Sprachpaar, und speichert die Wörter zum Üben.",
     landCta: "Kostenloses Konto erstellen", landHow: "So funktioniert's", landSites: "Funktioniert auf Prime Video, YouTube und Udemy.",
     landS1T: "Erweiterung installieren", landS1: "In Chrome hinzufügen, Schlüssel einfügen, Untertitel- und eigene Sprache wählen.",
     landS2T: "Einschalten und schauen", landS2: "Läuft nur, wenn du sie einschaltest, und nur bei Untertiteln in der gewählten Sprache.",
@@ -263,7 +263,7 @@
     eNet: "No se puede conectar con el servidor.", eLogin: "Primero inicia sesión.", eBanned: "No puedes entrar en las salas de juego.", ePair: "Par de idiomas no válido.", eNeed4: "Se necesitan al menos 4 palabras (tienes {0}).",
     eNoRoom: "Sala no encontrada o la partida ya empezó.", ePw: "Contraseña de sala incorrecta.", eRate: "Demasiados intentos. Prueba en un momento.", eUser: "El usuario debe tener 3–16 caracteres (letras, números, _).",
     ePass6: "La contraseña debe tener al menos 6 caracteres.", eTaken: "Ese usuario ya existe.", eCreds: "Usuario o contraseña incorrectos.", eSusp: "Tu cuenta está suspendida.", eWrongPw: "Contraseña incorrecta.", eCountry: "País no válido.", eBig: "Datos demasiado grandes.",
-    landH1: "Convierte cada subtítulo en vocabulario.", landLead: "CineVocab muestra la traducción bajo cada palabra del subtítulo mientras ves contenido, en cualquier par de idiomas, y guarda las palabras para practicar.",
+    landH1: "Aprende las palabras de lo que ves.", landHint: "Haz clic en una palabra para guardarla.", landKept: "Guardada. Más tarde volverá como pregunta en esta misma frase.", landLead: "CineVocab muestra la traducción bajo cada palabra del subtítulo mientras ves contenido, en cualquier par de idiomas, y guarda las palabras para practicar.",
     landCta: "Crear cuenta gratis", landHow: "Cómo funciona", landSites: "Funciona en Prime Video, YouTube y Udemy.",
     landS1T: "Instala la extensión", landS1: "Añádela a Chrome, pega tu clave y elige el idioma de los subtítulos y el tuyo.",
     landS2T: "Actívala y mira", landS2: "Solo funciona cuando la activas y solo si los subtítulos están en el idioma elegido.",
@@ -1127,7 +1127,7 @@
   I.set = function (l) { if (!D[l]) return; I.lang = l; save("cv-lang", l); I.apply(); CB.forEach(function (f) { f(); }); };
   I.onChange = function (f) { CB.push(f); };
   I.theme = function () { return document.documentElement.getAttribute("data-theme") || "dark"; };
-  function paintMeta(m) { try { var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute("content", m === "light" ? "#F4F3EE" : "#0B0B0A"); } catch (e) {} }
+  function paintMeta(m) { try { var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute("content", m === "light" ? "#F1E8D6" : "#170E12"); } catch (e) {} }
   I.setTheme = function (m) { document.documentElement.setAttribute("data-theme", m); save("cv-theme", m); paintMeta(m); };
   document.documentElement.setAttribute("data-theme", store("cv-theme") || "dark");
   window.I18N = I; window.t = tr;

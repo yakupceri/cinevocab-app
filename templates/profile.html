@@ -12,18 +12,17 @@
 {% else %}
 <title>CineVocab</title>
 {% endif %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v={{ ASSET_V }}">
 <script src="/static/i18n.js?v={{ ASSET_V }}"></script>
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0B0B0A">
+<meta name="theme-color" content="#170E12">
+<link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <style>
   .pf { max-width:640px; margin:0 auto; padding:7vh 0 40px; text-align:center }
-  .pf h1 { font-size:clamp(34px,6vw,56px); letter-spacing:-.03em; word-break:break-all }
-  .pf .big { font:800 clamp(80px,22vw,150px)/1 var(--display); letter-spacing:-.04em; color:var(--accent); margin:26px 0 0 }
+  .pf h1 { font-size:clamp(38px,6.6vw,62px); letter-spacing:.01em; word-break:break-all }
+  .pf .big { font:800 clamp(80px,22vw,150px)/1 var(--display); letter-spacing:.01em; color:var(--accent); margin:26px 0 0 }
   .pf .unit { font-weight:700; color:var(--dim); font-size:20px }
   .pf .row3 { display:flex; justify-content:center; gap:26px; flex-wrap:wrap; margin:26px 0 }
   .pf .row3 div { min-width:90px } .pf .row3 b { display:block; font:800 28px var(--display) } .pf .row3 span { color:var(--dim); font-size:14px }
