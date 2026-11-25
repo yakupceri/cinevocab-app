@@ -93,6 +93,7 @@ page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 await page.route("http://admin.test/**", (route) => {
   const u = new URL(route.request().url());
   if (u.pathname === "/admin") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+  if (u.pathname.startsWith("/static/")) { const fp = path.join(root, u.pathname.slice(1)); return route.fulfill({ status: 200, contentType: fp.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream", body: fs.readFileSync(fp) }); }
   const p = u.pathname.replace("/admin/api", "");
   if (p === "/traffic") return route.fulfill({ json: traffic(Number(u.searchParams.get("days")) || 7) });
   const f = mocks[p];

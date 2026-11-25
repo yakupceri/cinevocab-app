@@ -41,7 +41,7 @@
   #app { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
   #side { position:sticky; top:0; height:100vh; overflow:auto; background:var(--bg2); border-right:1px solid var(--line); padding:18px 12px; }
   .brand { display:flex; align-items:center; gap:10px; padding:2px 10px 12px; }
-  .logo { width:32px; height:32px; border-radius:10px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; font-weight:900; font-size:16px; flex:none; }
+  .logo { width:27px; height:32px; background:url(/static/icons/isaret.svg) center/contain no-repeat; flex:none; }
   .brand b { display:block; font-size:15px; line-height:1.2; } .brand small { color:var(--dim); font-size:11px; }
   .grp { font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); padding:16px 10px 5px; }
   #nav button { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:transparent; border-radius:10px; padding:9px 10px; color:var(--dim); }
@@ -166,7 +166,7 @@
 <body>
 
 <div id="login" class="hide">
-  <div class="logo">C</div>
+  <div class="logo" role="img" aria-label="CineVocab"></div>
   <h2>Yönetim girişi</h2>
   <form id="lf" autocomplete="on">
     <input id="lu" name="username" aria-label="Kullanıcı adı" placeholder="Kullanıcı adı" autocomplete="username" required>
@@ -178,7 +178,7 @@
 
 <div id="app" class="hide">
   <aside id="side">
-    <div class="brand"><div class="logo">C</div><div><b>CineVocab</b><small>Yönetim paneli</small></div></div>
+    <div class="brand"><div class="logo" role="img" aria-label="CineVocab"></div><div><b>CineVocab</b><small>Yönetim paneli</small></div></div>
     <nav id="nav" aria-label="Bölümler"></nav>
   </aside>
   <div id="content">
