@@ -134,6 +134,20 @@ def api_get(path, qs):
         return 200, {"google": "", "mail": s["mail"], "contact": ""}
     if path == "/api/me":
         return need() or (200, dict(s["me"], words=len({w["tr"] for w in s["words"]})))
+    if path == "/api/match/pairs":   # eşleştirme oyunu: hesapsız, sahte kelime havuzu
+        return 200, {"pairs": [{"src": "es", "dst": "en", "n": 24}, {"src": "en", "dst": "tr", "n": 24}]}
+    if path == "/api/match/words":
+        src, dst = qs.get("src", "es"), qs.get("dst", "en")
+        es = [("verdad", "truth"), ("nunca", "never"), ("dinero", "money"), ("miedo", "fear"), ("ayuda", "help"), ("peligro", "danger"),
+              ("silencio", "silence"), ("puerta", "door"), ("corazón", "heart"), ("mentira", "lie"), ("hermano", "brother"), ("quizás", "maybe"),
+              ("desayuno", "breakfast"), ("barrio", "neighborhood"), ("mercado", "market"), ("calle", "street"), ("vecino", "neighbor"),
+              ("cansado", "tired"), ("tarde", "late"), ("nube", "cloud"), ("escalera", "stairs"), ("ventana", "window"), ("cocina", "kitchen"), ("llave", "key")]
+        tr = [("truth", "gerçek"), ("never", "asla"), ("money", "para"), ("fear", "korku"), ("help", "yardım"), ("danger", "tehlike"), ("silence", "sessizlik"),
+              ("door", "kapı"), ("heart", "kalp"), ("lie", "yalan"), ("brother", "erkek kardeş"), ("maybe", "belki"), ("breakfast", "kahvaltı"),
+              ("neighborhood", "mahalle"), ("market", "pazar"), ("street", "sokak"), ("neighbor", "komşu"), ("tired", "yorgun"), ("late", "geç"),
+              ("cloud", "bulut"), ("stairs", "merdiven"), ("window", "pencere"), ("kitchen", "mutfak"), ("key", "anahtar")]
+        ws = es if (src, dst) == ("es", "en") else tr if (src, dst) == ("en", "tr") else []
+        return 200, {"ready": bool(ws), "src": src, "dst": dst, "words": [{"w": a, "t": b} for a, b in ws]}
     if path == "/api/pairs":
         return need() or (200, pairs())
     if path == "/api/vocab":
@@ -336,7 +350,7 @@ class H(BaseHTTPRequestHandler):
             if f.startswith(STATIC + os.sep) and os.path.isfile(f):
                 return self.send(200, read(f), CT.get(os.path.splitext(f)[1], "application/octet-stream"))
             return self.send(404, "yok")
-        page = {"/account": "account.html", "/game": "game.html", "/daily": "daily.html", "/explore": "explore.html", "/": "landing.html"}.get(path)
+        page = {"/account": "account.html", "/game": "game.html", "/daily": "daily.html", "/explore": "explore.html", "/match": "match.html", "/": "landing.html"}.get(path)
         if page:
             return self.send(200, render_plain(page))
         if path == "/__old/account":  # karşılaştırma için: yeniden tasarımdan önceki (eski) account.html (9ff7113~1), yalnızca okunur

@@ -30,6 +30,7 @@ import extauth
 import leagues
 import multilang
 import puzzle
+import match
 import srs
 import vocab
 from fastapi.staticfiles import StaticFiles
@@ -45,6 +46,7 @@ app.include_router(growth.router)
 app.include_router(extauth.router)
 app.include_router(importer.router)
 app.include_router(puzzle.router)
+app.include_router(match.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -384,6 +386,7 @@ try:
 except Exception as e:
     # Veritabanı hazır değilse uygulama yine de açılsın (çökmesin)
     print(f"Hesap tabloları oluşturulamadı: {e}")
+match.init(lambda src, dst: global_pairs(src, dst))   # tablo kurmaz; kelime havuzunu ilk istekte okur
 try:
     puzzle.init(lambda src, dst: global_pairs(src, dst))
 except Exception as e:
@@ -1518,6 +1521,13 @@ def video_redirect(request: Request, src: str = "", hl: str = ""):
 @app.get("/game", response_class=HTMLResponse)
 def game_page(request: Request):
     return templates.TemplateResponse(request, "game.html")
+
+
+@app.get("/match", response_class=HTMLResponse)
+def match_page(request: Request):
+    """Eşleştirme oyunu: hesap ve kurulum gerektirmez."""
+    record_visit(request, "site")
+    return templates.TemplateResponse(request, "match.html")
 
 
 @app.get("/daily", response_class=HTMLResponse)

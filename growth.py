@@ -213,7 +213,7 @@ def ogren_page(lang: str, request: Request):
 
 @router.get("/sitemap.xml")
 def sitemap():
-    urls = ["/", "/explore", "/privacy"] + [f"/learn/{k}" for k in LEARN] + [f"/ogren/{k}" for k in LEARN]
+    urls = ["/", "/match", "/explore", "/privacy"] + [f"/learn/{k}" for k in LEARN] + [f"/ogren/{k}" for k in LEARN]
     body = "".join(f"<url><loc>{html.escape(SITE + u)}</loc></url>" for u in urls)
     return Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
                     + body + "</urlset>", media_type="application/xml")
