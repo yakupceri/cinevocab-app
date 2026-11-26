@@ -289,6 +289,16 @@
   Object.assign(S.pt, {"noteAdd": "+ Nota", "notePh": "Nota para “{0}”", "noteSave": "Salvar", "noteEdit": "Editar nota"});
   Object.assign(S.hi, {"noteAdd": "+ नोट", "notePh": "“{0}” के लिए नोट", "noteSave": "सहेजें", "noteEdit": "नोट बदलें"});
   Object.assign(S.id, {"noteAdd": "+ Catatan", "notePh": "Catatan untuk “{0}”", "noteSave": "Simpan", "noteEdit": "Ubah catatan"});
+  /* 2.4: kelimenin notu pratikte cevaptan SONRA ve eşleştirme sonuç ekranında gösterilir (etiket), 9 dil */
+  Object.assign(S.en, {"noteYours": "Your note"});
+  Object.assign(S.tr, {"noteYours": "Notun"});
+  Object.assign(S.es, {"noteYours": "Tu nota"});
+  Object.assign(S.fr, {"noteYours": "Ta note"});
+  Object.assign(S.it, {"noteYours": "La tua nota"});
+  Object.assign(S.de, {"noteYours": "Deine Notiz"});
+  Object.assign(S.pt, {"noteYours": "Sua nota"});
+  Object.assign(S.hi, {"noteYours": "आपका नोट"});
+  Object.assign(S.id, {"noteYours": "Catatanmu"});
   Object.assign(S.en, {"firstKept": "First word kept. It is listed in the CineVocab popup (puzzle icon), under Words."});
   Object.assign(S.tr, {"firstKept": "İlk kelime kaydedildi. CineVocab penceresinde (yapboz simgesi), Kelimeler sekmesinde."});
   Object.assign(S.es, {"firstKept": "Primera palabra guardada. La verás en la ventana de CineVocab (icono de puzle), en Palabras."});

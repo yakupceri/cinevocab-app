@@ -1,8 +1,8 @@
 {
   "extName": {
-    "message": "CineVocab"
+    "message": "CineVocab: Altyazı Çevirisi ve Kelime Defteri"
   },
   "extDesc": {
-    "message": "İzlediğin diziden dil öğren. Altyazılı video sitelerinde her altyazı kelimesi anında çevrilir. Ücretsiz."
+    "message": "İzlediğin dizinin kelimelerini öğren. Kelime kelime altyazı çevirisi, ücretsiz kelime defteri ve aralıklı tekrar."
   }
 }

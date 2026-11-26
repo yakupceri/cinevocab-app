@@ -23,6 +23,7 @@
   };
   const store = JSON.parse(JSON.stringify(PRESET[scene] || {}));
   if (q.get("kf")) store.keptFirst = 1;
+  if (q.get("key")) store.key = "test-key-not-real";   // ?key=1: giriş yapılmış hesap (sahte sunucu aşağıda: /api/ext/home, /api/notes, /api/note)
   if (q.get("noask")) store.startAsk = "no";   // ?noask=1: "CineVocab kapalı, çevireyim mi?" uyarısı çıkmasın (arka plan karesi)   // ?kf=1: "ilk kelime tutuldu" notu çıkmasın (reklam karesi)
   if (q.get("bs") && store.box) store.box.s = +q.get("bs");   // ?bs=1.7: dikey video için kutu ölçeği
   if (q.get("bankN") && store.bank) store.bank["es>en"] = store.bank["es>en"].slice(0, +q.get("bankN"));
@@ -67,6 +68,7 @@
       getURL: (p) => "/" + p, getManifest: () => ({ version: "2.1.0" }),
       sendMessage(msg, cb) {
         let r = {};
+        (window.__msgs = window.__msgs || []).push(JSON.parse(JSON.stringify(msg || {})));   // denetim: içerik betiği / popup hangi mesajları gönderdi
         if (msg && msg.action === "translateWords") {
           const results = {}, failed = []; (msg.words || []).forEach((w) => { if (DICT[w]) results[w] = DICT[w]; else failed.push(w); });
           r = { status: "success", results, known: [], failed, pending: [], sentence_en: SENT[msg.sentence] || "" };
@@ -86,9 +88,37 @@
     action: { setBadgeText: noop, setBadgeBackgroundColor: noop },
   };
   const realFetch = window.fetch.bind(window);
+  const json = (o, status = 200) => Promise.resolve(new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } }));
+  // Sahte hesap sunucusu (yalnızca ?key=1 ile): popup'ın hesaplı kelime listesi ve not uçları. window.__acct.calls: istekler.
+  const ACCT = { notes: { "es>en": { amor: "sunucudaki not", mundo: "başka cihazdan gelen" } }, calls: [], failNote: 0 };
+  window.__acct = ACCT;
+  window.__net = [];
+  const acctApi = (u, opt) => {
+    const path = u.pathname, pair = u.searchParams.get("src") + ">" + u.searchParams.get("dst"), body = opt && opt.body ? JSON.parse(opt.body) : null;
+    ACCT.calls.push({ path, method: (opt && opt.method) || "GET", body, auth: ((opt && opt.headers && opt.headers.Authorization) || "") });
+    if (path === "/api/ext/home") {
+      const items = (store.bank && store.bank[pair]) || [];
+      return json({ username: "demo", avatar: "", level: 3, xp: 40, xp_into: 40, xp_level: 200, xp_today: 20, streak: 4, wins: 2, words: items.length, pair_words: items.length, due: 2, new: 3, mastered: 1,
+        recent: items.map((x) => ({ w: x.w, t: x.t, ep: x.ep || "" })), starred: [] });
+    }
+    if (path === "/api/notes" && !(opt && opt.method === "POST")) return json({ notes: ACCT.notes[pair] || {} });
+    if (path === "/api/note" && body) {
+      if (ACCT.failNote) return json({ detail: "x" }, ACCT.failNote);
+      const k = body.src + ">" + body.dst, n = String(body.note || "").split(/\s+/).filter(Boolean).join(" ").slice(0, 140);
+      ACCT.notes[k] = ACCT.notes[k] || {};
+      if (n) ACCT.notes[k][body.word] = n; else delete ACCT.notes[k][body.word];
+      return json({ ok: true, note: n });
+    }
+    return json({ detail: "yok" }, 404);
+  };
   window.fetch = (url, opt) => {
-    if (/\/api\/ext\/config/.test(String(url))) return Promise.resolve(new Response(JSON.stringify({ google: "", mail: false }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    if (/cinevocab\.up\.railway\.app/.test(String(url))) return Promise.reject(new TypeError("stub: ağ kapalı"));
+    const u = String(url);
+    if (/\/api\/ext\/config/.test(u)) return json({ google: "", mail: false });
+    if (/cinevocab\.up\.railway\.app/.test(u)) {
+      window.__net.push({ url: u, method: (opt && opt.method) || "GET" });
+      if (store.key && /\/api\//.test(u)) return acctApi(new URL(u), opt);
+      return Promise.reject(new TypeError("stub: ağ kapalı"));
+    }
     return realFetch(url, opt);
   };
   window.__store = store; // denetim: sayfadan okunabilsin

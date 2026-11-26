@@ -50,6 +50,22 @@ try {
   const over = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   ok(over <= 1 && p.errs.length === 0, "taşma ve sayfa hatası yok" + (p.errs.length ? ": " + p.errs.join(" | ") : ""));
   await p.context().close();
+  // notu olan kelimeler: karıştırılanlar sonuç ekranında notuyla birlikte "bir daha bak" satırında görünür
+  p = await open("bank");
+  await p.evaluate(() => new Promise((r) => chrome.storage.local.get("bank", (x) => { const b = x.bank; b["es>en"].forEach((i) => { i.n = "nota: " + i.w; }); chrome.storage.local.set({ bank: b }, r); })));
+  await p.locator("#mgCard").click(); await p.locator(".mg-tile").first().waitFor({ timeout: 4000 }); await wait(350);
+  ok((await p.locator(".pn").count()) === 0, "oyun sırasında (tahtada) not görünmez, ipucu olmasın");
+  await matchOne(p); await matchOne(p);
+  const [qa, qb] = await p.evaluate(() => { const a = document.querySelector('.mg-tile[data-side="src"]'), o = [...document.querySelectorAll('.mg-tile[data-side="dst"]')].find((x) => x.dataset.pair !== a.dataset.pair); return [a.dataset.pair, o.dataset.pair]; });
+  await p.locator(`.mg-tile[data-pair="${qa}"][data-side="src"]`).click(); await p.locator(`.mg-tile[data-pair="${qb}"][data-side="dst"]`).click(); await wait(150);
+  for (let i = 0; i < 4; i++) await matchOne(p);
+  await p.locator(".big").waitFor({ timeout: 4000 }); await wait(300);
+  const rows = await p.evaluate(() => [...document.querySelectorAll(".mg-miss")].map((r) => ({ word: r.querySelector("b").textContent, label: (r.querySelector(".pn-l") || {}).textContent || "", note: (r.querySelector(".pn-t") || {}).textContent || "" })));
+  ok(rows.length === 2 && rows.every((r) => r.label === "Notun" && r.note === "nota: " + r.word), "sonuç ekranında karıştırılan iki kelimenin notu etiketle görünür: " + JSON.stringify(rows));
+  await p.screenshot({ path: join(OUT, "oyun-sonuc-not.png") });
+  const over2 = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  ok(over2 <= 1 && p.errs.length === 0, "notlu sonuç ekranında taşma ve sayfa hatası yok" + (p.errs.length ? ": " + p.errs.join(" | ") : ""));
+  await p.context().close();
   p = await open("on");                                                      // hiç tutulan kelime yok
   await p.locator("#mgCard").click(); await wait(500);
   const opened = await p.evaluate(() => window.__opened);

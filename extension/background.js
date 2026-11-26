@@ -250,16 +250,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // ---------- Cihazdaki defter -> hesap ----------
 // Hesapsız kullanıcının videoda "tuttuğu" kelimeler cihazdaki defterdedir (bank.js). Giriş yapılınca ya da hesap açılınca bunlar
-// hesabın kelime listesine taşınır: "Yedekle" sözünün gerçek karşılığı. Altyazı metni değil, yalnızca kelimeler ve video adı gider.
+// hesabın kelime listesine taşınır: "Yedekle" sözünün gerçek karşılığı. Altyazı metni değil, yalnızca kelimeler, video adı ve
+// (varsa) kullanıcının kendi yazdığı kısa notlar gider; kelimenin geçtiği cümle ve çevirisi cihazda kalır.
 // Taşınanlar bankSyncTs ile işaretlenir; sonraki turda yalnızca bu zamandan yeni tutulanlar taşınır. Hata olursa işaret konmaz,
 // bir sonraki girişte yeniden denenir (sunucuda aynı kelime iki kez eklenmez).
 let migrating = false;
+// Cihazdaki notlar: dil çifti başına tek istek (en çok 500 kelime). KURAL: sunucuda o kelime için zaten bir not varsa sunucudaki kalır,
+// cihazdaki not silinmez ama gönderilmez ezilmez (sunucu tarafı ON CONFLICT DO NOTHING). Sunucuda notu olmayanlar yazılır.
+// Hata (ağ, sunucu henüz güncel değil) sessizce geçilir: kelime taşımayı engellemez, bir sonraki girişte yeniden denenir.
+async function migrateNotes(key, bank) {
+  for (const pair of Object.keys(bank)) {
+    const m = /^([a-z]{2})>([a-z]{2})$/.exec(pair);
+    if (!m || !Array.isArray(bank[pair])) continue;
+    const notes = {};
+    for (const it of bank[pair]) if (it && typeof it.w === "string" && typeof it.n === "string" && it.n.trim()) notes[it.w.slice(0, 60)] = it.n.slice(0, 140);
+    if (!Object.keys(notes).length) continue;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch(API + "/api/notes/import", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+        body: JSON.stringify({ src: m[1], dst: m[2], notes }), signal: ctrl.signal,
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+    } catch (e) {
+      console.warn("Notlar hesaba taşınamadı (sonraki girişte yeniden denenir):", e);
+    } finally { clearTimeout(timer); }
+  }
+}
 async function migrateBank() {
   if (migrating) return;
   migrating = true;
   try {
     const { key, bank, bankSyncTs } = await chrome.storage.local.get(["key", "bank", "bankSyncTs"]);
     if (!key || !bank || typeof bank !== "object") return;
+    await migrateNotes(key, bank);
     const since = Number(bankSyncTs) || 0, started = Date.now();
     for (const pair of Object.keys(bank)) {
       const m = /^([a-z]{2})>([a-z]{2})$/.exec(pair);
@@ -305,5 +330,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       body: JSON.stringify({ src: src || "tr", dst: dst || "en", word: request.word.slice(0, 60), on: !!request.on }) })
       .then((r) => sendResponse({ ok: r.ok })).catch(() => sendResponse({ ok: false }));
   });
+  return true;
+});
+
+// ---------- Kelime notu: giriş yapılmışsa hesaba da yazılır ----------
+// Not önce cihazdaki deftere yazılır (içerik betiği ya da popup yapar). Buraya yalnızca "hesaba da yaz" isteği gelir.
+// Anahtar yoksa (hesapsız kullanıcı) HİÇBİR ağ isteği atılmaz: not yalnızca cihazda kalır.
+async function sendNote(request) {
+  const { key } = await chrome.storage.local.get("key");
+  if (!key) return { ok: false, guest: true };
+  const src = request.src, dst = request.dst, word = request.word;
+  if (typeof word !== "string" || !word.trim() || !/^[a-z]{2}$/.test(src) || !/^[a-z]{2}$/.test(dst) || src === dst) return { ok: false };
+  const note = String(request.note == null ? "" : request.note).replace(/\s+/g, " ").trim().slice(0, 140);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const r = await fetch(API + "/api/note", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({ src, dst, word: word.slice(0, 60), note }), signal: ctrl.signal });
+    return { ok: r.ok };
+  } catch (e) { return { ok: false }; } finally { clearTimeout(timer); }
+}
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (!request || request.action !== "note" || sender.id !== chrome.runtime.id) return;
+  sendNote(request).then(sendResponse, () => sendResponse({ ok: false }));
   return true;
 });

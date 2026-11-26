@@ -14,6 +14,10 @@ IC.lines = "M4 6h16M4 12h10M4 18h13";
 
 let st = { enabled: false, src: "tr", dst: "en", key: "" };
 let home = null, tab = "watch", cfg = { google: "", mail: false }, authMode = "login", noAuto = false;
+// Giriş yapılmışsa hesaptaki kelime notları ({kelime: not}, tek dil çifti için). Hesapsızken hiç doldurulmaz ve hiçbir istek atılmaz.
+let acctNotes = { pair: "", map: {} };
+// Bir kelimenin gösterilecek notu: hesaplı kullanıcıda sunucudaki not, yoksa cihazdaki (dev); hesapsızda yalnızca cihazdaki.
+function noteFor(pair, w, dev) { return (st.key && acctNotes.pair === pair && acctNotes.map[w]) || dev || ""; }
 
 // ---------- sunucu ----------
 async function api(path, opt = {}) {
@@ -53,29 +57,87 @@ async function openSite(to) {
 // ---------- İzle sekmesi ----------
 function fill(sel) { sel.replaceChildren(...LANGS.map((l) => { const o = el("option", "", CVL.langName(l).replace(/^./, (c) => c.toLocaleUpperCase())); o.value = l; return o; })); }
 fill($("src")); fill($("dst"));
-$("lSrc").textContent = T("subLang"); $("lDst").textContent = T("transLang");
+$("lSrc").textContent = T("wtSub"); $("lDst").textContent = T("wtTo");
+$("src").title = T("subLang"); $("dst").title = T("transLang");
+$("wtBoxT").textContent = T("wtBoxT");
+$("wtBox").ontoggle = () => { if ($("wtBox").open) $("wtBox").scrollIntoView({ block: "nearest" }); };
+$("wtMatch").append(icon(IC.grid), el("span", "", T("mgT")));
+$("wtMatch").onclick = () => openMatch(true);
 $("boxHint").textContent = T("boxHint"); $("lHide").textContent = T("hideOrig"); $("lReset").textContent = T("boxResetL"); $("boxReset").textContent = T("boxReset");
 $("swap").title = T("swap"); $("swap").setAttribute("aria-label", T("swap"));
 $("signin").textContent = T("signIn");
 document.querySelectorAll("#tabs button").forEach((b) => { b.lastElementChild.textContent = T("tab_" + b.dataset.tab); b.onclick = () => setTab(b.dataset.tab); });
 
 function paint() {
-  $("sw").setAttribute("aria-checked", String(!!st.enabled));
-  $("state").textContent = st.enabled ? T("status_on") : T("stOff");
-  $("hint").textContent = st.enabled ? T("tapOff") : T("offHint");
-  $("stateCard").dataset.on = String(!!st.enabled);
-  steps();
+  const on = !!st.enabled;
+  $("sw").setAttribute("aria-checked", String(on));
+  $("sw").textContent = on ? T("wtStop") : T("startNow"); // kapalıyken tek sarı ana düğme, açıkken ikincil "Durdur"
+  $("state").textContent = on ? T("status_on") : T("stOff");
+  $("hint").textContent = on ? "" : T("offHint");
+  $("stateCard").dataset.on = String(on);
+  for (const id of ["siteEnable", "ytGo"]) $(id).className = on ? "btn p" : "btn"; // ekranda tek sarı düğme: kapalıyken o "başlat"
   $("src").value = st.src; $("dst").value = st.dst;
+  sample(); steps(); today();
 }
-// Nasıl başlarım: üç adımın hangisi tamam, canlı gösterilir. Hepsi tamamsa tek satır "hazır" yazar.
-let tabOk = false, subOk = false, detTs = 0;
+// Film karesindeki örnek satır: gerçek altyazı DEĞİL (aria-hidden), eklentinin ne yaptığını gösterir.
+// Her dilde aynı kısa söz ("asla geç değil"); çeviriler anlam sırasıyla [never, is, late, too, not, ever].
+const WT_K = ["never", "is", "late", "too", "not", "ever"];
+const WT_S = {
+  es: [["Nunca", "never"], ["es", "is"], ["tarde", "late"]], pt: [["Nunca", "never"], ["é", "is"], ["tarde", "late"]],
+  en: [["Never", "never"], ["too", "too"], ["late", "late"]], de: [["Nie", "never"], ["zu", "too"], ["spät", "late"]],
+  fr: [["Jamais", "never"], ["trop", "too"], ["tard", "late"]], it: [["Mai", "never"], ["troppo", "too"], ["tardi", "late"]],
+  nl: [["Nooit", "never"], ["te", "too"], ["laat", "late"]], pl: [["Nigdy", "never"], ["za", "too"], ["późno", "late"]],
+  ro: [["Niciodată", "never"], ["prea", "too"], ["târziu", "late"]], tr: [["Asla", "never"], ["geç", "late"], ["değil", "not"]],
+  ru: [["Никогда", "never"], ["не", "not"], ["поздно", "late"]], id: [["Tidak", "not"], ["pernah", "ever"], ["terlambat", "late"]],
+  hi: [["कभी", "ever"], ["देर", "late"], ["नहीं", "not"]],
+};
+const WT_G = {
+  en: ["never", "is", "late", "too", "not", "ever"], tr: ["asla", "-dir", "geç", "fazla", "değil", "hiç"],
+  es: ["nunca", "es", "tarde", "demasiado", "no", "alguna vez"], pt: ["nunca", "é", "tarde", "demais", "não", "alguma vez"],
+  de: ["nie", "ist", "spät", "zu", "nicht", "je"], fr: ["jamais", "est", "tard", "trop", "pas", "un jour"],
+  it: ["mai", "è", "tardi", "troppo", "non", "mai"], hi: ["कभी नहीं", "है", "देर", "बहुत", "नहीं", "कभी"],
+  id: ["tidak pernah", "adalah", "terlambat", "terlalu", "tidak", "pernah"], ru: ["никогда", "есть", "поздно", "слишком", "не", "когда-либо"],
+  nl: ["nooit", "is", "laat", "te", "niet", "ooit"], pl: ["nigdy", "jest", "późno", "za", "nie", "kiedykolwiek"],
+  ro: ["niciodată", "este", "târziu", "prea", "nu", "vreodată"],
+};
+function sample() {
+  const s = WT_S[st.src], g = WT_G[st.dst];
+  $("wtTag").textContent = T("wtSample") + " · " + st.src.toUpperCase() + " → " + st.dst.toUpperCase();
+  // çift için örnek yoksa nötr çizgiler: kelime yerine krem, çeviri yerine (açıkken sarı) çubuk
+  $("wtLine").replaceChildren(...(s || [null, null, null]).map((x) => {
+    const w = el("span", "wt-w");
+    w.append(x ? el("b", "", x[0]) : el("b", "wt-ph"), x && g ? el("i", "", g[WT_K.indexOf(x[1])]) : el("i", "wt-ph"));
+    return w;
+  }));
+}
+// Sıradaki adım: çalışmıyorsa yalnızca yapılacak TEK adım büyük yazılır, tamamlananlar küçük tikli satır.
+// Üçü de tamamsa "hazır" satırı ve (veri varsa) bugün şeridi görünür.
+let tabOk = false, subOk = false, detTs = 0, todayHas = false;
 function steps() {
   const s = [!!st.enabled, tabOk, st.enabled && (subOk || Date.now() - detTs < 15000)];
   const txt = [st.enabled ? T("st1on") : T("st1off"), T("st2"), T("st3")];
-  $("howT").textContent = T("howT");
-  ["st1", "st2", "st3"].forEach((id, i) => { $(id).className = s[i] ? "done" : ""; $(id).lastElementChild.textContent = txt[i]; });
-  const all = s.every(Boolean);
-  $("steps").hidden = all; $("howT").hidden = all; $("howOk").hidden = !all; $("howOk").textContent = T("stReady");
+  const next = s.findIndex((x) => !x), all = next < 0;
+  // Kapalıyken sıradaki adım zaten üstteki sarı düğmedir: aynı şeyi alt alta iki kez yazma
+  $("wtDone").replaceChildren(...(all || !st.enabled ? [] : txt.filter((_, i) => s[i]).map((t) => el("li", "", t))));
+  $("wtStep").hidden = all || !st.enabled;
+  if (!all) { $("wtStepN").textContent = (next + 1) + "/3"; $("wtStepT").textContent = txt[next]; }
+  $("howOk").hidden = !all; $("howOk").textContent = T("stReady");
+  $("wtToday").hidden = !(all && todayHas);
+}
+// Bugün şeridi: cihazda tutulan kelime sayısı ve tekrar bekleyen sayı. Yalnızca gerçek veriden; veri yoksa şerit çıkmaz.
+// Tekrar sayısı: hesaplıysa sunucunun verdiği (home.due), hesapsızsa Pratik sekmesindeki sayıyla aynı (SRS.stats().ready).
+function today() {
+  try {
+    chrome.storage.local.get("bank", (r) => {
+      const items = BANK.list(r && r.bank, st.src + ">" + st.dst), kept = items.length;
+      const due = st.key && home && typeof home.due === "number" ? home.due : SRS && kept ? SRS.stats(items, SRS.dayOf()).ready : null;
+      const cells = [];
+      if (kept > 0) cells.push([kept, T("wtKept"), false]);
+      if (due != null && (due > 0 || kept > 0)) cells.push([due, T("due"), due > 0]);
+      $("wtNums").replaceChildren(...cells.map(([n, lab, hot]) => { const c = el("div", "wt-num" + (hot ? " hot" : "")); c.append(el("b", "", String(n)), el("span", "", lab)); return c; }));
+      todayHas = cells.length > 0; steps();
+    });
+  } catch (e) {}
 }
 function showDet(d) {
   detTs = (d && d.ts) || 0; steps();
@@ -239,7 +301,7 @@ function render() {
   if (inn) { const a = $("avatar"); a.replaceChildren(); if (home && home.avatar) { const i = el("img"); i.src = home.avatar; i.alt = ""; a.append(i); } else a.textContent = ((home && home.username) || "?").slice(0, 1).toLocaleUpperCase(); a.title = (home && home.username) || ""; }
   if (home) $("streakN").textContent = home.streak;
   if (!inn) { $("streak").hidden = !(localStreak > 0); $("streakN").textContent = localStreak; } // hesapsız: cihazdaki tekrar serisi
-  if (tab === "words") renderWords(); else if (tab === "practice") renderPractice(); else if (tab === "me") renderMe();
+  if (tab === "words") renderWords(); else if (tab === "practice") renderPractice(); else if (tab === "me") renderMe(); else today();
 }
 $("signin").onclick = () => showAuth(); $("avatar").onclick = () => setTab("me");
 
@@ -264,21 +326,32 @@ function dropKept(pair, it) {
     }));
   });
 }
-// Kelimenin notu (yalnızca cihazda): satıra dokununca yerinde düzenlenir, Enter ya da odaktan çıkınca kaydedilir, Esc vazgeçer
+// Kelimenin notu: satıra dokununca yerinde düzenlenir, Enter ya da odaktan çıkınca kaydedilir, Esc vazgeçer.
+// it = { w, n }: kelime ve (varsa) gösterilen notu. Hesapsızken not yalnızca cihazda durur; giriş yapılmışsa hesaba da yazılır.
 function noteLine(pair, it) {
-  const b = el("button", "nt" + (it.n ? "" : " empty"), it.n || T("noteAdd"));
+  const b = el("button", "nt" + (it.n ? "" : " blank"), it.n || T("noteAdd"));   // "blank": ".empty" popup'ta boş-durum sınıfı (kenar boşluğu verir), çakışmasın
   b.type = "button"; b.title = T("noteEdit"); b.setAttribute("aria-label", T("noteEdit") + ": " + it.w);
   b.onclick = () => {
     const inp = el("input", "nt-in"); inp.type = "text"; inp.maxLength = BANK.NOTE_MAX; inp.value = it.n || ""; inp.placeholder = T("notePh", it.w); inp.setAttribute("aria-label", inp.placeholder);
     let done = false;
-    const end = (save) => { if (done) return; done = true;
-      if (!save) return renderWords();
-      chrome.storage.local.get("bank", (r) => chrome.storage.local.set({ bank: BANK.setNote((r && r.bank) || {}, pair, it.w, inp.value) }, renderWords)); };
+    const end = (save) => { if (done) return; done = true; if (save) saveNote(pair, it.w, inp.value); else renderWords(); };
     inp.onkeydown = (e) => { if (e.key === "Enter") end(true); else if (e.key === "Escape") end(false); };
     inp.onblur = () => end(true);
     b.replaceWith(inp); inp.focus();
   };
   return b;
+}
+// Notu kaydeder. Giriş yapılmışsa ÖNCE hesaba yazılır (olmazsa hiçbir yere yazılmaz ve hata gösterilir; sunucu henüz güncel değilse
+// 404 gelir, o durumda yalnızca cihaza yazılır); sonra kelime cihazdaki defterde varsa oraya da yazılır. Hesapsızken sunucuya istek gitmez.
+async function saveNote(pair, w, text) {
+  const note = BANK.cleanNote(text), [src, dst] = pair.split(">");
+  if (st.key) {
+    try {
+      await api("/api/note", { body: { src, dst, word: w, note } });
+      if (acctNotes.pair === pair) { if (note) acctNotes.map[w] = note; else delete acctNotes.map[w]; }
+    } catch (e) { if (!e || e.status !== 404) { toast(errText(e)); return renderWords(); } }
+  }
+  chrome.storage.local.get("bank", (r) => chrome.storage.local.set({ bank: BANK.setNote((r && r.bank) || {}, pair, w, note) }, renderWords));
 }
 function renderBank(v) {
   chrome.storage.local.get("bank", (r) => {
@@ -320,14 +393,14 @@ function renderWords() {
   for (const [m, label] of [["recent", T("recentTab")], ["star", "★ " + T("starTab") + (stars.length ? " · " + stars.length : "")]]) { const b = el("button", "", label); b.setAttribute("aria-pressed", String(wMode === m)); b.onclick = () => { wMode = m; renderWords(); }; seg.append(b); }
   const list = el("ul", "wl"), search = el("input"); search.type = "search"; search.placeholder = T("search"); search.value = wq; search.style.marginTop = "10px";
   const src = () => (wMode === "star" ? stars : home.recent);
-  const notes = {};
-  chrome.storage.local.get("bank", (r) => { for (const x of BANK.list(r && r.bank, st.src + ">" + st.dst)) if (x.n) notes[x.w] = x.n; if (Object.keys(notes).length && tab === "words" && list.isConnected) draw(); });
+  const pair = st.src + ">" + st.dst, devNotes = {};   // cihazdaki notlar; hesaptakilerle birleşip noteFor ile gösterilir
+  chrome.storage.local.get("bank", (r) => { for (const x of BANK.list(r && r.bank, pair)) if (x.n) devNotes[x.w] = x.n; if (Object.keys(devNotes).length && tab === "words" && list.isConnected) draw(); });
   const draw = () => {
     const f = wq.trim().toLocaleLowerCase();
     const rows = src().filter((r) => !f || r.w.toLocaleLowerCase().includes(f) || String(r.t).toLocaleLowerCase().includes(f));
     list.replaceChildren(...rows.map((r) => {
       const li = el("li"), w = el("div", "w"), k = el("button", "k"); w.append(el("b", "", r.w), el("span", "", r.t));
-      if (notes[r.w]) w.append(el("span", "nt ro", notes[r.w]));   // videoda yazılan not (cihazda durur)
+      w.append(noteLine(pair, { w: r.w, n: noteFor(pair, r.w, devNotes[r.w]) }));   // hesaptaki + cihazdaki not, düzenlenir
       if (wMode === "star") {
         k.textContent = "★"; k.classList.add("on"); k.title = T("unstar"); k.setAttribute("aria-label", T("unstar"));
         k.onclick = async () => {
@@ -379,7 +452,7 @@ const whenText = (d) => (d <= 0 ? T("lpNow") : d === 1 ? T("lpTomorrow") : T("lp
 function renderLocalPractice(v) {
   if (lq) return lq.done ? localResult(v) : localQuestion(v);
   chrome.storage.local.get(["bank", "reviewDays"], (r) => {
-    if (tab !== "practice" || (st.key && !useLocal) || lq) return;
+    if (tab !== "practice" || (st.key && !useLocal) || lq || mg) return; // mg: bu okuma sürerken oyun başladıysa tahtanın üstüne yazma
     const pair = st.src + ">" + st.dst, items = BANK.list(r && r.bank, pair), day = SRS.dayOf(), s = SRS.stats(items, day);
     const c = el("div", "go");
     const homeLink = () => { const k = el("button", "link", T("pBack")); k.onclick = () => { useLocal = false; lq = null; renderPractice(); }; return k; };
@@ -463,6 +536,13 @@ function orderQuestion(v, top, q) {
   clr.onclick = () => { o.ans = []; renderPractice(); };
   v.replaceChildren(top, el("div", "lp-lab lp-c", T("lpBuild")), el("div", "cl-tr big-tr", q.it.st), ans, pl, go, clr);
 }
+// Kelimenin notu (varsa): cevaptan SONRA gösterilir; soruda asla (ipucu olup cevabı ele vermesin). Hesaplıda hesaptaki not da hesaba katılır.
+function noteRow(n) {
+  if (!n) return null;
+  const d = el("div", "pn"), t = el("span", "pn-t", n);
+  t.dir = "auto"; d.append(el("span", "pn-l", T("noteYours")), t);
+  return d;
+}
 function localQuestion(v) {
   const q = lq.qs[lq.i], it = q.it, top = localTop(v), k = q.kind;
   if (lq.fb) return localFeedback(v, top, q);
@@ -511,9 +591,10 @@ function submitLocal(value) {
     const bi = lq.qs.findIndex((x) => x.bonus), again = { ...q, retry: true };
     if (bi < 0) lq.qs.push(again); else lq.qs.splice(bi, 0, again);
   }
-  lq.fb = { ok, close, learnedNow, run: lq.run };
+  const hasNote = !!noteFor(lq.pair, it.w, it.n);   // notu olan kelimede kendiliğinden geçilmez: okunabilsin diye "Devam" düğmesi çıkar
+  lq.fb = { ok, close, learnedNow, run: lq.run, note: hasNote };
   renderPractice();
-  if (ok && !learnedNow && !close) { const idx = lq.i; setTimeout(() => { if (lq && !lq.done && lq.i === idx && lq.fb) nextLocal(); }, k.startsWith("cloze") ? 1100 : 650); }
+  if (ok && !learnedNow && !close && !hasNote) { const idx = lq.i; setTimeout(() => { if (lq && !lq.done && lq.i === idx && lq.fb) nextLocal(); }, k.startsWith("cloze") ? 1100 : 650); }
 }
 function nextLocal() {
   if (!lq || lq.done) return;
@@ -524,14 +605,14 @@ function localFeedback(v, top, q) {
   const it = q.it, f = lq.fb, k = q.kind, from = [it.ep, BANK.clock(it.vt)].filter(Boolean).join(" · ");
   if (f.bonus) { // cümle kurma geri bildirimi: doğru cümle her durumda gösterilir
     const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal;
-    return v.replaceChildren(top, el("div", f.ok ? "fb-ok" : "fb-no", f.ok ? T("lpRight") : T("lpAnswer")), el("div", "cl", it.s), el("div", "cl-tr", it.st), b);
+    return v.replaceChildren(...[top, el("div", f.ok ? "fb-ok" : "fb-no", f.ok ? T("lpRight") : T("lpAnswer")), el("div", "cl", it.s), el("div", "cl-tr", it.st), noteRow(noteFor(lq.pair, it.w, it.n)), b].filter(Boolean));
   }
   if (f.ok && f.learnedNow) { // "öğrenildi" anı: sakin ama net. Gerçek bilgi: aralıklı tekrarla yine hatırladı, sonraki tekrar ne zaman
     const c = el("div", "fb-center");
     const dots = el("div", "dots"); dots.setAttribute("aria-hidden", "true"); for (let k = 0; k < SRS.LEARNED_BOX; k++) dots.append(el("i")); // her nokta bir doğru hatırlama
     c.append(el("div", "lp-lab", T("lpLearnedTag")), el("div", "lw lw-xl", it.w), dots, el("p", "lp-line", T("lpLearnedLine", whenText(SRS.INTERVALS[SRS.LEARNED_BOX]))));
     const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal;
-    return v.replaceChildren(...[top, c, from ? el("p", "src", T("lpFrom", from)) : null, b].filter(Boolean));
+    return v.replaceChildren(...[top, c, noteRow(noteFor(lq.pair, it.w, it.n)), from ? el("p", "src", T("lpFrom", from)) : null, b].filter(Boolean));
   }
   const cloze = k === "clozePick" || k === "clozeType", kids = [top];
   if (cloze) { kids.push(sentenceEl(q.cl, q.cl.shown)); if (it.st) kids.push(el("div", "cl-tr", it.st)); } else kids.push(el("div", "qw", it.w));
@@ -539,8 +620,9 @@ function localFeedback(v, top, q) {
     kids.push(el("div", "fb-ok", T("lpRight") + (f.run >= 3 ? " · " + T("lpRow", f.run) : "")));
     if (f.close) kids.push(el("div", "fb-is", cloze ? it.w : it.t), el("p", "src", T("lpClose", cloze ? it.w : it.t)));
   } else kids.push(el("div", "fb-is", cloze ? it.w : it.t), ...(cloze ? [el("p", "src", "= " + it.t)] : []));
+  const nr = noteRow(noteFor(lq.pair, it.w, it.n)); if (nr) kids.push(nr);   // cevap verildi: not artık ipucu değil
   if (from && !f.ok) kids.push(el("p", "src", T("lpFrom", from)));
-  if (!f.ok || f.close || f.learnedNow) { const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal; kids.push(b); }
+  if (!f.ok || f.close || f.learnedNow || f.note) { const b = el("button", "btn p", T("lpContinue")); b.onclick = nextLocal; kids.push(b); }
   v.replaceChildren(...kids);
 }
 function finishLocal(quit) {
@@ -578,20 +660,24 @@ function matchPairs(items) {
   for (const it of items || []) {
     const w = String((it && it.w) || "").trim(), t = String((it && it.t) || "").trim(), lw = w.toLowerCase(), lt = t.toLowerCase();
     if (!w || !t || lw === lt || w.length > MG.maxLen || t.length > MG.maxLen || sw.has(lw) || stt.has(lt) || sw.has(lt) || stt.has(lw)) continue;
-    sw.add(lw); stt.add(lt); out.push({ w, t });
+    sw.add(lw); stt.add(lt); out.push({ w, t, n: it.n ? String(it.n) : "" });
   }
   return out;
 }
 function matchCard() {
   const c = el("button", "opt2"), d = el("div"); c.id = "mgCard";
   d.append(el("b", "", T("mgT")), el("span", "", T("mgS"))); c.append(icon(IC.grid), d);
-  c.onclick = () => chrome.storage.local.get("bank", (r) => {
-    const pairs = matchPairs(BANK.list(r && r.bank, st.src + ">" + st.dst));
-    if (pairs.length >= MG.need) return startMatch(pairs);
+  c.onclick = () => openMatch();
+  return c;
+}
+// Oyunu aç. toPractice: İzle sekmesindeki kısayoldan gelindiyse önce Pratik sekmesine geçilir (oyun yalnızca orada çizilir ve sayar).
+function openMatch(toPractice) {
+  chrome.storage.local.get("bank", (r) => {
+    const pk = st.src + ">" + st.dst, pairs = matchPairs(BANK.list(r && r.bank, pk).map((it) => ({ ...it, n: noteFor(pk, it.w, it.n) })));
+    if (pairs.length >= MG.need) { if (toPractice && tab !== "practice") setTab("practice"); return startMatch(pairs); }
     toast(T("mgNeed", MG.need));                       // yeterli kelime yoksa: sitedeki oyun ortak kelimelerle açılır
     chrome.tabs.create({ url: SERVER + "/match?src=" + encodeURIComponent(st.src) + "&dst=" + encodeURIComponent(st.dst) });
   });
-  return c;
 }
 function startMatch(pairs) {
   clearInterval(mg && mg.timer);
@@ -640,7 +726,7 @@ function mgTap(tl, b) {
     mg.combo++; mg.maxCombo = Math.max(mg.maxCombo, mg.combo); mg.matched++; mg.score += 10 * Math.min(mg.combo, 5);
     mg.tiles = mg.tiles.filter((x) => x.id !== tl.id); mgAdd();
     if (!mg.tiles.length) return mgEnd();
-  } else { mg.combo = 0; mg.missed.set(a.p.w, a.p.t); mg.missed.set(tl.p.w, tl.p.t); mg.bad = [a.k, tl.k]; }
+  } else { mg.combo = 0; mg.missed.set(a.p.w, a.p); mg.missed.set(tl.p.w, tl.p); mg.bad = [a.k, tl.k]; }
   renderPractice();
   if (mg && mg.bad) { const bad = mg.bad; mg.bad = null; document.querySelectorAll(".mg-tile").forEach((x) => { const t2 = mg.tiles.find((y) => String(y.id) === x.dataset.pair && y.side === x.dataset.side); if (t2 && bad.includes(t2.k)) x.classList.add("bad"); }); }
 }
@@ -661,7 +747,10 @@ function matchResult(v) {
   const kids = [el("div", "big", String(mg.score)), el("div", "bigs", (mg.isBest ? T("mgBest") + " · " : "") + T("mgMatched", mg.matched) + (mg.maxCombo > 1 ? " · x" + mg.maxCombo : ""))];
   if (mg.missed.size) {
     const c = el("div", "go"); c.append(el("div", "lp-lab", T("mgMissed"))); c.style.margin = "0 0 14px";
-    for (const [w, t] of [...mg.missed].slice(0, 5)) { const row = el("div", "mg-miss"); row.append(el("b", "", w), el("span", "", t)); c.append(row); }
+    for (const [w, p] of [...mg.missed].slice(0, 5)) {
+      const row = el("div", "mg-miss"), nt = noteRow(p.n);   // notu varsa küçük satır (p.n: openMatch'te hesaptaki + cihazdaki not birleştirilmiş)
+      row.append(el("b", "", w), el("span", "", p.t)); if (nt) row.append(nt); c.append(row);
+    }
     kids.push(c);
   }
   kids.push(again, back); v.replaceChildren(...kids);
@@ -774,21 +863,23 @@ async function loadHome() {
   if (!st.key) return;
   const pairKey = st.src + ">" + st.dst;
   try {
-    const d = await api("/api/ext/home?src=" + st.src + "&dst=" + st.dst);
+    // Notlar özetle birlikte alınır; alınamazsa (sunucu henüz güncel değil, ağ) yalnızca cihazdaki notlar gösterilir
+    const [d, nn] = await Promise.all([api("/api/ext/home?src=" + st.src + "&dst=" + st.dst), api("/api/notes?src=" + st.src + "&dst=" + st.dst).catch(() => null)]);
     if (pairKey !== st.src + ">" + st.dst) return;
+    if (nn && nn.notes) acctNotes = { pair: pairKey, map: nn.notes };
     home = d; chrome.storage.local.set({ home: { pair: pairKey, d } }); syncStars(); render();
   } catch (e) {
-    if (e.status === 401) { st.key = ""; home = null; chrome.storage.local.remove(["key", "home"]); render(); }
+    if (e.status === 401) { st.key = ""; home = null; acctNotes = { pair: "", map: {} }; chrome.storage.local.remove(["key", "home"]); render(); }
   }
 }
 function setKey(key) {
-  st.key = key; noAuto = false; home = null; useLocal = false;
+  st.key = key; noAuto = false; home = null; useLocal = false; acctNotes = { pair: "", map: {} };
   chrome.storage.local.set({ key, noAuto: false, authSkip: true });
   $("auth").hidden = true; render(); loadHome();
 }
 async function signOut() {
   try { await api("/api/ext/logout", { post: true }); } catch (e) {}
-  st.key = ""; home = null; quiz = null; noAuto = true;
+  st.key = ""; home = null; quiz = null; noAuto = true; acctNotes = { pair: "", map: {} };
   chrome.storage.local.remove(["key", "home"]); chrome.storage.local.set({ noAuto: true });
   render();
 }
@@ -901,8 +992,9 @@ chrome.storage.onChanged.addListener((ch, area) => {
   if (area !== "local") return;
   if (ch.det) showDet(ch.det.newValue);
   if (ch.bank && tab === "words" && !st.key) renderWords(); // videoda yeni kelime tutuldu ya da burada kaldırıldı
+  if (ch.bank && tab === "watch") today();
   if (ch.bankSyncTs && st.key) { home = null; loadHome(); } // cihazdaki kelimeler hesaba taşındı
   if (ch.reviewDays) loadLocal(); // seri değişti
-  if (ch.key && ch.key.newValue && ch.key.newValue !== st.key) { st.key = ch.key.newValue; home = null; $("auth").hidden = true; render(); loadHome(); }
+  if (ch.key && ch.key.newValue && ch.key.newValue !== st.key) { st.key = ch.key.newValue; home = null; acctNotes = { pair: "", map: {} }; $("auth").hidden = true; render(); loadHome(); }
 });
 if (SRS) loadLocal();

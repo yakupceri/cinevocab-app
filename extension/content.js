@@ -275,10 +275,14 @@ function closeNote() {
   clearTimeout(hideTimer); hideTimer = setTimeout(() => showBox(false), 6000);
 }
 function saveNote() {
-  const word = ovNote.dataset.w, text = ovNoteIn.value;
+  const word = ovNote.dataset.w, text = ovNoteIn.value, pair = SRC + ">" + DST;
   try {
-    chrome.storage.local.get("bank", (r) => {
-      chrome.storage.local.set({ bank: BANK.setNote((r && r.bank) || {}, SRC + ">" + DST, word, text) });
+    chrome.storage.local.get(["bank", "key"], (r) => {
+      const bank = BANK.setNote((r && r.bank) || {}, pair, word, text);
+      chrome.storage.local.set({ bank });                // not her zaman önce cihazda
+      // Giriş yapılmışsa arka plan notu hesaba da yazar (burada ağ isteği yok). Anahtar yoksa (hesapsız) hiçbir mesaj bile gitmez.
+      const it = BANK.list(bank, pair).find((x) => x.w === word);
+      if (r && r.key && it) chrome.runtime.sendMessage({ action: "note", src: SRC, dst: DST, word, note: it.n || "" }, () => void chrome.runtime.lastError);
       closeNote();
       const k = ovHead.querySelector(".kept"); if (k) { k.classList.add("bump"); setTimeout(() => k.classList.remove("bump"), 700); }
     });
