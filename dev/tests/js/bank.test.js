@@ -69,3 +69,14 @@ test("clock: saniye -> m:ss / h:mm:ss", () => {
   assert.equal(B.clock(NaN), "");
   assert.equal(B.clock(-1), "");
 });
+
+test("setNote: not yazar, boşlukları toplar, 140 karakterde keser; boş not alanı siler; olmayan kelimeye dokunmaz", () => {
+  const BANK = require("../../../extension/bank.js");
+  let b = BANK.add({}, "es>en", { w: "amor", t: "love" }, 1);
+  b = BANK.setNote(b, "es>en", "amor", "  dizide   çok geçiyor  ");
+  assert.equal(BANK.list(b, "es>en")[0].n, "dizide çok geçiyor");
+  assert.equal(BANK.list(BANK.setNote(b, "es>en", "amor", "x".repeat(300)), "es>en")[0].n.length, 140);
+  assert.equal("n" in BANK.list(BANK.setNote(b, "es>en", "amor", "   "), "es>en")[0], false);
+  assert.deepEqual(BANK.setNote(b, "es>en", "yok", "not"), b);
+  assert.equal(BANK.list(b, "es>en")[0].t, "love");                       // diğer alanlar durur
+});

@@ -280,6 +280,15 @@
   Object.assign(S.hi, {"ovHint": "शब्द को सहेजने के लिए उस पर क्लिक करें · बॉक्स को कहीं भी खींचें", "keptN": "{0} सहेजे"});
   Object.assign(S.id, {"ovHint": "Klik kata untuk menyimpannya · seret kotak ke mana saja", "keptN": "{0} tersimpan"});
   /* 2.1: ilk tutulan kelime notu (kutuda görünür), 9 dil */
+  Object.assign(S.en, {"noteAdd": "+ Note", "notePh": "Note for “{0}”", "noteSave": "Save", "noteEdit": "Edit note"});
+  Object.assign(S.tr, {"noteAdd": "+ Not", "notePh": "“{0}” için not", "noteSave": "Kaydet", "noteEdit": "Notu düzenle"});
+  Object.assign(S.es, {"noteAdd": "+ Nota", "notePh": "Nota para «{0}»", "noteSave": "Guardar", "noteEdit": "Editar nota"});
+  Object.assign(S.fr, {"noteAdd": "+ Note", "notePh": "Note pour « {0} »", "noteSave": "Enregistrer", "noteEdit": "Modifier la note"});
+  Object.assign(S.it, {"noteAdd": "+ Nota", "notePh": "Nota per «{0}»", "noteSave": "Salva", "noteEdit": "Modifica nota"});
+  Object.assign(S.de, {"noteAdd": "+ Notiz", "notePh": "Notiz zu „{0}“", "noteSave": "Speichern", "noteEdit": "Notiz bearbeiten"});
+  Object.assign(S.pt, {"noteAdd": "+ Nota", "notePh": "Nota para “{0}”", "noteSave": "Salvar", "noteEdit": "Editar nota"});
+  Object.assign(S.hi, {"noteAdd": "+ नोट", "notePh": "“{0}” के लिए नोट", "noteSave": "सहेजें", "noteEdit": "नोट बदलें"});
+  Object.assign(S.id, {"noteAdd": "+ Catatan", "notePh": "Catatan untuk “{0}”", "noteSave": "Simpan", "noteEdit": "Ubah catatan"});
   Object.assign(S.en, {"firstKept": "First word kept. It is listed in the CineVocab popup (puzzle icon), under Words."});
   Object.assign(S.tr, {"firstKept": "İlk kelime kaydedildi. CineVocab penceresinde (yapboz simgesi), Kelimeler sekmesinde."});
   Object.assign(S.es, {"firstKept": "Primera palabra guardada. La verás en la ventana de CineVocab (icono de puzle), en Palabras."});

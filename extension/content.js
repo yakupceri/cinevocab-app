@@ -70,6 +70,12 @@ ovStyle.textContent = `
 .kept { margin-left:auto; padding:.05em .55em; border-radius:.4em; color:#FFD21E; font-weight:700; transition:background .6s; }
 .kept.bump { background:rgba(255,210,30,.35); }
 .hint.first { font-weight:700; }
+.note { display:flex; gap:.4em; margin-top:.55em; pointer-events:auto; }
+.note input { all:unset; box-sizing:border-box; flex:1; min-width:9em; padding:.35em .6em; border-radius:.4em; border:1px solid #6B5B52; background:#0F080B; color:#F3E9D2; font:inherit; font-size:.9em; cursor:text; user-select:text; -webkit-user-select:text; }
+.note input:focus { border-color:#FFD21E; }
+.note input::placeholder { color:#AC9C92; }
+.note button { all:unset; box-sizing:border-box; padding:.35em .9em; border-radius:.4em; background:#FFD21E; color:#170E12; font-weight:800; font-size:.9em; cursor:pointer; }
+.note button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .chip:focus-visible { outline:2px solid #FFD21E; outline-offset:1px; }
 @media (prefers-reduced-motion:reduce) { .kept { transition:none; } }
 `;
@@ -82,7 +88,12 @@ const ovWgrip = document.createElement("i"); ovWgrip.className = "wgrip";
 // Dil satırı ve dil seçici: uzantı penceresini açmadan, doğrudan videonun üstünde
 const ovHead = document.createElement("div"); ovHead.className = "lg";
 const ovPick = document.createElement("div"); ovPick.className = "pick"; ovPick.hidden = true;
-ovBoxEl.append(ovHead, ovContent, ovPick, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
+// Not satırı: son tutulan kelimeye kısa not (yalnızca cihazda saklanır)
+const ovNote = document.createElement("div"); ovNote.className = "note"; ovNote.hidden = true;
+const ovNoteIn = document.createElement("input"); ovNoteIn.type = "text"; ovNoteIn.maxLength = 140; ovNoteIn.setAttribute("autocomplete", "off");
+const ovNoteOk = document.createElement("button"); ovNoteOk.type = "button";
+ovNote.append(ovNoteIn, ovNoteOk);
+ovBoxEl.append(ovHead, ovContent, ovNote, ovPick, ovWgrip, ovGrip); ovWrap.append(ovPill, ovBoxEl); ovRoot.append(ovStyle, ovWrap);
 
 // Çeviri rengi seçenekleri. Sıra değişmez (eski kullanıcıların kayıtlı seçimi dizin olarak durur); yeni varsayılan altyazı sarısı (5).
 const TR_COLORS = ["#7ee0a8", "#ffd447", "#7cc7ff", "#ff9ecb", "#ffffff", "#FFD21E"];
@@ -135,6 +146,7 @@ function paintHead() {
   t.textContent = CVL.langName(SRC) + "  →  " + CVL.langName(DST); // kısa: "Spanish → English" (uzun açıklama dil seçicide)
   const kids = [t];
   if (keptN > 0) { const k = document.createElement("span"); k.className = "kept"; k.textContent = CVL.t("keptN", keptN); kids.push(k); }
+  if (lastKept && !noting) kids.push(ovButton("nb", CVL.t("noteAdd"), openNote));
   kids.push(ovButton("", CVL.t("lgChange"), () => (picking ? closePick() : openPick())));
   ovHead.replaceChildren(...kids);
 }
@@ -154,7 +166,7 @@ function paintPick() {
 function openPick() { picking = true; clearTimeout(hideTimer); ovContent.hidden = true; ovPick.hidden = false; paintPick(); showBox(true); }
 function closePick() { picking = false; ovPick.hidden = true; ovContent.hidden = false; clearTimeout(hideTimer); hideTimer = setTimeout(() => showBox(false), 2500); placeBox(); }
 function showBox(on) {
-  if (!on && picking) return;
+  if (!on && (picking || noting)) return;
   overlayBox.style.display = on ? "block" : "none";
   if (on) { placeBox(); }
 }
@@ -247,6 +259,40 @@ function toggleStar(word) {
 function addFirstKeptNote() {
   const m = document.createElement("div"); m.className = "hint first"; m.textContent = CVL.t("firstKept"); ovContent.appendChild(m);
 }
+// ---------- Not: son tutulan kelimeye kısa not ----------
+let lastKept = "", noting = false;
+function openNote() {
+  if (!lastKept) return;
+  const word = lastKept;
+  noting = true; clearTimeout(hideTimer);
+  ovNoteIn.value = ""; ovNoteIn.placeholder = CVL.t("notePh", word); ovNoteIn.setAttribute("aria-label", ovNoteIn.placeholder); ovNoteOk.textContent = CVL.t("noteSave");
+  ovNote.dataset.w = word; ovNote.hidden = false; paintHead();
+  try { chrome.storage.local.get("bank", (r) => { const it = BANK.list(r && r.bank, SRC + ">" + DST).find((x) => x.w === word); if (it && it.n && noting && !ovNoteIn.value) ovNoteIn.value = it.n; }); } catch (e) {}
+  setTimeout(() => { try { ovNoteIn.focus(); } catch (e) {} }, 0);
+}
+function closeNote() {
+  noting = false; ovNote.hidden = true; paintHead();
+  clearTimeout(hideTimer); hideTimer = setTimeout(() => showBox(false), 6000);
+}
+function saveNote() {
+  const word = ovNote.dataset.w, text = ovNoteIn.value;
+  try {
+    chrome.storage.local.get("bank", (r) => {
+      chrome.storage.local.set({ bank: BANK.setNote((r && r.bank) || {}, SRC + ">" + DST, word, text) });
+      closeNote();
+      const k = ovHead.querySelector(".kept"); if (k) { k.classList.add("bump"); setTimeout(() => k.classList.remove("bump"), 700); }
+    });
+  } catch (e) { closeNote(); }
+}
+// Yazarken sitenin klavye kısayolları (oynat/durdur, ileri sar) çalışmasın; kutu da sürüklenmesin
+for (const ev of ["keydown", "keyup", "keypress"]) ovNoteIn.addEventListener(ev, (e) => {
+  e.stopPropagation();
+  if (ev !== "keydown") return;
+  if (e.key === "Enter") { e.preventDefault(); saveNote(); } else if (e.key === "Escape") { e.preventDefault(); closeNote(); }
+});
+for (const ev of ["pointerdown", "mousedown", "click", "dblclick"]) ovNote.addEventListener(ev, (e) => e.stopPropagation());
+ovNoteOk.addEventListener("click", (e) => { e.preventDefault(); saveNote(); });
+
 function keepLocal(word, on) {
   try {
     chrome.storage.local.get(["bank", "keptFirst"], (r) => {
@@ -256,7 +302,8 @@ function keepLocal(word, on) {
         const v = document.querySelector("video");
         const inSentence = lastSentence && lastSentence.toLowerCase().includes(word); // cümle yalnızca kelimeyi içeriyorsa saklanır
         bank = BANK.add(bank, pair, { w: word, t: wordCache.get(word) || "", ep: readEpisode(), vt: v ? v.currentTime : NaN, s: inSentence ? lastSentence : "", st: inSentence ? (sentCache.get(lastSentence) || "") : "" });
-      } else bank = BANK.remove(bank, pair, word);
+        lastKept = word;
+      } else { bank = BANK.remove(bank, pair, word); if (lastKept === word) { lastKept = ""; if (noting) closeNote(); } }
       const patch = { bank }, first = on && !(r && r.keptFirst);
       if (first) patch.keptFirst = Date.now();
       chrome.storage.local.set(patch);

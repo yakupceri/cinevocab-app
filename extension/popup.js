@@ -264,6 +264,22 @@ function dropKept(pair, it) {
     }));
   });
 }
+// Kelimenin notu (yalnızca cihazda): satıra dokununca yerinde düzenlenir, Enter ya da odaktan çıkınca kaydedilir, Esc vazgeçer
+function noteLine(pair, it) {
+  const b = el("button", "nt" + (it.n ? "" : " empty"), it.n || T("noteAdd"));
+  b.type = "button"; b.title = T("noteEdit"); b.setAttribute("aria-label", T("noteEdit") + ": " + it.w);
+  b.onclick = () => {
+    const inp = el("input", "nt-in"); inp.type = "text"; inp.maxLength = BANK.NOTE_MAX; inp.value = it.n || ""; inp.placeholder = T("notePh", it.w); inp.setAttribute("aria-label", inp.placeholder);
+    let done = false;
+    const end = (save) => { if (done) return; done = true;
+      if (!save) return renderWords();
+      chrome.storage.local.get("bank", (r) => chrome.storage.local.set({ bank: BANK.setNote((r && r.bank) || {}, pair, it.w, inp.value) }, renderWords)); };
+    inp.onkeydown = (e) => { if (e.key === "Enter") end(true); else if (e.key === "Escape") end(false); };
+    inp.onblur = () => end(true);
+    b.replaceWith(inp); inp.focus();
+  };
+  return b;
+}
 function renderBank(v) {
   chrome.storage.local.get("bank", (r) => {
     if (tab !== "words" || st.key) return; // bu arada sekme değişti ya da giriş yapıldı
@@ -275,7 +291,7 @@ function renderBank(v) {
       const list = el("ul", "wl");
       for (const it of items) {
         const li = el("li"), w = el("div", "w"), k = el("button", "k");
-        w.append(el("b", "", it.w), el("span", "", it.t || "—"));
+        w.append(el("b", "", it.w), el("span", "", it.t || "—"), noteLine(pair, it));
         if (it.ep) li.title = it.ep; // hangi videodan
         k.title = T("bankDel"); k.setAttribute("aria-label", T("bankDel")); k.append(icon("M6 6l12 12M18 6L6 18"));
         k.onclick = () => dropKept(pair, it);
@@ -304,11 +320,14 @@ function renderWords() {
   for (const [m, label] of [["recent", T("recentTab")], ["star", "★ " + T("starTab") + (stars.length ? " · " + stars.length : "")]]) { const b = el("button", "", label); b.setAttribute("aria-pressed", String(wMode === m)); b.onclick = () => { wMode = m; renderWords(); }; seg.append(b); }
   const list = el("ul", "wl"), search = el("input"); search.type = "search"; search.placeholder = T("search"); search.value = wq; search.style.marginTop = "10px";
   const src = () => (wMode === "star" ? stars : home.recent);
+  const notes = {};
+  chrome.storage.local.get("bank", (r) => { for (const x of BANK.list(r && r.bank, st.src + ">" + st.dst)) if (x.n) notes[x.w] = x.n; if (Object.keys(notes).length && tab === "words" && list.isConnected) draw(); });
   const draw = () => {
     const f = wq.trim().toLocaleLowerCase();
     const rows = src().filter((r) => !f || r.w.toLocaleLowerCase().includes(f) || String(r.t).toLocaleLowerCase().includes(f));
     list.replaceChildren(...rows.map((r) => {
       const li = el("li"), w = el("div", "w"), k = el("button", "k"); w.append(el("b", "", r.w), el("span", "", r.t));
+      if (notes[r.w]) w.append(el("span", "nt ro", notes[r.w]));   // videoda yazılan not (cihazda durur)
       if (wMode === "star") {
         k.textContent = "★"; k.classList.add("on"); k.title = T("unstar"); k.setAttribute("aria-label", T("unstar"));
         k.onclick = async () => {

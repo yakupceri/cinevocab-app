@@ -5,6 +5,7 @@
    Hiçbir şey sunucuya gitmez. Hesaba bağlı kullanıcının listesi sunucudadır, bu defter ondan bağımsızdır. */
 (function (root) {
   const CAP = 500; // dil çifti başına en çok bu kadar kelime
+  const NOTE_MAX = 140;
   const REVIEW_KEYS = ["box", "due", "right", "wrong", "last"];
   const norm = (bank) => (bank && typeof bank === "object" && !Array.isArray(bank) ? bank : {});
   const list = (bank, pair) => { const l = norm(bank)[pair]; return Array.isArray(l) ? l : []; };
@@ -20,6 +21,7 @@
     for (const k of REVIEW_KEYS) if (Number.isFinite(item[k])) e[k] = item[k]; // tekrar durumu (srs.js)
     if (item.s) e.s = String(item.s).slice(0, 160);   // kelimenin geçtiği cümle (yalnızca cihazda)
     if (item.st) e.st = String(item.st).slice(0, 160); // cümlenin çevirisi
+    if (item.n) e.n = String(item.n).slice(0, NOTE_MAX);   // kullanıcının kendi notu (yalnızca cihazda)
     b[pair] = [e].concat(list(b, pair).filter((x) => x && x.w !== w)).slice(0, CAP);
     return b;
   }
@@ -37,6 +39,14 @@
     return b;
   }
 
+  // Kelimeye not yazar; boş not alanı siler. Kelime listede yoksa değişiklik yapmaz.
+  function setNote(bank, pair, w, note) {
+    const n = String(note == null ? "" : note).replace(/\s+/g, " ").trim().slice(0, NOTE_MAX);
+    const b = Object.assign({}, norm(bank));
+    b[pair] = list(b, pair).map((x) => { if (!x || x.w !== w) return x; const y = Object.assign({}, x); if (n) y.n = n; else delete y.n; return y; });
+    return b;
+  }
+
   // 75 -> "1:15", 3700 -> "1:01:40"
   function clock(sec) {
     if (!Number.isFinite(sec) || sec < 0) return "";
@@ -45,6 +55,6 @@
     return (h ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(s).padStart(2, "0");
   }
 
-  root.CVBank = { CAP, list, has, add, remove, update, clock };
+  root.CVBank = { CAP, NOTE_MAX, list, has, add, remove, update, setNote, clock };
   if (typeof module !== "undefined") module.exports = root.CVBank;
 })(typeof self !== "undefined" ? self : globalThis);
