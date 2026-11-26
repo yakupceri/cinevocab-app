@@ -23,7 +23,7 @@ CineVocab is a Chrome extension that shows a translation under every word of the
 
 You don't need an account to try it: translation, keeping words and the practice all work without one. A free account adds friend duels, leagues and a daily challenge on the website.
 
-How it works and what to know: it's a Manifest V3 extension in plain JavaScript. The subtitle line currently on screen is sent to my server for translation. Nothing is sent while the extension is off, which is the default after install. The words and sentences you keep stay on your device; if you sign in, the words (not the sentences) are copied to your account. Translation quality depends on the translation services behind it. It's desktop Chrome only, and there's no furigana for Japanese yet.
+How it works and what to know: it's a Manifest V3 extension in plain JavaScript. The subtitle line currently on screen is sent to my server for translation. No subtitle text is sent while the extension is off, which is the default after install. The words and sentences you keep stay on your device; if you sign in, the words and your own notes (not the sentences) are copied to your account. Translation quality depends on the translation services behind it. It's desktop Chrome only, and there's no furigana for Japanese yet.
 
 I'd love honest feedback: do the word translations feel useful in context, and what would make you use something like this every day? Happy to answer questions about how any of it works.
 ```

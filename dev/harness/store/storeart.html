@@ -1,115 +1,254 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>store art</title>
-<!-- Chrome Web Store görselleri (sarı/siyah dil): ?k=shot&n=1..5 (1280x800) · ?k=tile (440x280) · ?k=marquee (1400x560)
-     Arayüz görselleri GERÇEK eklenti/site ekran görüntüleridir (dev/harness/ad2-assets.mjs, dev/site-harness/shots.mjs). Sürücü: dev/harness/store-art.mjs -->
+<!-- Chrome Web Store görselleri, "Gece Seansı" kimliği: ?k=shot&n=1..5 (1280x800) · ?k=tile (440x280) · ?k=marquee (1400x560) · ?k=thumb (1280x720); &l=tr Türkçe.
+     Arayüz burada ÇİZİLİR (ekran görüntüsü değil): video üstü kutu extension/content.js gölge kök CSS'inden, popup extension/popup.html CSS'inden uyarlandı.
+     Arayüz metinleri eklentinin kendi sözlüklerinden alındı (extension/lang.js, popup-i18n.js); eklenti değişirse aşağıdaki UI sözlüğünü de güncelle.
+     Başlıklar TEK yerde: aşağıdaki TITLES sözlüğü (*...* arası sarı vurgu). Kurallar: gölge ve gradyan yok, tek vurgu sarı, harici yazı tipi/görsel yok.
+     Logo dosyaları docs/marka/ içinden <img> ile yüklenir (id çakışması olmaz, oran değişmez). Sürücü: dev/harness/store-art.mjs -->
 <style>
-  @font-face { font-family:"CV Display"; font-weight:800; src:url("fonts/d800.woff") format("woff"); }
-  @font-face { font-family:"CV Text"; font-weight:500; src:url("fonts/t500.woff") format("woff"); }
-  @font-face { font-family:"CV Text"; font-weight:600 700; src:url("fonts/t600.woff") format("woff"); }
-  :root { --Y:#FFD42B; --K:#111110; }
+  @font-face { font-family:"Big Shoulders"; src:url(fonts/bigshoulders-latin.woff2) format("woff2"); font-weight:600 800;
+    unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family:"Big Shoulders"; src:url(fonts/bigshoulders-latin-ext.woff2) format("woff2"); font-weight:600 800;
+    unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family:"Instrument Sans"; src:url(fonts/instrumentsans-latin.woff2) format("woff2"); font-weight:400 700;
+    unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family:"Instrument Sans"; src:url(fonts/instrumentsans-latin-ext.woff2) format("woff2"); font-weight:400 700;
+    unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --night:#170E12; --deep:#0F080B; --panel:#25161C; --panel2:#321E26; --line:#3D3035; --line2:#5A4A50; --ink:#F3E9D2; --dim:#AC9C92; --sun:#FFD21E; --on:#170E12; --mint:#7BD39A; --film:#0A0507;
+    --display:"Big Shoulders","Arial Narrow",sans-serif; --text:"Instrument Sans",system-ui,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace; }
   * { box-sizing:border-box; }
-  html, body { margin:0; overflow:hidden; font:500 24px/1.35 "CV Text",system-ui,sans-serif; }
-  .cv { position:relative; overflow:hidden; }
-  .y { background:var(--Y); color:#111110; } .k { background:var(--K); color:#fff; }
+  html, body { margin:0; overflow:hidden; background:var(--night); color:var(--ink); font:500 24px/1.35 var(--text); -webkit-font-smoothing:antialiased; }
+  .cv { position:relative; overflow:hidden; background:var(--night); }
   .abs { position:absolute; }
-  .h { margin:0; font:800 64px/1.04 "CV Display",sans-serif; letter-spacing:-.03em; }
-  .k .h .em { color:var(--Y); }
-  .y .h .em { background:#111110; color:var(--Y); padding:0 .16em; border-radius:.2em; }
-  .sub { margin-top:18px; font:500 26px/1.35 "CV Text",sans-serif; opacity:.85; }
-  .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
-  .holes { position:absolute; left:0; right:0; height:10px; background:repeating-linear-gradient(90deg,var(--hole) 0 22px,transparent 22px 40px); }
-  .y .holes { --hole:rgba(0,0,0,.11); } .k .holes { --hole:rgba(255,255,255,.09); }
-  .brand { position:absolute; left:64px; bottom:34px; display:flex; align-items:center; gap:12px; font:800 26px/1 "CV Display",sans-serif; }
-  .brand img { width:40px; height:40px; border-radius:10px; }
-  .shot { position:absolute; border-radius:16px; overflow:hidden; background:#000; box-shadow:0 24px 60px rgba(0,0,0,.45); }
-  .shot img { position:absolute; display:block; }
-  .pbez { position:absolute; border-radius:24px; overflow:hidden; background:#0B0B0A; box-shadow:0 0 0 7px #0a0a09, 0 0 0 9px rgba(255,255,255,.16), 0 30px 60px rgba(0,0,0,.5); }
-  .pbez img { display:block; width:100%; height:100%; }
-  .step { display:inline-block; margin:0 10px 0 0; padding:10px 22px; border-radius:99px; background:#111110; color:var(--Y); font:800 28px/1 "CV Display",sans-serif; }
-  .pill { display:inline-block; margin:0 10px 10px 0; padding:10px 22px; border-radius:99px; background:#111110; color:var(--Y); font:800 24px/1 "CV Display",sans-serif; }
-  .btn { display:inline-block; padding:16px 36px; border-radius:16px; background:#111110; color:var(--Y); font:800 30px/1 "CV Display",sans-serif; }
+  .h { margin:0; font:800 76px/1 var(--display); letter-spacing:.005em; text-wrap:balance; }
+  .h span { display:block; text-wrap:balance; } .h .em { color:var(--sun); }   /* vurgu hep yeni satırda başlar */
+  .dash { height:10px; background:repeating-linear-gradient(90deg,var(--sun) 0 30px,transparent 30px 44px); border-radius:3px; }   /* işaretteki kesik sarı çizgi (düz renk, geçiş yok) */
+  .brand { display:flex; align-items:center; gap:14px; font:800 34px/1 var(--display); letter-spacing:.01em; }
+  .brand img { height:44px; width:auto; display:block; }
+
+  /* film karesi: çizim sahne (gerçek film değil), düz renkler */
+  .film { position:absolute; border-radius:10px; overflow:hidden; background:var(--film); border:1px solid var(--line); }
+  .film svg.scene { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* video üstü çeviri kutusu (content.js .box/.chip/.lg/.sent/.note) */
+  .box { position:absolute; width:max-content; padding:.7em 1em; border-radius:.4em; font:400 32px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#F3E9D2; background:rgba(23,14,18,.85); border:1px solid #3D3035; }
+  .box .lg { display:flex; align-items:center; gap:.6em; margin-bottom:.4em; font-size:.74em; font-weight:600; color:#D9CDBF; }
+  .box .lg .bt { padding:.12em .7em; border-radius:.4em; border:1px solid rgba(255,210,30,.7); color:#FFD21E; font-weight:700; }
+  .box .kept { margin-left:auto; padding:.05em .55em; color:#FFD21E; font-weight:700; }
+  .box .chip { display:inline-block; text-align:center; margin:2px 4px 2px 0; padding:1px 4px; border-radius:.35em; vertical-align:top; }
+  .box .chip .w { font-weight:700; } .box .chip .t { font-size:.85em; font-weight:600; color:#FFD21E; min-height:1.4em; }
+  .box .chip.dimw .w { font-weight:600; color:rgba(243,233,210,.72); }
+  .box .chip.star .w { background:#FFD21E; color:#170E12; box-shadow:0 0 0 .2em #FFD21E; border-radius:.2em; }
+  .box .sent { margin-top:.5em; padding-top:.4em; border-top:1px solid #3D3035; font-size:.92em; color:#E8DCC4; font-style:italic; }
+  .box .note { display:flex; gap:.4em; margin-top:.55em; }
+  .box .note .in { flex:1; padding:.35em .6em; border-radius:.4em; border:1px solid #FFD21E; background:#0F080B; font-size:.9em; white-space:nowrap; }
+  .box .note .in i { display:inline-block; width:2px; height:1.1em; margin-left:2px; vertical-align:-.18em; background:#F3E9D2; }
+  .box .note .ok { padding:.35em .9em; border-radius:.4em; background:#FFD21E; color:#170E12; font-weight:800; font-size:.9em; }
+
+  /* popup (popup.html): 380x584, zoom ile büyütülür */
+  .pp { position:absolute; width:380px; height:584px; display:flex; flex-direction:column; overflow:hidden; background:var(--night); color:var(--ink); font:500 14px/1.45 var(--text); border:1px solid var(--line2); border-radius:10px; text-align:left; }
+  .pp .top { flex:none; display:flex; align-items:center; gap:9px; padding:14px 16px 10px; }
+  .pp .top .mk { width:24px; height:28px; display:block; flex:none; }
+  .pp .top b { flex:1; font:800 19px/1 var(--display); letter-spacing:.01em; }
+  .pp .pill { display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 11px; border-radius:6px; border:1px solid var(--line); background:var(--panel); font-weight:600; font-size:13px; }
+  .pp .pill svg { width:14px; height:14px; color:var(--dim); }
+  .pp .pill.lgp { padding:0 10px; font-size:12.5px; letter-spacing:.02em; }
+  .pp .pill.si { border-color:var(--sun); color:var(--sun); background:transparent; }
+  .pp main { flex:1; min-height:0; position:relative; overflow:hidden; padding:4px 16px 16px; }
+  .pp nav { flex:none; display:grid; grid-template-columns:repeat(4,1fr); padding:6px 8px 8px; border-top:1px solid var(--line); background:var(--deep); }
+  .pp nav div { display:grid; justify-items:center; gap:3px; padding:7px 2px 5px; color:var(--dim); font-size:11.5px; font-weight:600; }
+  .pp nav svg { width:22px; height:22px; } .pp nav .on { color:var(--sun); }
+  .pp .state { padding:14px; border-radius:10px; background:var(--panel); border:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  .pp .state .t { flex:1; min-width:0; } .pp .state .t b { display:block; font:800 19px/1.2 var(--display); letter-spacing:.005em; }
+  .pp .state .t span { display:block; margin-top:3px; font:500 12px/1.4 var(--mono); color:var(--dim); }
+  .pp .toggle { position:relative; flex:none; width:42px; height:24px; border-radius:99px; background:var(--panel2); border:1px solid var(--line2); }
+  .pp .toggle::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--ink); }
+  .pp .toggle.on { background:var(--sun); border-color:var(--sun); } .pp .toggle.on::after { left:20px; background:var(--on); }
+  .pp .state .toggle { width:50px; height:28px; } .pp .state .toggle::after { width:22px; height:22px; }
+  .pp .card { margin-top:10px; padding:13px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line); }
+  .pp .lang { display:grid; grid-template-columns:1fr 36px 1fr; gap:8px; align-items:end; }
+  .pp .lbl { display:block; margin-bottom:5px; font-size:12px; color:var(--dim); }
+  .pp .sel { position:relative; height:40px; padding:0 12px; border-radius:6px; border:1px solid var(--line2); background:var(--night); line-height:38px; }
+  .pp .sel::after { content:""; position:absolute; right:12px; top:16px; border:5px solid transparent; border-top-color:var(--dim); border-bottom:0; }
+  .pp .swap { width:36px; height:40px; border-radius:6px; border:1px solid var(--line); display:grid; place-items:center; color:var(--dim); } .pp .swap svg { width:16px; height:16px; }
+  .pp .steps { list-style:none; margin:2px 0 0; padding:0; }
+  .pp .steps li { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:14px; }
+  .pp .steps i { flex:none; width:21px; height:21px; border-radius:50%; border:1.5px solid var(--line2); display:grid; place-items:center; font:700 12px/1 var(--text); color:var(--night); }
+  .pp .steps li.done i { border-color:var(--mint); background:var(--mint); } .pp .steps li.done i::before { content:"✓"; } .pp .steps li.done span { color:var(--dim); }
+  .pp .tip { display:flex; gap:10px; align-items:flex-start; font-size:12.5px; color:var(--dim); } .pp .tip svg { flex:none; width:18px; height:18px; margin-top:1px; color:var(--sun); }
+  .pp .sep { height:1px; margin:12px 0; background:var(--line); }
+  .pp .row { display:flex; align-items:center; gap:10px; } .pp .row > .grow { flex:1; min-width:0; }
+  .pp .bar { height:8px; border-radius:99px; background:var(--panel2); overflow:hidden; } .pp .bar i { display:block; height:100%; border-radius:99px; background:var(--sun); }
+  .pp .xb { flex:none; min-width:36px; height:34px; border-radius:10px; border:1px solid var(--line2); display:grid; place-items:center; font-size:13px; font-weight:600; }
+  .pp .lp-lab { font:500 11px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--dim); text-align:center; margin-top:18px; }
+  .pp .cl { margin:12px 0 8px; font:600 19px/1.6 var(--text); text-align:center; }
+  .pp .cl-gap { display:inline-block; min-width:4.4em; margin:0 .1em; border-bottom:2px solid var(--sun); height:1.3em; vertical-align:bottom; }
+  .pp .cl-tr { margin:0 0 6px; text-align:center; color:var(--dim); font-size:13px; } .pp .cl-tr.mono { font:500 12.5px var(--mono); margin-bottom:14px; }
+  .pp .ans { margin-top:8px; padding:12px 14px; border-radius:10px; border:1px solid var(--line2); background:var(--panel); font-weight:600; font-size:15px; }
+  .pp .wt-top { padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .pp .wt-scroll { padding-top:12px; }
+  .pp .wt-film { padding:9px 12px 11px; border-radius:10px; background:#0A0507; border:1px solid var(--line); }
+  .pp .wt-tag { display:block; font:500 10.5px/1.2 var(--mono); letter-spacing:.08em; color:var(--dim); }
+  .pp .wt-line { display:flex; flex-wrap:wrap; justify-content:center; gap:2px 14px; margin-top:6px; }
+  .pp .wt-w { display:grid; justify-items:center; } .pp .wt-w b { font:600 17px/1.2 var(--text); color:var(--ink); } .pp .wt-w i { font:normal 600 12.5px/1.3 var(--text); color:var(--line2); }
+  .pp .wt-status { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; margin:9px 2px; }
+  .pp .wt-status b { font:800 17px/1.2 var(--display); letter-spacing:.01em; color:var(--dim); } .pp .wt-status span { font-size:12px; line-height:1.35; color:var(--dim); }
+  .pp .wt-main { min-height:48px; padding:8px 14px; border-radius:6px; background:var(--sun); color:var(--on); font:800 19px/32px var(--display); letter-spacing:.02em; text-align:center; }
+  .pp .wt-lang { display:grid; grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr); gap:8px; align-items:end; } .pp .wt-lang .lbl { margin-bottom:4px; font-size:11.5px; } .pp .wt-lang .swap { width:40px; }
+  .pp .wt-box { display:flex; align-items:center; justify-content:space-between; min-height:40px; margin-top:12px; padding:0 2px; border-top:1px solid var(--line); font-size:13.5px; font-weight:600; color:var(--dim); }
+  .pp .wt-box::after { content:""; width:7px; height:7px; margin-right:5px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translateY(-2px) rotate(45deg); }
+  .pp .mg-hud { display:grid; grid-template-columns:1fr 1fr 1fr 32px; gap:6px; align-items:center; margin:4px 0 8px; }
+  .pp .mg-hud div { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:5px 6px; text-align:center; }
+  .pp .mg-hud small { display:block; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--dim); } .pp .mg-hud b { font:800 20px/1.1 var(--display); font-variant-numeric:tabular-nums; }
+  .pp .mg-hud .cb { color:var(--sun); }
+  .pp .mg-hud .x { width:32px; height:32px; padding:0; border-radius:6px; border:1px solid var(--line2); background:transparent; color:var(--dim); font-size:18px; line-height:30px; }
+  .pp .mg-board { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; height:316px; margin-top:8px; padding:6px; background:var(--deep); border:1px solid var(--line); border-radius:10px; }
+  .pp .mg-col { display:flex; flex-direction:column; justify-content:flex-end; gap:5px; min-width:0; }
+  .pp .mg-tile { flex:0 0 calc((100% - 15px) / 4); display:grid; place-items:center; padding:2px 3px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); font:600 13px/1.15 var(--text); text-align:center; }
+  .pp .mg-tile.mg-w { background:var(--panel2); font:800 16px/1.1 var(--display); letter-spacing:.01em; } .pp .mg-tile.long { font-size:11.5px; } .pp .mg-tile.mg-w.long { font-size:13px; }
+  .pp .mg-tile.picked { background:var(--sun); border-color:var(--sun); color:var(--on); }
 </style></head>
 <body>
 <script>
 const Q = new URLSearchParams(location.search), K = Q.get("k") || "shot", N = +Q.get("n") || 1;
 const LANG = Q.get("l") === "tr" ? "tr" : "en";
-const A = "../../out/ad2/assets" + (LANG === "tr" ? "-tr" : "") + "/", ICON = "../../../extension/icons/icon128.png";
-const T = LANG === "tr" ? {
-  s1: [["Her altyazı kelimesi,", "*canlı çevrilir.*"], "YouTube, Prime Video, Netflix ve Udemy'de."],
-  s2: [["Bir kelimeye tıkla,", "*tutulsun.*"], "Hesap yok. Sahneyle birlikte kaydedilir."],
-  s3: [["Duyduğun cümlenin", "*içinde çalış.*"], "Tuttuğun altyazılardan boşluk doldurma soruları."],
-  s4: [["1 gün. 3 gün.", "*7 gün.*"], "Her doğru cevap sonraki tekrarı daha ileri atar.", ["1 gün", "3 gün", "7 gün"]],
-  s5: [["Arkadaşlarınla düello.", "*Sıralamada yüksel.*"], "Canlı düello ve sıralama, ücretsiz hesapla."],
-  tile: [["İzlediğinden", "*öğren.*"], "Her altyazı kelimesi canlı çevrilir. Ücretsiz."],
-  mq: [["İzlediğinden", "*öğren.*"], "Her altyazı kelimesi canlı çevrilir. Ücretsiz, başlamak için hesap yok."],
-  th: [["Dizi izleyerek", "*İngilizce öğren*"], "Ücretsiz Chrome eklentisi"],
-} : {
-  s1: [["Every subtitle word,", "*translated live.*"], "On YouTube, Prime Video, Netflix and Udemy."],
-  s2: [["Click a word,", "*keep it.*"], "No account. Saved with the scene."],
-  s3: [["Practise in the line", "*you heard it in.*"], "Fill-in-the-blank questions from the subtitles you kept."],
-  s4: [["1 day. 3 days.", "*7 days.*"], "Each right answer pushes the next review out.", ["1 day", "3 days", "7 days"]],
-  s5: [["Duel your friends.", "*Climb the board.*"], "Live duels and leaderboards with a free account."],
-  tile: [["Learn from", "*what you watch.*"], "Every subtitle word, translated live. Free."],
-  mq: [["Learn from", "*what you watch.*"], "Every subtitle word, translated live. Free, no account to start."],
-  th: [["Learn a language", "*from what you watch*"], "Free Chrome extension"],
+const MARKA = "../../../docs/marka/", ICON = MARKA + "cinevocab-simge.svg", MARK = MARKA + "cinevocab-isaret.svg";
+
+/* ============ BAŞLIKLAR: değiştirilecek tek yer. *yıldız arası* sarı vurgulanır. ============ */
+const TITLES = {
+  en: {
+    s1: "Every subtitle word, *translated as you watch.*",
+    s2: "Click a word to keep it. *Add your own note.*",
+    s3: "Practise each word *in the line you heard it.*",
+    s4: "Match your words *against the clock.*",
+    s5: "Off until *you switch it on.*",
+    promo: "Learn the words from *what you watch.*",
+  },
+  tr: {
+    s1: "Her altyazı kelimesi, *izlerken çevrilir.*",
+    s2: "Kelimeye tıkla, kaydet. *Kendi notunu ekle.*",
+    s3: "Her kelimeyi *duyduğun cümlede çalış.*",
+    s4: "Süre bitmeden *kelimelerini eşleştir.*",
+    s5: "Sen açana kadar *kapalı.*",
+    promo: "İzlediğin dizinin *kelimelerini öğren.*",
+  },
+}[LANG];
+
+/* Arayüz metinleri: eklentinin sözlüklerinden birebir (lang.js, popup-i18n.js). */
+const UI = {
+  en: { code: "EN", signIn: "Sign in", tabs: ["Watch", "Words", "Practice", "Me"], change: "Change", kept: "1 kept", noteSave: "Save",
+    off: "Off", offHint: "No subtitle text is sent until you switch it on.", sample: "Example", start: "Start translating", subLang: "Subtitles", transLang: "Translation", boxT: "Box settings", wSrc: "Spanish", wDst: "English",
+    cloze: "Fill in the blank", score: "Score", combo: "Combo", time: "Time" },
+  tr: { code: "TR", signIn: "Giriş yap", tabs: ["İzle", "Kelimeler", "Pratik", "Ben"], change: "Değiştir", kept: "1 kaydedildi", noteSave: "Kaydet",
+    off: "Kapalı", offHint: "Sen açana kadar altyazı metni gönderilmez.", sample: "Örnek", start: "Çeviriyi başlat", subLang: "Altyazı", transLang: "Çeviri", boxT: "Kutu ayarları", wSrc: "İspanyolca", wDst: "İngilizce",
+    cloze: "Boşluğu doldur", score: "Puan", combo: "Kombo", time: "Süre" },
+}[LANG];
+
+/* Örnek içerik (uydurma altyazı cümlesi; gerçek film/dizi değil). EN görselleri: İspanyolca > İngilizce. TR görselleri: İngilizce > Türkçe. */
+const DEMO = {
+  en: { src: "Spanish", dst: "English",
+    chips: [["Lo", ""], ["más", "more"], ["importante", "important"], ["en", ""], ["la", ""], ["vida", "life"], ["es", ""], ["tener", "to have"], ["amor", "love"], ["propio", "own"]],
+    keep: "amor", sent: "The most important thing in life is to have self-love.", note: "amor propio = self-love",
+    cloze: ["Lo más importante en la ", " es tener amor propio"], clozeT: "life", opts: ["mundo", "vida", "pregunta", "feliz"],
+    board: [[["world", 0], ["love", 0], ["happy", 0]], [["importante", 1], ["vida", 1], ["pregunta", 1]], [["important", 0], ["life", 0], ["question", 0]], [["mundo", 1], ["amor", 1], ["feliz", 1]]], sel: "amor" },
+  tr: { src: "İngilizce", dst: "Türkçe",
+    chips: [["The", ""], ["most", "en"], ["important", "önemli"], ["thing", "şey"], ["in", ""], ["life", "hayat"], ["is", ""], ["to", ""], ["love", "sevmek"], ["yourself", "kendin"]],
+    keep: "life", sent: "Hayattaki en önemli şey kendini sevmektir.", note: "in life = hayatta",
+    cloze: ["The most important thing in ", " is to love yourself"], clozeT: "hayat", opts: ["world", "life", "question", "happy"],
+    board: [[["dünya", 0], ["sevmek", 0], ["mutlu", 0]], [["important", 1], ["life", 1], ["question", 1]], [["önemli", 0], ["hayat", 0], ["soru", 0]], [["world", 1], ["love", 1], ["happy", 1]]], sel: "love" },
+}[LANG];
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const H = (t, style = "") => `<h1 class="h" style="${style}">` + esc(t).split("*").map((x, i) => x.trim() ? `<span class="${i % 2 ? "em" : "pl"}">${x.trim()}</span>` : "").join("") + "</h1>";
+const brand = (style) => `<div class="brand abs" style="${style}"><img src="${MARK}" alt="">CineVocab</div>`;
+
+// Sahne: düz renkli çizim (iki siluet, pencere, masa lambası). Marka, yüz, gerçek kare yok.
+const scene = () => `<svg class="scene" viewBox="0 0 1152 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <rect x="760" y="50" width="250" height="210" rx="6" fill="#25161C"/><path d="M885 50v210M760 155h250" stroke="#0A0507" stroke-width="8"/>
+  <rect x="0" y="400" width="1152" height="100" fill="#170E12"/>
+  <circle cx="330" cy="210" r="62" fill="#25161C"/><path d="M190 500V410a140 120 0 0 1 280 0v90z" fill="#25161C"/>
+  <circle cx="590" cy="250" r="50" fill="#321E26"/><path d="M480 500V420a110 100 0 0 1 220 0v80z" fill="#321E26"/>
+  <rect x="24" y="478" width="1104" height="5" rx="2.500" fill="#3D3035"/><rect x="24" y="478" width="380" height="5" rx="2.500" fill="#AC9C92"/>
+</svg>`;
+const box = (o) => {
+  const chips = DEMO.chips.map(([w, t]) => `<span class="chip${t ? "" : " dimw"}${o.kept && w === DEMO.keep ? " star" : ""}"><div class="w">${esc(w)}</div><div class="t">${esc(t)}</div></span>`).join("");
+  return `<div class="box" style="${o.style}"><div class="lg"><span>${DEMO.src} → ${DEMO.dst}</span>${o.kept ? `<span class="kept">${UI.kept}</span>` : ""}<span class="bt">${UI.change}</span></div>
+    <div>${chips}</div><div class="sent">${esc(DEMO.sent)}</div>
+    ${o.kept ? `<div class="note"><div class="in">${esc(DEMO.note)}<i></i></div><div class="ok">${UI.noteSave}</div></div>` : ""}</div>`;
 };
-const H = (lines) => '<h1 class="h">' + lines.map((l) => l.replace(/\*([^*]+)\*/g, '<span class="em">$1</span>')).join("<br>") + "</h1>";
-const brand = '<div class="brand"><img src="' + ICON + '" alt="">CineVocab</div>';
-const holes = '<div class="holes" style="top:12px"></div><div class="holes" style="bottom:12px"></div>';
-const frame = (src, x, y, w, h, ox = 0, oy = 0, iw = null) => `<div class="shot" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><img src="${A + src}" style="left:${-ox}px;top:${-oy}px;width:${iw || w}px"></div>`;
-const pop = (src, x, y, h) => { const w = Math.round(h * 380 / 584); return `<div class="pbez" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><img src="${A + src}"></div>`; };
-let W = 1280, Hh = 800, th = "k", html = "";
+const NAVI = ['<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M10 8.5v4l3.5-2zM8 21h8"/>', '<rect x="4" y="3" width="13" height="16" rx="2.500"/><path d="M8 8h5M8 12h5M20 7v12a2 2 0 0 1-2 2H8"/>', '<path d="M13 2 5 14h6l-1 8 8-12h-6z"/>', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.500-4 4.500-6 8-6s6.500 2 8 6"/>'];
+const popup = (tab, body, style) => `<div class="pp" style="${style}">
+  <div class="top"><img class="mk" src="${MARK}" alt=""><b>CineVocab</b>
+    <span class="pill lgp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.200 3 14.800 0 18M12 3c-3 3.200-3 14.800 0 18"/></svg>${UI.code}</span>
+    <span class="pill si">${UI.signIn}</span></div>
+  <main>${body}</main>
+  <nav>${UI.tabs.map((t, i) => `<div class="${i === tab ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NAVI[i]}</svg><span>${t}</span></div>`).join("")}</nav></div>`;
+const BODY = {
+  cloze: () => `<div class="row"><div class="grow"><div class="bar"><i style="width:25%"></i></div></div><div class="xb">✕</div></div>
+    <div class="lp-lab">${UI.cloze}</div><div class="cl">${esc(DEMO.cloze[0])}<span class="cl-gap"></span>${esc(DEMO.cloze[1])}</div>
+    <div class="cl-tr">${esc(DEMO.sent)}</div><div class="cl-tr mono">= ${esc(DEMO.clozeT)}</div>
+    ${DEMO.opts.map((o) => `<div class="ans">${esc(o)}</div>`).join("")}`,
+  // Oyun: 2 eşleşme yapılmış an (10 + 20 = 30 puan, kombo x2), 47 sn kaldı; kurallar popup.js mgTap/mgHud ile aynı.
+  match: () => `<div class="mg-hud"><div><small>${UI.score}</small><b>30</b></div><div><small>${UI.combo}</small><b class="cb">x2</b></div><div><small>${UI.time}</small><b>47</b></div><div class="x">×</div></div>
+    <div class="bar"><i style="width:78%"></i></div>
+    <div class="mg-board">${DEMO.board.map((col) => `<div class="mg-col">${col.map(([t, w]) => `<div class="mg-tile ${w ? "mg-w" : "mg-t"}${t.length > 9 ? " long" : ""}${t === DEMO.sel ? " picked" : ""}">${esc(t)}</div>`).join("")}</div>`).join("")}</div>`,
+  // İzle sekmesi, kapalı durum (popup.html .wt-*): örnek satır popup.js WT_S.es / WT_G.en ile aynı, iki dilde de ES → EN (gerçek ekran: dev/out/popup/izle-yeni.png).
+  off: () => `<div class="wt-top"><div class="wt-film"><span class="wt-tag">${UI.sample} · ES → EN</span><div class="wt-line">${[["Nunca", "never"], ["es", "is"], ["tarde", "late"]].map(([w, t]) => `<span class="wt-w"><b>${w}</b><i>${t}</i></span>`).join("")}</div></div>
+      <p class="wt-status"><b>${UI.off}</b><span>${UI.offHint}</span></p><div class="wt-main">${UI.start}</div></div>
+    <div class="wt-scroll"><div class="wt-lang"><div><span class="lbl">${UI.subLang}</span><div class="sel">${UI.wSrc}</div></div>
+      <div class="swap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-3-3M17 17H4l3 3"/></svg></div>
+      <div><span class="lbl">${UI.transLang}</span><div class="sel">${UI.wDst}</div></div></div>
+      <div class="wt-box">${UI.boxT}</div></div>`,
+};
+
+const SIDE_PX = { en4: 90 };   // yan başlık boyutu istisnaları (varsayılan 96): EN 4 bu boyutta iki satıra oturur
+let W = 1280, Hh = 800, html = "";
 if (K === "shot") {
-  const steps = (a) => "<div style='margin-top:26px'>" + a.map((x) => `<span class='step'>${x}</span>`).join("") + "</div>";
-  const S = {
-    1: ["k", T.s1[0], T.s1[1], frame("chips.png", 470, 262, 760, 532, 0, 0, 760)],
-    2: ["y", T.s2[0], T.s2[1], frame("kept.png", 470, 262, 760, 532, 0, 0, 760)],
-    3: ["k", T.s3[0], T.s3[1], pop("p-cloze.png", 770, 70, 700)],
-    4: ["y", T.s4[0], T.s4[1] + steps(T.s4[2]), pop("p-learned.png", 770, 70, 700)],
-    5: ["k", T.s5[0], T.s5[1], ""],
-  }[N];
-  th = S[0];
-  const tw = (N === 1 || N === 2) ? 1100 : 560, tt = (N === 1 || N === 2) ? 52 : 70;
-  html = `<div class="cv ${th}" style="width:1280px;height:800px">${holes}<div class="abs" style="left:64px;top:${tt}px;width:${tw}px">${H(S[1])}<div class="sub">${S[2]}</div></div>${S[3]}${brand}</div>`;
-  if (N === 5) { // sağdaki iki pencere: oran 2:1 küçültülmüş ekran görüntüsü
-    html = `<div class="cv ${th}" style="width:1280px;height:800px">${holes}<div class="abs" style="left:64px;top:70px;width:560px">${H(S[1])}<div class="sub">${S[2]}</div></div>
-      <div class="shot" style="left:660px;top:80px;width:560px;height:330px"><img src="${A}site-game-question.png" style="left:-280px;top:-68px;width:1120px"></div>
-      <div class="shot" style="left:660px;top:440px;width:560px;height:200px"><img src="${A}site-duel.png" style="left:-211px;top:-294px;width:822px"></div>${brand}</div>`;
+  if (N === 1 || N === 2) {
+    // üstte başlık, altta film karesi ve içinde kutu
+    html = `<div class="cv" style="width:1280px;height:800px"><div class="abs" data-fit style="left:64px;top:44px;width:1152px;height:176px;display:flex;align-items:center">${H(TITLES["s" + N], "width:100%")}</div>
+      <div class="film" style="left:64px;top:236px;width:1152px;height:516px">${scene()}${box({ kept: N === 2, style: "left:50%;bottom:44px;transform:translateX(-50%)" })}</div></div>`;
+  } else {
+    // solda başlık, sağda popup (380x584, 1.2 kat)
+    const body = { 3: ["cloze", 2], 4: ["match", 2], 5: ["off", 0] }[N];
+    html = `<div class="cv" style="width:1280px;height:800px"><div class="abs" data-fit style="left:64px;top:50px;width:620px;height:600px;display:flex;align-items:center">${H(TITLES["s" + N], `font-size:${SIDE_PX[LANG + N] || 96}px;width:100%`)}</div>
+      <div class="abs dash" style="left:64px;top:672px;width:250px"></div>${brand("left:64px;bottom:50px")}
+      ${popup(body[1], BODY[body[0]](), "zoom:1.2;left:633px;top:41px")}</div>`;
   }
 } else if (K === "tile") {
-  W = 440; Hh = 280; th = "y";
-  const t0 = T.tile[0];
-  html = `<div class="cv y" style="width:440px;height:280px"><div class="holes" style="top:8px;height:7px;background-size:16px 7px"></div>
-    <img src="${ICON}" class="abs" style="left:28px;top:34px;width:64px;height:64px;border-radius:15px;box-shadow:0 10px 24px rgba(0,0,0,.25)">
-    <div class="abs h" style="left:28px;top:112px;font-size:34px;line-height:1.05;width:390px">${t0[0]}<br><span style="background:#111110;color:#FFD42B;padding:0 .14em;border-radius:.2em">${t0[1].replace(/\*/g, "")}</span></div>
-    <div class="abs mono" style="left:28px;bottom:26px;font-size:15px;opacity:.75;width:390px">${T.tile[1]}</div></div>`;
+  W = 440; Hh = 280;
+  html = `<div class="cv" style="width:440px;height:280px"><img class="abs" src="${ICON}" alt="" style="left:24px;top:68px;width:144px;height:144px">
+    <div class="abs" data-fit style="left:190px;top:20px;width:230px;height:240px;display:flex;align-items:center">${H(TITLES.promo, "font-size:44px;width:100%")}</div></div>`;
 } else if (K === "marquee") {
-  W = 1400; Hh = 560; th = "k";
-  html = `<div class="cv k" style="width:1400px;height:560px">${holes}
-    <img src="${ICON}" class="abs" style="left:70px;top:70px;width:84px;height:84px;border-radius:20px">
-    <div class="abs">${""}</div>
-    <div class="abs" style="left:70px;top:190px;width:640px">${H(T.mq[0]).replace('class="h"', 'class="h" style="font-size:82px"')}</div>
-    <div class="abs sub" style="left:70px;top:420px;width:600px;font-size:28px">${T.mq[1]}</div>
-    ${frame("chips.png", 760, 70, 700, 490, 0, 0, 700)}</div>`;
+  W = 1400; Hh = 560;
+  html = `<div class="cv" style="width:1400px;height:560px">${brand("left:80px;top:64px")}
+    <div class="abs" data-fit style="left:80px;top:130px;width:820px;height:320px;display:flex;align-items:center">${H(TITLES.promo, "font-size:104px;width:100%")}</div>
+    <div class="abs dash" style="left:80px;top:486px;width:300px"></div>
+    <img class="abs" src="${ICON}" alt="" style="left:960px;top:100px;width:360px;height:360px"></div>`;
 } else if (K === "thumb") {
-  W = 1280; Hh = 720; th = "k";
-  // YouTube kapağı: sinematik koyu arka plan, üç satır iri yazı (orta satır vurgu), altta logo + etiket, sağda gerçek çeviri kutusu ve imleç
-  const D = window.THUMB || { x: 500, y: 880, w: 660, h: 210, chip: { x: 730, y: 908, w: 208, h: 153 } };
-  const C = LANG === "tr"
-    ? { l1: "HER KELİME", l2: "ANINDA", l3: "ÇEVRİLİR", free: "ÜCRETSİZ", fs: 124 }
-    : { l1: "EVERY WORD", l2: "INSTANTLY", l3: "TRANSLATED", free: "FREE", fs: 104 };
-  const cw = 584, k = cw / D.w, ch = Math.round(D.h * k), cx = 664, cy = 452;
-  const tipX = cx + 14 + (D.chip.x + D.chip.w * 0.82 - D.x) * k, tipY = cy + 14 + (D.chip.y + D.chip.h * 0.78 - D.y) * k;
-  html = `<div class="cv k" style="width:1280px;height:720px;background:#0b0b0a">
-    <img src="${A}stage.png" class="abs" style="left:0;top:-90px;width:1280px;filter:blur(7px) brightness(1.9) saturate(1.2)"><div class="abs" style="left:560px;top:-160px;width:760px;height:760px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,170,80,.55),rgba(255,170,80,0))"></div>
-    <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(8,8,7,.78) 0%,rgba(8,8,7,.42) 50%,rgba(8,8,7,.12) 100%)"></div>
-    <div class="abs" style="left:52px;top:46px;width:700px;font:800 ${C.fs}px/.98 'CV Display',sans-serif;letter-spacing:-.025em;text-shadow:0 6px 24px rgba(0,0,0,.45)">${C.l1}<br><span style="color:#FFD42B">${C.l2}</span><br>${C.l3}</div>
-    <div class="abs" style="left:${cx}px;top:${cy}px;width:${cw + 28}px;height:${ch + 28}px;border-radius:22px;background:rgba(14,14,13,.9);box-shadow:0 0 0 2px rgba(255,255,255,.2), 0 26px 60px rgba(0,0,0,.55)"></div>
-    <div class="abs" style="left:${cx + 14}px;top:${cy + 14}px;width:${cw}px;height:${ch}px;overflow:hidden;border-radius:12px"><img src="${A}thumb-kept.png" style="position:absolute;left:${-D.x * k}px;top:${-D.y * k}px;width:${2000 * k}px"></div>
-    <svg class="abs" style="left:${tipX - 4}px;top:${tipY - 2}px" width="46" height="46" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L9.6 19z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
-    <div class="abs" style="left:52px;bottom:42px;display:flex;align-items:center;gap:16px"><img src="${ICON}" style="width:72px;height:72px;border-radius:17px;box-shadow:0 8px 22px rgba(0,0,0,.5)"><span style="font:800 40px/1 'CV Display',sans-serif">CineVocab</span><span style="padding:12px 26px;border-radius:99px;background:#FFD42B;color:#111110;font:800 32px/1 'CV Display',sans-serif;letter-spacing:.03em">${C.free}</span></div></div>`;
+  W = 1280; Hh = 720;
+  html = `<div class="cv" style="width:1280px;height:720px">${brand("left:72px;top:64px;font-size:44px").replace("<img ", '<img style="height:56px" ')}
+    <div class="abs" data-fit style="left:72px;top:160px;width:720px;height:420px;display:flex;align-items:center">${H(TITLES.promo, "font-size:128px;width:100%")}</div>
+    <div class="abs dash" style="left:72px;top:612px;width:340px;height:12px"></div>
+    <img class="abs" src="${ICON}" alt="" style="left:830px;top:160px;width:400px;height:400px"></div>`;
 }
 document.body.innerHTML = html; document.documentElement.style.width = W + "px"; document.documentElement.style.height = Hh + "px";
-document.title = "ready";
+
+// Başlık alanına sığmıyorsa yazı küçülür (uzun çeviriler için); alt sınırın altına inmez, o zaman CHECK uyarır.
+const fitAll = () => document.querySelectorAll("[data-fit]").forEach((f) => { const h = f.firstElementChild; let fs = parseFloat(getComputedStyle(h).fontSize); const min = fs * .62;
+  while (fs > min && (h.getBoundingClientRect().height > f.clientHeight || h.scrollWidth > f.clientWidth)) { fs -= 2; h.style.fontSize = fs + "px"; } });
+// Taşma denetimi (sürücü okur): başlık kendi alanına sığıyor mu, kutu film karesinin içinde mi, popup içeriği kesiliyor mu.
+window.CHECK = () => {
+  const out = [], r = (e) => e.getBoundingClientRect();
+  document.querySelectorAll("[data-fit]").forEach((f) => { const a = r(f), b = r(f.firstElementChild); if (b.height > a.height + 1 || f.firstElementChild.scrollWidth > f.clientWidth + 1) out.push("başlık alanına sığmıyor: " + Math.round(b.height) + " > " + Math.round(a.height)); });
+  document.querySelectorAll(".film .box").forEach((b) => { const a = r(b.parentElement), c = r(b); if (c.left < a.left + 16 || c.right > a.right - 16 || c.top < a.top + 16) out.push("kutu film karesinden taşıyor"); });
+  document.querySelectorAll(".pp main").forEach((m) => { if (m.scrollHeight > m.clientHeight + 1) out.push("popup içeriği kesiliyor"); });
+  document.querySelectorAll(".mg-tile, .ans, .sel, .pill").forEach((t) => { if (t.scrollWidth > t.clientWidth + 1) out.push("taş/düğme metni taşıyor: " + t.textContent); });
+  document.querySelectorAll("img").forEach((i) => { if (!i.naturalWidth) out.push("görsel yüklenmedi: " + i.getAttribute("src")); });
+  for (const f of ["800 40px 'Big Shoulders'", "500 16px 'Instrument Sans'"]) if (!document.fonts.check(f)) out.push("yazı tipi yüklenmedi: " + f);
+  return out;
+};
+Promise.all([document.fonts.load("800 40px 'Big Shoulders'", "Aİğşçöü"), document.fonts.load("500 16px 'Instrument Sans'", "Aİğşçöü"), document.fonts.load("700 16px 'Instrument Sans'", "Aİğşçöü")])
+  .then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))).then(() => { fitAll(); document.title = "ready"; });
 </script>
 </body></html>
