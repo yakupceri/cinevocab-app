@@ -92,6 +92,67 @@ await scene("full");
   await ctx.close();
 }
 
+// ------------------------------------------------------------------ 2b) kelime notu
+console.log("2b) Kelime notu: göster, ekle, düzenle, sil, kaçış, klavye, mobil");
+await scene("full");
+{
+  const { ctx, page } = await newPage();
+  await page.goto(`${BASE}/account#words`); await page.waitForSelector("button.w");
+  const card = (w) => page.locator("button.w", { has: page.locator(".src", { hasText: new RegExp("^" + w + "$") }) });
+  const calls = async () => (await (await fetch(`${BASE}/__state`)).json()).calls.filter((c) => c[0] === "/api/note");
+  ok((await card("verdad").locator(".wnote").innerText()).includes("la verdad = gerçek"), "notu olan kartta not görünür (sunucudan /api/notes)");
+  ok((await card("nunca").locator(".wnote.add").count()) === 1 && (await card("verdad").locator(".wnote.add").count()) === 0, "notu olmayan kartta '+ Not', olanda yok");
+  await card("nunca").hover();
+  ok((await card("nunca").locator(".wnote.add").evaluate((e) => getComputedStyle(e).opacity)) === "1", "'+ Not' kartın üzerine gelince görünür");
+  await card("nunca").locator(".wnote.add").click(); await wait(200);
+  ok(await page.locator(".modal input").isVisible() && (await page.locator(".modal h2").innerText()).includes("nunca"), "'+ Not' küçük bir pencere açar, başlıkta kelime yazar");
+  ok((await page.locator("button.w.sel").count()) === 0 && !(await page.locator(".bulk").count()), "not satırına tıklamak kartı seçmez");
+  await page.locator(".modal input").fill("  hiç   bir zaman  "); await page.locator(".modal button.primary").click(); await wait(400);
+  let c = await calls();
+  ok(c.length === 1 && JSON.stringify(c[0][1]) === JSON.stringify({ src: "es", dst: "en", word: "nunca", note: "  hiç   bir zaman  " }), "kayıt /api/note'a gitti: " + JSON.stringify(c[0] && c[0][1]));
+  ok(!(await page.locator(".modal").count()) && (await card("nunca").locator(".wnote").innerText()) === "hiç bir zaman" && (await card("nunca").locator(".wnote.add").count()) === 0, "pencere kapandı, kartta sunucunun temizlediği not görünür");
+  await card("nunca").locator(".wnote").click(); await wait(150);
+  ok((await page.locator(".modal input").inputValue()) === "hiç bir zaman", "notu olan karta tıklayınca eski not düzenlenmek üzere gelir");
+  await page.locator(".modal input").fill("yeni metin"); await page.locator(".modal input").press("Enter"); await wait(400);
+  ok((await card("nunca").locator(".wnote").innerText()) === "yeni metin", "Enter ile kaydedilir ve düzenlenir");
+  await card("nunca").locator(".wnote").click(); await wait(150);
+  await page.keyboard.press("Escape"); await wait(100);
+  ok(!(await page.locator(".modal").count()) && (await card("nunca").locator(".wnote").innerText()) === "yeni metin", "Esc pencereyi kapatır, not değişmez");
+  await card("nunca").locator(".wnote").click(); await wait(150);
+  await page.locator(".modal input").fill(""); await page.locator(".modal button.primary").click(); await wait(400);
+  c = await calls();
+  ok(c[c.length - 1][1].note === "" && (await card("nunca").locator(".wnote.add").count()) === 1, "boş kaydetmek notu siler ('' gider), kartta '+ Not' döner");
+  // kaçış: not HTML olarak çözülmez
+  await card("miedo").locator(".wnote").click(); await wait(150);
+  await page.locator(".modal input").fill('<img src=x onerror="window.__xss=1"><b>kalın</b>'); await page.locator(".modal input").press("Enter"); await wait(400);
+  ok((await card("miedo").locator(".wnote").innerText()).includes("<img src=x") && (await card("miedo").locator("img, b").count()) === 0 && (await page.evaluate(() => window.__xss)) === undefined, "not düz metin olarak görünür; HTML/betik çalışmaz");
+  // klavye: not satırına Tab ile gelinir, Enter açar
+  await card("plan").locator(".wnote.add").focus(); await page.keyboard.press("Enter"); await wait(150);
+  ok(await page.locator(".modal input").isVisible() && (await page.locator("button.w.sel").count()) === 0, "klavye: '+ Not' üzerinde Enter pencereyi açar, kartı seçmez");
+  await page.keyboard.press("Escape");
+  // seçim yine çalışır
+  await card("plan").locator(".src").click(); await wait(100);
+  ok((await page.locator("button.w.sel").count()) === 1, "kartın geri kalanına tıklayınca seçim çalışır");
+  // yükleme hatası: notlar gelmese de liste açılır
+  await ctx.close();
+}
+{
+  // mobil (390 px): taşma yok; uzun not satır kırar, kartın dışına çıkmaz
+  const { ctx, page } = await newPage({ viewport: { width: 390, height: 844 } });
+  await page.goto(`${BASE}/account#words`); await page.waitForSelector("button.w");
+  const card = (w) => page.locator("button.w", { has: page.locator(".src", { hasText: new RegExp("^" + w + "$") }) });
+  await card("plan").locator(".wnote.add").click(); await wait(150);
+  await page.locator(".modal input").fill("a".repeat(70) + " " + "b".repeat(69)); await page.locator(".modal input").press("Enter"); await wait(400);
+  const m = await page.evaluate(() => {
+    const out = { over: document.documentElement.scrollWidth > window.innerWidth + 1, bad: [] };
+    document.querySelectorAll("button.w").forEach((b) => { const r = b.getBoundingClientRect(); b.querySelectorAll(".wnote").forEach((n) => { const q = n.getBoundingClientRect(); if (q.right > r.right + 0.5 || q.left < r.left - 0.5) out.bad.push(n.textContent.slice(0, 20)); }); });
+    return out;
+  });
+  ok(!m.over && m.bad.length === 0, "390 px: yatay taşma yok, not kartın dışına çıkmıyor" + (m.bad.length ? " (" + m.bad.join(",") + ")" : ""));
+  await page.screenshot({ path: "out/site-not-mobil.png" });
+  await ctx.close();
+}
+
 // ------------------------------------------------------------------ 3) videolar -> kelimeler / düello
 console.log("3) Videolar");
 await scene("full");

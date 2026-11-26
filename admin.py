@@ -931,7 +931,7 @@ def funnel(request: Request, days: int = 30):
 # ---------- Veri talepleri (KVKK / GDPR): bul, dışa aktar, sil, temizlik ----------
 
 # Kullanıcıya bağlı satır tutan tablolar (hesap silinince hepsi boşalmalı)
-_USER_TABLES = ("sessions", "user_words", "user_words_ml", "known_words", "starred_words", "word_stats", "xp_log",
+_USER_TABLES = ("sessions", "user_words", "user_words_ml", "known_words", "starred_words", "word_notes", "word_stats", "xp_log",
                 "game_results", "daily_play", "puzzle_play", "progress", "ext_tickets", "league_members")
 
 
@@ -1000,6 +1000,8 @@ def export_user(uid: int, request: Request):
                             "ORDER BY created_at;", ("language", "word", "added")),
         "starred_words": rows(f"SELECT src, dst, word, to_char(created_at, {ts}) FROM starred_words WHERE user_id = %s "
                               "ORDER BY created_at;", ("from", "to", "word", "added")),
+        "word_notes": rows(f"SELECT src, dst, word, note, to_char(updated_at, {ts}) FROM word_notes WHERE user_id = %s "
+                           "ORDER BY updated_at;", ("from", "to", "word", "note", "updated")),
         "review_progress": rows("SELECT src, dst, word, box, to_char(due, 'YYYY-MM-DD'), right_n, wrong_n FROM word_stats "
                                 "WHERE user_id = %s ORDER BY src, dst, word;", ("from", "to", "word", "box", "due", "right", "wrong")),
         "daily_xp": rows("SELECT to_char(day, 'YYYY-MM-DD'), xp FROM xp_log WHERE user_id = %s ORDER BY day;", ("day", "xp")),

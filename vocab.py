@@ -5,11 +5,12 @@ Tr->En eski tablolarda (words + user_words), diğer tüm dil çiftleri çok dill
 (tr = kaynak dildeki kelime, eng = çevirisi; isimler panelle uyumlu kalsın diye aynı).
 """
 import re
+from itertools import islice
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from accounts import q, need_user
+from accounts import q, need_user, _throttle_ip
 
 router = APIRouter()
 
@@ -244,3 +245,95 @@ def delete_videos(d: DelVideos, request: Request):
         r = q("DELETE FROM user_words_ml WHERE user_id = %s AND src = %s AND dst = %s AND episode = ANY(%s) "
               "RETURNING 1;", (u["id"], d.src, d.dst, eps), True)
     return {"deleted": len(r)}
+
+
+# ---------- Kelime notları (giriş yapmış kullanıcının kendi notu) ----------
+# Hesapsız kullanıcının notu yalnızca cihazında kalır; bu uçlara yalnızca giriş yapmış eklenti / site ulaşır.
+# Not, kelime metniyle eşleşir (eski tr>en ve çok dilli kelime tablolarından bağımsız), hesap silinince silinir.
+NOTE_MAX = 140          # eklentideki bank.js NOTE_MAX ile aynı
+NOTES_PER_USER = 3000
+NOTES_IMPORT_MAX = 500  # eklentideki defter sınırı (dil çifti başına 500 kelime)
+
+
+def clean_note(note) -> str:
+    """Boşlukları tekilleştirir, uçları kırpar, 140 karakterde keser (eklentideki setNote ile aynı kural)."""
+    return " ".join(str(note or "")[:2000].split())[:NOTE_MAX]
+
+
+def note_word(word, src: str) -> str:
+    w = low(str(word or ""), src)
+    if not 1 <= len(w) <= 60:
+        raise HTTPException(400, "Kelime geçersiz.")
+    return w
+
+
+class NoteReq(BaseModel):
+    src: str
+    dst: str
+    word: str
+    note: str = ""
+
+
+@router.post("/api/note")
+def set_note(d: NoteReq, request: Request):
+    """Kelimeye not yazar ya da günceller; boş not satırı siler."""
+    _throttle_ip(request, 90, 60, "note")
+    u = need_user(request)
+    check_pair(d.src, d.dst)
+    w = note_word(d.word, d.src)
+    note = clean_note(d.note)
+    if not note:
+        q("DELETE FROM word_notes WHERE user_id = %s AND src = %s AND dst = %s AND word = %s;", (u["id"], d.src, d.dst, w))
+        return {"ok": True, "note": ""}
+    if not q("SELECT 1 FROM word_notes WHERE user_id = %s AND src = %s AND dst = %s AND word = %s;",
+             (u["id"], d.src, d.dst, w), True) \
+            and q("SELECT count(*) FROM word_notes WHERE user_id = %s;", (u["id"],), True)[0][0] >= NOTES_PER_USER:
+        raise HTTPException(400, "Not sınırına ulaştın.")
+    q("INSERT INTO word_notes (user_id, src, dst, word, note) VALUES (%s, %s, %s, %s, %s) "
+      "ON CONFLICT (user_id, src, dst, word) DO UPDATE SET note = EXCLUDED.note, updated_at = now();",
+      (u["id"], d.src, d.dst, w, note))
+    return {"ok": True, "note": note}
+
+
+@router.get("/api/notes")
+def get_notes(request: Request, src: str = "tr", dst: str = "en"):
+    """Bu dil çiftindeki notlar: {"notes": {kelime: not}} (en yeni yazılan başta, en çok 3000)."""
+    _throttle_ip(request, 120, 60, "notes")
+    u = need_user(request)
+    check_pair(src, dst)
+    rows = q("SELECT word, note FROM word_notes WHERE user_id = %s AND src = %s AND dst = %s "
+             "ORDER BY updated_at DESC LIMIT %s;", (u["id"], src, dst, NOTES_PER_USER), True)
+    return {"notes": {w: n for w, n in rows}}
+
+
+class NotesImport(BaseModel):
+    src: str
+    dst: str
+    notes: dict[str, str]
+
+
+@router.post("/api/notes/import")
+def import_notes(d: NotesImport, request: Request):
+    """Eklentide giriş yapılınca cihazdaki notları toplu taşır. Sunucuda zaten notu olan kelimeye DOKUNMAZ
+    (sunucudaki not kalır); yalnızca notu olmayanlara yazar."""
+    _throttle_ip(request, 30, 60, "noteimp")
+    u = need_user(request)
+    check_pair(d.src, d.dst)
+    items = {}
+    for word, note in islice(d.notes.items(), NOTES_IMPORT_MAX):
+        try:
+            w = note_word(word, d.src)
+        except HTTPException:
+            continue
+        n = clean_note(note)
+        if n:
+            items.setdefault(w, n)
+    room = NOTES_PER_USER - q("SELECT count(*) FROM word_notes WHERE user_id = %s;", (u["id"],), True)[0][0]
+    added = 0
+    for w, n in items.items():
+        if added >= max(room, 0):
+            break
+        added += len(q("INSERT INTO word_notes (user_id, src, dst, word, note) VALUES (%s, %s, %s, %s, %s) "
+                       "ON CONFLICT (user_id, src, dst, word) DO NOTHING RETURNING 1;",
+                       (u["id"], d.src, d.dst, w, n), True))
+    return {"ok": True, "added": added}

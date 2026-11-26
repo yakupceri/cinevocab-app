@@ -42,3 +42,29 @@ def test_last_app_use_is_listed_among_stored_account_data(txt):
 
 def test_contact_placeholder_is_filled(txt):
     assert "__CONTACT__" not in txt
+
+
+def test_extension_device_storage_and_google_limited_use_are_stated(txt):
+    assert re.search(r"Eklenti şunları cihazında saklar|extension keeps the following on your device", txt)
+    assert re.search(r"kendi yazdığın not|your own note", txt)                      # 2.4: not alanı
+    assert "Limited Use" in txt and "api-services-user-data-policy" in txt
+    assert '\\"' not in txt                                                        # kaçış artığı sayfaya sızmasın
+
+
+def test_notes_are_said_to_go_to_the_account_only_when_signed_in(txt):
+    """2.4.x: giriş yapmış kullanıcının notu hesabına da kaydedilir. Eski "notlar gönderilmez" cümlesi artık yanlış olurdu."""
+    assert not re.search(r"cümleler ve notlar gönderilmez|lines and notes are not sent", txt)
+    assert re.search(r"Kelime notların|Your word notes", txt)                       # veri listesinde ayrı madde
+    assert re.search(r"notlar hesabına kopyalanır|notes on your device are copied to your account", txt)
+    assert re.search(r"yeni notlar da hesabına kaydedilir|new notes you write while signed in are saved to your account", txt)
+    assert re.search(r"(?i)giriş yapmadıysan notların yalnızca cihazında kalır|If you are not signed in, your notes stay only on your device", txt)
+    assert re.search(r"hesabını silince silinir|deleted when you delete your account", txt)
+
+
+def test_subtitle_sentences_are_still_not_copied_to_the_account(txt):
+    assert re.search(r"altyazı cümleleri ve cümlelerin çevirileri gönderilmez|subtitle lines the words came from and their translations are not sent", txt)
+
+
+def test_accountless_server_storage_is_stated(txt):
+    assert re.search(r"ortak çeviri sözlüğüne kimlik bilgisi olmadan|shared translation dictionary with no identity", txt)
+    assert re.search(r"küçük resim adresi|thumbnail address", txt)

@@ -207,6 +207,17 @@ button.lg { min-height:52px; font-size:20px; padding:0 18px; }
 .w.sel .ck { background:var(--fill); border-color:var(--fill-line); }
 .w.sel .ck::after { content:""; position:absolute; left:5px; top:1px; width:4px; height:8px; border:solid var(--on-fill); border-width:0 2px 2px 0; transform:rotate(45deg); }
 .w .spk { position:absolute; right:7px; bottom:7px; }
+/* kelime notu: kartın içinde ama seçim düğmesini tetiklemez. Notu olan kartta en altta (40 px yüksekliğinde dokunma hedefi; kartın ortası seçime ayrılır);
+   olmayanda alt satırda küçük "+ Not" (masaüstünde üzerine gelince, dokunmatikte hep görünür; dokunma alanı ::after ile genişler, .spk gibi) */
+.w .wmeta { display:flex; align-items:baseline; gap:8px; margin-top:9px; min-width:0; }
+.w .wmeta .ep { flex:1; min-width:0; margin-top:0; }
+.w .wnote { position:relative; display:block; margin-top:0; padding:12px 0 11px; font-size:13px; line-height:1.35; color:var(--dim); overflow-wrap:anywhere; cursor:pointer; }
+.w .wnote:hover, .w .wnote:focus-visible { color:var(--ink); }
+.w .wnote:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:3px; }
+.w .wnote.add { display:inline-block; flex:none; padding:0; font:500 11px/1.3 var(--mono); color:var(--faint); text-decoration:underline; text-underline-offset:2px; }
+.w .wnote.add::after { content:""; position:absolute; inset:-13px -8px; }
+.w .wnote.add:focus-visible { outline-offset:2px; }
+@media (hover:hover) { .w .wnote.add { opacity:0; } .w:hover .wnote.add, .w:focus-within .wnote.add, .w .wnote.add:focus-visible { opacity:1; } }
 
 /* seçim çubuğu: yüzen öğe, gölge burada serbest */
 .bulk { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:40; background:var(--panel2); border:1px solid var(--line2); border-radius:var(--r-card); box-shadow:var(--shadow); padding:8px 10px 8px 16px; display:flex; gap:8px; align-items:center; max-width:calc(100vw - 20px); flex-wrap:wrap; justify-content:center; }

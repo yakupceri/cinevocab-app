@@ -23,8 +23,8 @@ for (const theme of ["dark", "light"]) for (const [vpn, vp] of [["mobil", { widt
       document.querySelectorAll(sel).forEach((e) => {
         if (!vis(e)) return;
         const b = e.getBoundingClientRect();
-        // dokunma alanı ::after / ::before ile genişletilmiş öğeler (kelime kartındaki ses düğmesi, anahtarlar) ayrıca sayılır
-        const ext = e.matches(".spk, .toggle");
+        // dokunma alanı ::after / ::before ile genişletilmiş öğeler (kelime kartındaki ses düğmesi ve "+ Not", anahtarlar) ayrıca sayılır
+        const ext = e.matches(".spk, .toggle, .wnote.add");
         if ((b.height < 39.5 || b.width < 39.5) && !ext) small.push((e.className || e.tagName) + " " + Math.round(b.width) + "x" + Math.round(b.height) + " '" + (e.textContent || "").trim().slice(0, 20) + "'");
       });
       const overflow = document.documentElement.scrollWidth > window.innerWidth + 1;

@@ -65,6 +65,8 @@ def fresh_state(scene="full"):
         "words": [] if scene in ("empty", "fresh") else [{"tr": a, "eng": b, "episode": c} for a, b, c in ES + ES_DUP],
         "known": [] if scene in ("empty", "fresh") else [{"tr": a, "eng": b} for a, b in KNOWN],
         "public": False, "leagues": scene == "full", "bank": [], "calls": [],
+        # kelime notları (vocab.py /api/notes): {"es>en": {kelime: not}}; tam sahnede iki örnek not
+        "notes": {"es>en": {"verdad": "Sık geçiyor: la verdad = gerçek", "miedo": "korku, 'miedo a' ile kullanılır"}} if scene == "full" else {},
     }
     return s
 
@@ -148,6 +150,8 @@ def api_get(path, qs):
               ("cloud", "bulut"), ("stairs", "merdiven"), ("window", "pencere"), ("kitchen", "mutfak"), ("key", "anahtar")]
         ws = es if (src, dst) == ("es", "en") else tr if (src, dst) == ("en", "tr") else []
         return 200, {"ready": bool(ws), "src": src, "dst": dst, "words": [{"w": a, "t": b} for a, b in ws]}
+    if path == "/api/notes":
+        return need() or (200, {"notes": dict(s["notes"].get(qs.get("src", "tr") + ">" + qs.get("dst", "en"), {}))})
     if path == "/api/pairs":
         return need() or (200, pairs())
     if path == "/api/vocab":
@@ -236,6 +240,14 @@ def api_post(path, body):
         return 200, {"deleted": n}
     if path == "/api/progress":
         return 200, {"ok": True}
+    if path == "/api/note":   # vocab.set_note: boşlukları tekilleştir, 140'a kes, boşsa sil
+        note = " ".join(str(body.get("note", "")).split())[:140]
+        d = s["notes"].setdefault(str(body.get("src")) + ">" + str(body.get("dst")), {})
+        if note:
+            d[str(body.get("word", "")).strip().lower()] = note
+        else:
+            d.pop(str(body.get("word", "")).strip().lower(), None)
+        return 200, {"ok": True, "note": note}
     if path == "/api/settings":
         if body.get("username"):
             s["me"]["username"] = body["username"]

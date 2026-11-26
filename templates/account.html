@@ -27,7 +27,7 @@
 <script src="/static/fx.js?v={{ ASSET_V }}"></script>
 <script>
 const app = document.getElementById("app");
-let me = null, pairs = [], PAIR = loadPair(), V = { words: [], known: [] }, VIDS = [];
+let me = null, pairs = [], PAIR = loadPair(), V = { words: [], known: [] }, VIDS = [], NOTES = {};   // NOTES: bu dil çiftindeki kelime notları {kelime: not}
 let LG = { open: null, period: "week" };
 let tab = "words", Q = "", EP = "", SHOW = 240, LBP = "all", LBS = "people";
 const SELW = new Set(), SELV = new Set(), SELK = new Set();
@@ -219,6 +219,7 @@ async function reload() {
   const qs = "?src=" + PAIR.src + "&dst=" + PAIR.dst;
   try { [V, VIDS] = await Promise.all([api("/api/vocab" + qs), api("/api/videos" + qs)]); }
   catch (e) { if (e.status === 401) return authView(); toast(e.message); V = { words: [], known: [] }; VIDS = []; }
+  try { NOTES = (await api("/api/notes" + qs)).notes || {}; } catch (e) { NOTES = {}; }   // notlar yüklenemezse liste yine açılır
   try { pairs = await api("/api/pairs"); } catch (e) {}
   render();
 }
@@ -405,13 +406,27 @@ function tWords() {
     });
     return out;
   };
+  // Not satırı: kartın içinde ama seçim düğmesini tetiklemez; tıklayınca küçük bir pencerede düzenlenir. Metin textContent ile yazılır.
+  const noteBtn = (w, nt) => {
+    const b = el("span", "wnote" + (nt ? "" : " add"), nt || t("noteAdd"));
+    b.setAttribute("role", "button"); b.tabIndex = 0; b.title = t("noteEdit"); b.setAttribute("aria-label", t("noteEdit") + ": " + w.tr);
+    if (nt) b.dir = "auto";
+    const go = (e) => { e.preventDefault(); e.stopPropagation(); noteModal(w, paint); };
+    b.onclick = go; b.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") go(e); };
+    return b;
+  };
   const paint = () => {
     const list = rows(); grid.replaceChildren();
     cnt.textContent = t("wordsN", list.length);
     list.slice(0, SHOW).forEach((w) => {
       const b = el("button", "w" + (SELW.has(w.tr) ? " sel" : ""));
       b.type = "button"; b.setAttribute("aria-pressed", SELW.has(w.tr));
-      b.append(el("span", "src", w.tr), el("span", "dst", w.eng), el("span", "ep", w.episode || t("noVideo")), el("span", "ck"));
+      const nt = NOTES[w.tr], meta = el("span", "wmeta");
+      meta.append(el("span", "ep", w.episode || t("noVideo")));
+      if (!nt) meta.append(noteBtn(w, ""));                     // notu olmayanda küçük "+ Not" (masaüstünde üzerine gelince görünür)
+      b.append(el("span", "src", w.tr), el("span", "dst", w.eng), meta);
+      if (nt) b.append(noteBtn(w, nt));                         // notu olan kartta not en altta: kartın ortası seçim için boş kalır
+      b.append(el("span", "ck"));
       if (canSpeak()) b.append(speakBtn(w[LF()], learnLang(PAIR.src, PAIR.dst)));
       b.onclick = () => { SELW.has(w.tr) ? SELW.delete(w.tr) : SELW.add(w.tr); b.classList.toggle("sel"); b.setAttribute("aria-pressed", SELW.has(w.tr)); wbar(); };
       grid.append(b);
@@ -432,6 +447,28 @@ function tWords() {
   if (V.words.length < 40) box.append(packsCard());
   paint(); wbar();
   return box;
+}
+
+// Kelime notu penceresi: tek satır, Enter kaydeder, Esc kapatır, boş kaydetmek notu siler. Not sunucuda 140 karaktere kısaltılır.
+function noteModal(w, done) {
+  const m = el("div", "modal"), c = el("div", "card"), inp = el("input"), row = el("div", "row");
+  const go = el("button", "primary", t("save")), no = el("button", "", t("cancel")), err = el("p", "err");
+  err.style.minHeight = "0";
+  inp.type = "text"; inp.maxLength = 140; inp.value = NOTES[w.tr] || ""; inp.placeholder = t("notePh"); inp.autocomplete = "off"; inp.setAttribute("aria-label", t("noteTitle", w.tr));
+  const close = () => { m.remove(); };
+  go.onclick = async () => {
+    go.disabled = true; err.textContent = "";
+    try {
+      const r = await api("/api/note", { src: PAIR.src, dst: PAIR.dst, word: w.tr, note: inp.value });
+      if (r.note) NOTES[w.tr] = r.note; else delete NOTES[w.tr];
+      close(); toast(r.note ? t("saved") : t("noteGone")); done();
+    } catch (e) { err.textContent = e.message; go.disabled = false; }
+  };
+  no.onclick = close; m.onclick = (e) => { if (e.target === m) close(); };
+  inp.onkeydown = (e) => { if (e.key === "Enter") go.click(); else if (e.key === "Escape") close(); };
+  row.append(go, no); row.style.marginTop = "14px";
+  const h = el("h2", "", t("noteTitle", w.tr)); h.style.cssText = "margin-bottom:12px;overflow-wrap:anywhere";
+  c.append(h, inp, err, row); m.append(c); document.body.append(m); inp.focus(); inp.select();
 }
 
 /* ---------- Videolar ---------- */
