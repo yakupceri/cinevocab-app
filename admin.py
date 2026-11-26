@@ -291,6 +291,12 @@ def traffic(request: Request, days: int = 7):
             res.update(ext_anon=int(anon), ext_acct=int(acct), ext_unknown=int(unk))
         except Exception as e:
             print(f"Hesaplı/hesapsız sayısı okunamadı: {e}")
+        try:  # Siteye girenlerden sayfaya dokunanlar (fare, klavye, kaydırma). act sütunundan önceki kayıtlar "bilinmiyor".
+            a, k = q("SELECT count(*) FILTER (WHERE kind = 'site' AND act = true), count(*) FILTER (WHERE kind = 'site' AND act IS NOT NULL) "
+                     "FROM visits_daily WHERE " + win_v + ";", (days,), True)[0]
+            res.update(site_act=int(a), site_act_known=int(k))
+        except Exception as e:
+            print(f"Etkileşim sayısı okunamadı: {e}")
         return res
     _block(out, "totals", totals, {})
 

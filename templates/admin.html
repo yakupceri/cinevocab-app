@@ -459,7 +459,7 @@ async function viewTraffic() {
 
   // Hesapsız kullanan: sunucu "kişi" sayısını veriyorsa onu, vermiyorsa çeviri isteği sayısını göster
   let anonReq = null;
-  const kp = [kpi({ label: "Siteye giren", value: T.site || 0, color: C.site, spark: col("site"), sub: [todayYest("site"), siteDev ? " · %" + pct(dv.site.telefon || 0, siteDev) + " telefon" : ""] }),
+  const kp = [kpi({ label: "Siteye giren", value: T.site || 0, color: C.site, spark: col("site"), sub: [todayYest("site"), siteDev ? " · %" + pct(dv.site.telefon || 0, siteDev) + " telefon" : "", T.site_act_known ? " · " + fmt(T.site_act) + " sayfaya dokundu" : ""] }),
     kpi({ label: "Eklentiyi kullanan", value: T.ext || 0, color: C.ext, spark: col("ext"), sub: todayYest("ext") })];
   if (T.ext_anon != null && (T.ext_anon || 0) + (T.ext_acct || 0) > 0) {
     kp.push(kpi({ label: "Hesapsız kullanan", value: T.ext_anon, color: C.anon, spark: daily.some((x) => x.ext_anon != null) ? col("ext_anon") : null,
@@ -508,6 +508,7 @@ async function viewTraffic() {
     h("p", { class: "sub", style: "margin:0 2px 10px" }, days === 1 ? "Kartlar bugünün sayılarıdır." : [h("b", {}, "Kartlar son " + days + " günün toplamıdır. "),
       "Aynı kişi ertesi gün tekrar girerse yine sayılır: 7 gün üst üste giren biri 7 yazar. Bu yüzden bunlar \"kaç farklı kişi\" değil, \"toplam giriş\" sayısıdır."]),
     h("div", { class: "kpis" }, kp),
+    h("p", { class: "hint" }, "\"Siteye giren\": sayfada en az 5 saniye kalan ve JavaScript çalıştıran tarayıcılar sayılır; hemen kapanan ya da betik çalıştırmayan istekler (botların çoğu) sayılmaz. Bu yöntem 26.11.2026 sonrası yayınla başladı: daha eski günlerde her sayfa isteği sayılıyordu, o günlerle doğrudan karşılaştırma."),
     h("div", { class: "panel" }, h("h3", {}, "Son 14 gün"), h("p", { class: "sub" }, "Çizgiye dokun ya da üstüne gel: o günün sayıları görünür. Etiketlere basarak çizgileri açıp kapatabilirsin."),
       trendChart(daily, seriesTop, { label: "Günlük gidişat", height: 250, totals: false }),
       h("details", { class: "dt" }, h("summary", {}, "Sayıları tablo olarak göster"),

@@ -79,10 +79,8 @@ async def static_no_stale(request: Request, call_next):
     resp = await call_next(request)
     if request.url.path.startswith("/static/"):
         resp.headers["Cache-Control"] = "no-cache"   # her seferinde ETag ile kontrol et (değişmediyse 304)
-    elif (request.method == "GET" and resp.status_code == 200
-          and resp.headers.get("content-type", "").startswith("text/html")
-          and not request.url.path.startswith(("/admin", "/api", "/privacy", "/delete-account"))):
-        record_visit(request, "site")  # anonim "günde kaç farklı kişi" sayacı
+    # Site ziyareti artık burada sayılmaz: sayfadaki static/visit.js, gerçek bir tarayıcıda 5 saniye sonra /api/visit'e haber verir
+    # (JavaScript çalıştırmayan ya da hemen kapanan botlar "siteye giren" sayısını şişiriyordu).
     return resp
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1526,7 +1524,6 @@ def game_page(request: Request):
 @app.get("/match", response_class=HTMLResponse)
 def match_page(request: Request):
     """Eşleştirme oyunu: hesap ve kurulum gerektirmez."""
-    record_visit(request, "site")
     return templates.TemplateResponse(request, "match.html")
 
 
