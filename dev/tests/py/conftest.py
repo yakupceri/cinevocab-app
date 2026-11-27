@@ -40,6 +40,10 @@ def pg():
         accounts.q("CREATE TABLE IF NOT EXISTS link_clicks (day DATE NOT NULL, src TEXT NOT NULL, n INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src));")
         accounts.q("CREATE TABLE IF NOT EXISTS link_hits (at TIMESTAMPTZ NOT NULL DEFAULT now(), src TEXT NOT NULL, "
                    "device TEXT NOT NULL DEFAULT '', os TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '');")
+        # çeviri sözlüğü tabloları: canlıda main.py ve multilang.py açılışta kurar
+        accounts.q("CREATE TABLE IF NOT EXISTS words (id SERIAL PRIMARY KEY, eng TEXT, tr TEXT, created_at TIMESTAMP DEFAULT now());")
+        accounts.q("CREATE TABLE IF NOT EXISTS words_ml (src TEXT NOT NULL, dst TEXT NOT NULL, word TEXT NOT NULL, "
+                   "trans TEXT NOT NULL, PRIMARY KEY (src, dst, word));")
         yield port
     finally:
         try:

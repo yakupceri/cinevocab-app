@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 from accounts import (router, init_accounts, count_usage, user_from_request, user_from_token,
-                      record_game, tag_user_words, _throttle_ip, q, db_conn, client_ip, record_visit,
+                      record_game, tag_user_words, count_anon_words, _throttle_ip, q, db_conn, client_ip, record_visit,
                       device_info, _visit_country, TR_TODAY)
 import admin
 import growth
@@ -1651,7 +1651,10 @@ def translate_words(batch: WordsBatch, request: Request):
     record_visit(request, "ext")
     if not batch.lookup_only:
         try:
-            count_usage(bool(user_from_request(request)), len(batch.words), batch.src, batch.dst)
+            signed_in = bool(user_from_request(request))
+            count_usage(signed_in, len(batch.words), batch.src, batch.dst)
+            if not signed_in and batch.src != batch.dst and batch.src in vocab.LANGS and batch.dst in vocab.LANGS:
+                count_anon_words([vocab.low(w, batch.src) for w in batch.words[:30]], batch.src, batch.dst)
         except Exception:
             pass
     if batch.thumb and batch.episode:

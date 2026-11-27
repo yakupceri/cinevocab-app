@@ -448,6 +448,21 @@ function countryRows(list) {
   return { rows, known: all - unkTot, unknown: unkTot, all };
 }
 
+// Giriş yapmadan kullananların çevirdiği kelimeler: yalnız toplam, kimin çevirdiği tutulmaz.
+function anonPanel(d, days) {
+  const rows = d.anon_words || [];
+  // Yazılar sola, yalnız sayı sağa (tbl ilk sütun dışındakileri sayı sayıyor)
+  const list = (part) => h("div", { class: "wrap" }, h("table", {},
+    h("tr", {}, h("th", {}, "Kelime"), h("th", {}, "Çevirisi"), h("th", {}, "Dil"), h("th", { class: "num" }, "Kaç kez")),
+    part.map((r) => h("tr", {}, h("td", {}, r.word), h("td", {}, r.trans), h("td", { class: "dim" }, langName(r.src) + " → " + langName(r.dst)), h("td", { class: "num" }, fmt(r.n))))));
+  return h("div", { class: "panel" }, h("h3", {}, "Hesapsız kullananlar ne çevirdi?"),
+    h("p", { class: "sub" }, (days === 1 ? "Bugün" : "Son " + days + " gün") + " · giriş yapmayanların toplamı. Kimin çevirdiği tutulmaz."),
+    rows.length ? [list(rows.slice(0, 15)),
+      rows.length > 15 ? h("details", { class: "dt" }, h("summary", {}, "Kalan " + fmt(rows.length - 15) + " kelimeyi göster"), list(rows.slice(15))) : ""]
+      : h("p", { class: "empty" }, "Bu aralıkta kayıt yok. Liste bu özellik yayına girdikten sonraki çevirilerle dolar."),
+    h("p", { class: "hint" }, "Cihazda daha önce çevrilmiş kelime sunucuya yeniden sorulmaz, o yüzden her kelime burada görünmeyebilir. En çok 200 kelime gösterilir; 30 günden eskisi silinir."));
+}
+
 // Mağaza sayfasını yalnız Google sayar; adresi sunucu doğrular (admin.store_report_url).
 function storePanel(d) {
   const url = d.store_report || "";
@@ -525,6 +540,7 @@ async function viewTraffic() {
       "Aynı kişi ertesi gün tekrar girerse yine sayılır: 7 gün üst üste giren biri 7 yazar. Bu yüzden bunlar \"kaç farklı kişi\" değil, \"toplam giriş\" sayısıdır."]),
     h("div", { class: "kpis" }, kp),
     h("p", { class: "hint" }, "\"Siteye giren\": sayfada en az 5 saniye kalan ve JavaScript çalıştıran tarayıcılar sayılır; hemen kapanan ya da betik çalıştırmayan istekler (botların çoğu) sayılmaz. Bu yöntem 26.11.2026 sonrası yayınla başladı: daha eski günlerde her sayfa isteği sayılıyordu, o günlerle doğrudan karşılaştırma."),
+    anonPanel(d, days),
     storePanel(d),
     h("div", { class: "panel" }, h("h3", {}, "Son 14 gün"), h("p", { class: "sub" }, "Çizgiye dokun ya da üstüne gel: o günün sayıları görünür. Etiketlere basarak çizgileri açıp kapatabilirsin."),
       trendChart(daily, seriesTop, { label: "Günlük gidişat", height: 250, totals: false }),

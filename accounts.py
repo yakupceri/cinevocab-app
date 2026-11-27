@@ -133,6 +133,9 @@ def init_accounts(db_config: dict):
         "ALTER TABLE visits_daily ADD COLUMN IF NOT EXISTS acct BOOLEAN;",
         "CREATE TABLE IF NOT EXISTS usage_pairs (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
         "calls INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst));",
+        # Giriş yapmadan çevrilen tek tek kelimelerin günlük toplamı (kimlik, IP, cümle, video adı yok); 30 gün tutulur
+        "CREATE TABLE IF NOT EXISTS anon_words (day DATE NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
+        "word TEXT NOT NULL, n INT NOT NULL DEFAULT 0, PRIMARY KEY (day, src, dst, word));",
         # Kullanıcının kelimelere yazdığı kısa notlar (en çok 140 karakter). Eski (tr>en) ve çok dilli kelime tablolarından
         # bağımsızdır: kelime metniyle eşleşir. Yalnızca giriş yapmış kullanıcının notu buraya gelir; hesap silinince silinir.
         "CREATE TABLE IF NOT EXISTS word_notes (user_id INT NOT NULL, src TEXT NOT NULL, dst TEXT NOT NULL, "
@@ -150,6 +153,40 @@ def _lang(v) -> str:
     return v if re.fullmatch(r"[a-z]{2,3}(-[a-z0-9]{2,4})?", v) else "??"
 
 
+ANON_WORD_DAYS = 30
+_anon_pruned_day = [None]
+
+
+def clean_anon_words(words) -> list:
+    """Saf fonksiyon: yalnız tek sözcükler (boşluk, rakam, adres ya da e-posta işareti yok), en çok 40 karakter, tekrarsız."""
+    out = []
+    for w in words:
+        if (w and len(w) <= 40 and any(c.isalpha() for c in w) and w not in out
+                and not any(c.isspace() or c.isdigit() or c in "@/\\.:_" for c in w)):
+            out.append(w)
+    return out[:30]
+
+
+def _prune_anon_words():
+    """Süresi dolan kayıtları günde bir kez siler."""
+    day = int((time.time() + 3 * 3600) // 86400)
+    if _anon_pruned_day[0] != day:
+        q("DELETE FROM anon_words WHERE day <= " + TR_TODAY + " - " + str(ANON_WORD_DAYS) + ";")
+        _anon_pruned_day[0] = day
+
+
+def count_anon_words(words, src: str, dst: str):
+    """Giriş yapmadan istenen kelimeleri günlük toplama ekler. Hata verirse çeviriyi bozmaz."""
+    try:
+        words = clean_anon_words(words)
+        if words:
+            q("INSERT INTO anon_words (day, src, dst, word, n) SELECT " + TR_TODAY + ", %s, %s, w, 1 "
+              "FROM unnest(%s::text[]) AS w ON CONFLICT (day, src, dst, word) DO UPDATE SET n = anon_words.n + 1;",
+              (_lang(src), _lang(dst), words))
+    except Exception as e:
+        print(f"Kelime sayacı hatası: {e}")
+
+
 def count_usage(signed_in: bool, n_words: int, src: str = "tr", dst: str = "en"):
     """Eklentiden gelen çeviri isteğini günlük toplam olarak sayar. Hata verirse çeviriyi bozmaz."""
     try:
@@ -159,6 +196,7 @@ def count_usage(signed_in: bool, n_words: int, src: str = "tr", dst: str = "en")
           (0 if signed_in else 1, max(0, min(int(n_words), 30))))
         q("INSERT INTO usage_pairs (day, src, dst, calls) VALUES (" + TR_TODAY + ", %s, %s, 1) "
           "ON CONFLICT (day, src, dst) DO UPDATE SET calls = usage_pairs.calls + 1;", (_lang(src), _lang(dst)))
+        _prune_anon_words()
     except Exception as e:
         print(f"Sayaç hatası: {e}")
 
@@ -844,7 +882,7 @@ def set_progress(d: ProgressReq, request: Request):
 PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CineVocab Gizlilik Politikası</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
-<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 26 Kasım 2026</p>
+<h1>CineVocab Gizlilik Politikası</h1><p>Son güncelleme: 27 Kasım 2026</p>
 <h2>Ne yapıyoruz?</h2><p>CineVocab, Prime Video, YouTube, Netflix ve Udemy'de, ayrıca senin "Bu sitede aç" diyerek izin verdiğin diğer sitelerde altyazılı içerik izlerken, yalnızca sen eklentiyi açtığında, altyazıdaki kelimelerin seçtiğin dildeki karşılıklarını gösterir. Hesabın varsa karşılaştığın kelimeler hesabındaki kelime listene kaydedilir; hesabın yoksa yalnızca tıklayıp kaydettiğin kelimeler tutulur ve onlar da cihazında kalır. Hesabın olsa da olmasa da, çevrilen kelimeler ve karşılıkları herkes için ortak çeviri sözlüğüne kimlik bilgisi olmadan yazılır (aynı kelime bir daha çevrilmesin diye); izlediğin videonun adı ve küçük resim adresi de video listeleri için saklanır. Eklenti diğer sitelerde yalnızca sen o site için butona basıp izin verdikten sonra çalışır; yalnızca ekranda görünen altyazı satırını okur, sayfanın geri kalanını okumaz.</p>
 <h2>Hangi verileri topluyoruz?</h2><ul>
 <li><b>Hesap bilgisi:</b> Kullanıcı adın ve parolan (parola yalnızca tek yönlü şifrelenmiş hâliyle saklanır); Google ile giriş yaparsan parola yerine yalnızca Google hesabının kimlik numarası saklanır (Google'dan e-posta adresin, adın ve fotoğrafın alınıp saklanmaz). Kullanıcı adı ve parolayla hesap açarken doğrulama kodu göndermek için e-posta adresin istenir ve hesabınla birlikte saklanır; hesabını silince o da silinir, reklam ya da bülten için kullanılmaz, oturum anahtarların, son görülme zamanın, mobil uygulamayı kullandıysan en son ne zaman kullandığın ve hesabını nerede açtığın (site, eklenti ya da mobil uygulama). Kural ihlali hâlinde hesap askıya alınabilir; bu durumda askı sebebi ve süresi de saklanır.</li>
@@ -852,7 +890,7 @@ PRIVACY = """<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta na
 <li><b>Kelime notların:</b> Giriş yaptıysan, kelimelere eklentide ya da sitede yazdığın kısa notlar (en çok 140 karakter) kelimeyle birlikte hesabında saklanır ve başka bir cihazında da görünür; hesabını silince silinir. Giriş yapmadıysan notların yalnızca cihazında kalır, sunucuya gönderilmez.</li>
 <li><b>Oyun verisi:</b> Düello sonuçların, puanların ve liderlik tablosu sıralaman.</li>
 <li><b>Altyazı cümlesi:</b> Çeviri için sunucuya gönderilir ve yalnızca geçici olarak bellekte tutulur, kalıcı olarak kaydedilmez.</li>
-<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li>\n<li><b>Anonim ziyaretçi sayacı:</b> Günde kaç farklı kişinin siteyi ya da eklentiyi kullandığını görmek için, IP adresinden ve tarayıcı bilgisinden her gün değişen, geri döndürülemeyen kısa bir iz üretilir; IP adresin kendisi kaydedilmez ve ertesi gün seninle eşleştirilemez. Sitede bu sayaç, sayfa tarayıcında en az birkaç saniye açık kaldığında gönderilen küçük bir istekle çalışır (çerez kullanılmaz). Bununla birlikte şu bilgiler tutulur: ülke, o sırada oturum açıp açmadığın (evet ya da hayır), cihaz türü (telefon, bilgisayar, tablet) ve işletim sistemi, siteye hangi siteden ya da hangi bağlantı etiketiyle geldiğin (yalnızca site adı; adresin tamamı değil), günün ilk giriş saati ve sayfaya dokunup dokunmadığın (evet ya da hayır). Ülke, isteğin geldiği IP adresinden sunucuda çevrimdışı bir veritabanıyla bulunur; IP adresin bu arama için hiçbir servise gönderilmez ve kaydedilmez. IP'den bulunamazsa tarayıcı dilinden tahmin edilir. IP konum verisi: <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
+<li><b>Kullanım sayacı:</b> Hizmetin kullanılıp kullanılmadığını anlamak için günlük toplam çeviri isteği sayısı tutulur. Bu sayı kimliğinle, IP adresinle ya da çevirdiğin metinle ilişkilendirilmez.</li>\n<li><b>Hesapsız çevrilen kelimeler:</b> Giriş yapmadan kullanırken çeviri için gönderilen tek tek kelimeler günlük toplam olarak sayılır (hangi kelime, hangi dil çifti, kaç kez istendi). Kimliğin, IP adresin, altyazı cümlesi ya da video adı bu listeye yazılmaz. 30 günden eski kayıtlar silinir.</li>\n<li><b>Anonim ziyaretçi sayacı:</b> Günde kaç farklı kişinin siteyi ya da eklentiyi kullandığını görmek için, IP adresinden ve tarayıcı bilgisinden her gün değişen, geri döndürülemeyen kısa bir iz üretilir; IP adresin kendisi kaydedilmez ve ertesi gün seninle eşleştirilemez. Sitede bu sayaç, sayfa tarayıcında en az birkaç saniye açık kaldığında gönderilen küçük bir istekle çalışır (çerez kullanılmaz). Bununla birlikte şu bilgiler tutulur: ülke, o sırada oturum açıp açmadığın (evet ya da hayır), cihaz türü (telefon, bilgisayar, tablet) ve işletim sistemi, siteye hangi siteden ya da hangi bağlantı etiketiyle geldiğin (yalnızca site adı; adresin tamamı değil), günün ilk giriş saati ve sayfaya dokunup dokunmadığın (evet ya da hayır). Ülke, isteğin geldiği IP adresinden sunucuda çevrimdışı bir veritabanıyla bulunur; IP adresin bu arama için hiçbir servise gönderilmez ve kaydedilmez. IP'den bulunamazsa tarayıcı dilinden tahmin edilir. IP konum verisi: <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
 <h2>Sesli okuma ve mikrofon (isteğe bağlı)</h2><p>Kelimeleri seslendirme özelliği cihazının kendi sesini kullanır; sunucuya hiçbir şey gönderilmez. Konuşma düellosunda mikrofonu yalnızca sen düğmeye dokununca kullanabilirsin. Konuşmayı yazıya çevirme işini tarayıcın yapar (Chrome, sesi bu iş için Google'ın konuşma tanıma hizmetine gönderebilir). Sunucumuz yalnızca tanınan <b>metni</b> alır; ses kaydı almaz, saklamaz. İstersen mikrofon yerine cevabı yazabilirsin.</p>
 <h2>Günlük meydan okuma ve bulmaca</h2><p>Günlük meydan okumada cevapların, puanın ve o günkü sıralaman kullanıcı adınla birlikte saklanır ve günlük sıralamada görünür. Günün bulmacasında çözme süren ve sonucun saklanır.</p>
 <h2>Android uygulaması</h2><p>CineVocab Android uygulaması aynı hesabı ve yukarıdaki aynı verileri kullanır. Uygulama oturum anahtarını ve ayarlarını (dil, günlük hedef) yalnızca telefonunda saklar. Uygulamaya bir metin yapıştırdığında ya da bir altyazı dosyası seçtiğinde metin yalnızca telefonunda okunur; sunucumuza yalnızca metindeki kelimelerin listesi ve senin verdiğin ad gönderilir. Uygulama hiçbir siteden içerik çekmez. Altyazı fotoğrafı çekmeyi ya da galeriden bir görsel seçmeyi kendin başlatırsan görseldeki yazı telefonunun içinde okunur; görselin kendisi sunucumuza gönderilmez ve saklanmaz, sunucuya yalnızca o yazıdan çıkan kelimelerin listesi gider. Uygulama fotoğraf galerine ya da kamerana erişim izni istemez, yalnızca senin seçtiğin ya da çektiğin görsele bakar; konumunu, rehberini ve mikrofonunu kullanmaz. Görselden yazı okumak için Google'ın ML Kit kütüphanesi kullanılır: model telefonda çalışır, ancak Google'ın yayımladığı bilgiye göre kütüphane Google'a tanılama ve kullanım ölçümleri (cihaz ve uygulama bilgisi, kuruluma özel kimlik, performans ve hata ölçümleri) gönderebilir. Uygulamada reklam ve bizim kendi izleme (analitik) aracımız yoktur. Hatırlatma bildirimleri telefonunda oluşturulur ve yalnızca sen izin verirsen gösterilir. Sonucunu ya da davet bağlantını paylaşmak tamamen senin seçimindir.</p>
@@ -867,7 +905,7 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <title>CineVocab Privacy Policy</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#1c2428}h1,h2{line-height:1.25}h2{margin-top:28px}</style></head><body>
 <p><a href="/privacy?lang=tr">Türkçe</a></p>
-<h1>CineVocab Privacy Policy</h1><p>Last updated: November 26, 2026</p>
+<h1>CineVocab Privacy Policy</h1><p>Last updated: November 27, 2026</p>
 <h2>What we do</h2><p>While you watch subtitled content on Prime Video, YouTube, Netflix and Udemy, and on other sites where you choose "Turn on for this site", and only when you turn the extension on, CineVocab shows the translation of the subtitle words in the language you chose. If you have an account, the words you meet are saved to the word list in your account; without an account, only the words you click to keep are kept, and they stay on your device. With or without an account, translated words and their translations are written to a shared translation dictionary with no identity attached (so the same word is not translated again), and the title and thumbnail address of the video you watch are stored for video lists. On other sites the extension runs only after you press that button and grant permission for that site; it reads only the subtitle line shown on screen, not the rest of the page.</p>
 <h2>What data we collect</h2><ul>
 <li><b>Account information:</b> Your username and password (the password is stored only as a one-way hash); if you sign in with Google, only the ID number of your Google account is stored instead of a password (your email address, name and photo are not taken from Google or stored). When you create an account with a username and password, your email address is requested to send a verification code and is stored with your account; it is deleted when you delete your account and is never used for ads or newsletters, your session keys, your last-seen time, when you last used the mobile app (if you use it) and where you created the account (website, extension or mobile app). If an account is suspended for breaking the rules, the reason and duration are stored too.</li>
@@ -875,7 +913,7 @@ PRIVACY_EN = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta
 <li><b>Your word notes:</b> If you are signed in, the short notes (up to 140 characters) you write on words in the extension or on the website are stored in your account with the word and also appear on your other devices; they are deleted when you delete your account. If you are not signed in, your notes stay only on your device and are not sent to our server.</li>
 <li><b>Game data:</b> Your duel results, scores and leaderboard rank.</li>
 <li><b>Subtitle sentence:</b> Sent to our server for translation and kept only temporarily in memory; it is not stored permanently.</li>
-<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li>\n<li><b>Anonymous visitor counter:</b> To see how many different people use the site or the extension each day, we derive a short irreversible token from your IP address and browser details that changes every day; your IP address itself is not stored and the token cannot be matched to you the next day. On the website this counter works through a small request sent once the page has stayed open in your browser for a few seconds (no cookie is used). We also keep these details: your country, whether you were signed in at the time (yes or no), device type (phone, computer, tablet) and operating system, which site or link tag you came from (the site name only, not the full address), the time of your first visit that day, and whether you interacted with the page (yes or no). The country is found from the IP address of the request with an offline database on our server; the IP address is not sent to any service for this lookup and is not stored. If it cannot be found from the IP address, it is estimated from your browser language. IP geolocation by <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
+<li><b>Usage counter:</b> To tell whether the service is being used, we keep a daily total of translation requests. The total is not linked to your identity, your IP address or the text you translate.</li>\n<li><b>Words translated without an account:</b> While you use CineVocab signed out, the single words sent for translation are counted as daily totals (which word, which language pair, how many times it was requested). Your identity, IP address, the subtitle sentence and the video title are not written to this list. Entries older than 30 days are deleted.</li>\n<li><b>Anonymous visitor counter:</b> To see how many different people use the site or the extension each day, we derive a short irreversible token from your IP address and browser details that changes every day; your IP address itself is not stored and the token cannot be matched to you the next day. On the website this counter works through a small request sent once the page has stayed open in your browser for a few seconds (no cookie is used). We also keep these details: your country, whether you were signed in at the time (yes or no), device type (phone, computer, tablet) and operating system, which site or link tag you came from (the site name only, not the full address), the time of your first visit that day, and whether you interacted with the page (yes or no). The country is found from the IP address of the request with an offline database on our server; the IP address is not sent to any service for this lookup and is not stored. If it cannot be found from the IP address, it is estimated from your browser language. IP geolocation by <a href="https://db-ip.com">DB-IP.com</a>.</li></ul>
 <h2>Read-aloud and microphone (optional)</h2><p>The read-aloud feature uses your device's own voices; nothing is sent to our server. In the speaking duel the microphone is used only when you tap the button. Your browser converts speech to text (Chrome may send the audio to Google's speech-recognition service for this). Our server receives only the recognised <b>text</b>; we do not receive, record or store audio. You can type your answer instead of using the microphone.</p>
 <h2>Daily challenge and puzzle</h2><p>In the daily challenge, your answers, score and that day's rank are stored with your username and shown on the daily leaderboard. In the daily puzzle, your solving time and result are stored.</p>
 <h2>Android app</h2><p>The CineVocab Android app uses the same account and the same data described above. The app keeps your session key and settings (language, daily goal) only on your phone. When you paste a text or pick a subtitle file, it is read only on your phone; only the list of words in it and the name you give it are sent to our server. The app does not fetch content from any site. If you choose to photograph subtitles or pick an image from your gallery, the text in the image is read on your phone; the image itself is not sent to or stored on our server, only the list of words found in that text is sent. The app does not ask for access to your photo gallery or camera and only looks at the image you pick or take; it does not use your location, contacts or microphone. Reading text from images uses Google's ML Kit library: the model runs on your phone, but according to the information Google publishes, the library may send diagnostic and usage measurements (device and app information, an installation-specific identifier, performance and error measurements) to Google. The app has no advertising and no analytics tool of our own. Reminder notifications are created on your phone and shown only if you allow them. Sharing your result or your invite link is entirely your choice.</p>

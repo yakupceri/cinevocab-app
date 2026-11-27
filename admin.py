@@ -277,6 +277,16 @@ def app_users(request: Request, limit: int = 100):
 
 # ---------- Ziyaretçiler: kim, nereden, hangi cihazdan, saat kaçta (hepsi İstanbul saati) ----------
 
+def anon_words(days: int, limit: int = 200) -> list:
+    """Giriş yapmadan çevrilen kelimeler (toplam). Yalnız çevirisi bulunanlar: hatalı parçalar listeye girmez."""
+    rows = q("SELECT * FROM (SELECT t.src, t.dst, t.word, t.n, coalesce("
+             "(SELECT m.trans FROM words_ml m WHERE m.src = t.src AND m.dst = t.dst AND m.word = t.word), "
+             "(SELECT l.eng FROM words l WHERE t.src = 'tr' AND t.dst = 'en' AND l.tr = t.word LIMIT 1), '') AS trans "
+             "FROM (SELECT src, dst, word, sum(n)::int AS n FROM anon_words WHERE day > " + TR_TODAY + " - %s "
+             "GROUP BY src, dst, word) t) x WHERE trans <> '' ORDER BY n DESC, word LIMIT %s;", (days, limit), True)
+    return [{"src": r[0], "dst": r[1], "word": r[2], "n": int(r[3]), "trans": r[4]} for r in rows]
+
+
 def _vid(yes: bool, col: str = "src") -> str:
     """SQL koşulu: tanıtım videosu tıklamaları /video ile "v:" önekiyle tutulur (ör. v:quora-es). Mağaza linkleri (/get)
     önekisizdir. "%" kullanılmaz, çünkü sorgular psycopg2 parametreleriyle çalışır."""
@@ -322,6 +332,7 @@ def traffic(request: Request, days: int = 7):
             print(f"Etkileşim sayısı okunamadı: {e}")
         return res
     _block(out, "totals", totals, {})
+    _block(out, "anon_words", lambda: anon_words(days))
 
     def daily():
         rows = [{"day": r[0], "site": int(r[1]), "ext": int(r[2]), "clicks": int(r[3]), "signups": int(r[4]), "video": int(r[5])} for r in q(
