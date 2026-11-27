@@ -4,6 +4,7 @@ Kurulum: Railway > Variables kısmına şunları ekle:
     ADMIN_USER      = senin seçtiğin kullanıcı adı
     ADMIN_PASSWORD  = uzun, benzersiz bir parola (en az 12 karakter)
     ADMIN_SECRET    = rastgele uzun bir metin (oturum imzası için; opsiyonel ama önerilir)
+    STORE_REPORT_URL = Google Data Studio "yerleştirme URL'si" (opsiyonel; mağaza ziyaretçileri kutusu)
 
 Bu değişkenler tanımlı değilse panel TAMAMEN kapalıdır (404 döner).
 Admin hesabı veritabanında DEĞİL, ortam değişkenlerindedir; normal kullanıcı hesabı değildir,
@@ -16,6 +17,7 @@ import hmac
 import os
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse
@@ -184,6 +186,24 @@ _METHOD = ("CASE WHEN u.google_sub IS NOT NULL THEN 'Google' WHEN u.email IS NOT
            "ELSE 'Kullanıcı adı' END")
 
 
+# ---------- Mağaza ziyaretçileri raporu ----------
+# Chrome Web Mağazası sayfasını yalnız Google sayar; o sayılar bir Data Studio raporuyla panele gömülür.
+# Yalnızca Google'ın gömme adresi kabul edilir: başka bir şey yazılırsa panelde hiçbir çerçeve açılmaz.
+_REPORT_HOSTS = ("datastudio.google.com", "lookerstudio.google.com")
+_REPORT_PATH = re.compile(r"/embed/(u/\d+/)?reporting/[A-Za-z0-9_-]+(/page/[A-Za-z0-9_-]+)?/?")
+
+
+def store_report_url(raw: str) -> str:
+    """Geçerliyse temiz adres, değilse "". Google'ın kopyalama kutusu "google.com:/embed" yazıyor; boş port atılır."""
+    try:
+        u = urlsplit((raw or "").strip())
+        if u.scheme != "https" or u.hostname not in _REPORT_HOSTS or not _REPORT_PATH.fullmatch(u.path):
+            return ""
+    except ValueError:
+        return ""
+    return "https://" + u.hostname + u.path
+
+
 # ---------- İstatistik ----------
 
 @router.get("/admin/api/stats")
@@ -269,6 +289,9 @@ def traffic(request: Request, days: int = 7):
     need_admin(request)
     days = max(1, min(int(days), 90))
     out = {"days": days}
+    raw = os.environ.get("STORE_REPORT_URL", "").strip()
+    out["store_report"] = store_report_url(raw)
+    out["store_report_bad"] = bool(raw and not out["store_report"])
     win_v = "day > " + TR_TODAY + " - %s"
     win_h = "timezone('Europe/Istanbul', at)::date > " + TR_TODAY + " - %s"
 

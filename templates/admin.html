@@ -100,6 +100,8 @@
   .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
   .card b { display:block; font-size:28px; font-weight:800; letter-spacing:-.02em; } .card span { color:var(--dim); font-size:12px; }
 
+  .report { display:block; width:100%; max-width:900px; aspect-ratio:9/4; border:0; border-radius:12px; background:#fff; margin-top:10px; }
+
   /* ---- grafikler ---- */
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; }
   .chip { display:inline-flex; align-items:center; gap:8px; border-radius:99px; padding:5px 12px 5px 10px; font-size:12.5px; background:transparent; color:var(--dim); }
@@ -446,6 +448,20 @@ function countryRows(list) {
   return { rows, known: all - unkTot, unknown: unkTot, all };
 }
 
+// Mağaza sayfasını yalnız Google sayar; adresi sunucu doğrular (admin.store_report_url).
+function storePanel(d) {
+  const url = d.store_report || "";
+  return h("div", { class: "panel" }, h("h3", {}, "Mağaza sayfasına bakanlar (Google)"),
+    url ? [h("p", { class: "sub" }, "Chrome Web Mağazası'ndaki sayfan. Yukarıdaki sayılardan ayrı sayılır, toplanmaz. Üstteki gün düğmeleri bu kutuyu değiştirmez."),
+      h("iframe", { class: "report", src: url, title: "Mağaza sayfası ziyaretçi raporu", allowfullscreen: "",
+        sandbox: "allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" }),
+      h("p", { class: "hint" }, "Kutu boşsa ya da giriş istiyorsa bu tarayıcıda raporun sahibi Google hesabıyla giriş yap. ",
+        h("a", { href: url.replace("/embed/", "/"), target: "_blank", rel: "noopener" }, "Raporu Google'da aç"))]
+      : h("p", { class: "empty" }, d.store_report_bad
+        ? "STORE_REPORT_URL geçersiz. Data Studio'daki \"yerleştirme URL'si\" olmalı (https://datastudio.google.com/embed/reporting/…)."
+        : "Henüz bağlı değil: Railway → Variables → STORE_REPORT_URL alanına Data Studio'nun yerleştirme URL'sini yaz."));
+}
+
 async function viewTraffic() {
   tickClock();
   const days = period["Ziyaretçiler"] || 7;
@@ -509,6 +525,7 @@ async function viewTraffic() {
       "Aynı kişi ertesi gün tekrar girerse yine sayılır: 7 gün üst üste giren biri 7 yazar. Bu yüzden bunlar \"kaç farklı kişi\" değil, \"toplam giriş\" sayısıdır."]),
     h("div", { class: "kpis" }, kp),
     h("p", { class: "hint" }, "\"Siteye giren\": sayfada en az 5 saniye kalan ve JavaScript çalıştıran tarayıcılar sayılır; hemen kapanan ya da betik çalıştırmayan istekler (botların çoğu) sayılmaz. Bu yöntem 26.11.2026 sonrası yayınla başladı: daha eski günlerde her sayfa isteği sayılıyordu, o günlerle doğrudan karşılaştırma."),
+    storePanel(d),
     h("div", { class: "panel" }, h("h3", {}, "Son 14 gün"), h("p", { class: "sub" }, "Çizgiye dokun ya da üstüne gel: o günün sayıları görünür. Etiketlere basarak çizgileri açıp kapatabilirsin."),
       trendChart(daily, seriesTop, { label: "Günlük gidişat", height: 250, totals: false }),
       h("details", { class: "dt" }, h("summary", {}, "Sayıları tablo olarak göster"),
