@@ -7,7 +7,7 @@ import asyncio
 import random
 import threading
 import concurrent.futures
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import requests
 import psycopg2
@@ -1491,9 +1491,14 @@ def _count_link(request: Request, tag: str):
 def install_redirect(request: Request, src: str = "", hl: str = ""):
     """Kisa kurulum adresi: Chrome Web Magazasi'na yonlendirir ve tiklamayi kaynaga gore sayar.
     Kimlik, IP ya da cerez saklanmaz; yalnizca gun + kaynak etiketi + sayi tutulur. Botlar sayilmaz."""
-    _count_link(request, _link_tag(src))
+    tag = _link_tag(src)
+    _count_link(request, tag)
     lang = re.sub(r"[^a-zA-Z-]", "", hl or "")[:8]  # mağaza dili: ?hl=tr gibi
-    url = STORE_URL + ("?hl=" + lang if lang else "")
+    params = {"hl": lang} if lang else {}
+    # Mağaza, utm etiketlerini Google Analytics'e aktarır: tıklamanın hangi linkten geldiği mağaza panelinde de görünür.
+    if tag != "direct":
+        params.update(utm_source=tag, utm_medium="referral", utm_campaign="cinevocab")
+    url = STORE_URL + ("?" + urlencode(params) if params else "")
     return RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store"})
 
 

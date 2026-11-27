@@ -51,7 +51,7 @@ def hits():
 # ================================================================ /get (eskisi gibi çalışmalı)
 def test_get_counts_the_click_and_redirects_to_the_store(client):
     r = client.get("/get", params={"src": "quora-es"}, headers=PC)
-    assert r.status_code == 302 and r.headers["location"] == STORE
+    assert r.status_code == 302 and r.headers["location"] == STORE + "?utm_source=quora-es&utm_medium=referral&utm_campaign=cinevocab"
     assert r.headers["cache-control"] == "no-store"
     assert clicks() == {"quora-es": 1}
     assert hits() == [("quora-es", "bilgisayar", "Windows", "TR")]
@@ -59,8 +59,14 @@ def test_get_counts_the_click_and_redirects_to_the_store(client):
 
 def test_get_keeps_the_store_language_and_install_is_an_alias(client):
     r = client.get("/install", params={"src": "yt-tr", "hl": "tr"}, headers=PC)
-    assert r.headers["location"] == STORE + "?hl=tr"
+    assert r.headers["location"] == STORE + "?hl=tr&utm_source=yt-tr&utm_medium=referral&utm_campaign=cinevocab"
     assert clicks() == {"yt-tr": 1}
+
+
+def test_get_without_a_tag_adds_no_utm_and_a_dirty_tag_cannot_inject_parameters(client):
+    assert client.get("/get", headers=PC).headers["location"] == STORE
+    loc = client.get("/get", params={"src": "a&utm_medium=evil#x", "hl": "tr&x=1"}, headers=PC).headers["location"]
+    assert loc.startswith(STORE + "?hl=") and "evil#" not in loc and loc.count("utm_medium=") == 1 and "&x=" not in loc
 
 
 @pytest.mark.parametrize("raw,want", [("Quora_ES!!", "quora_es"), ("", "direct"), ("a" * 40, "a" * 24), ("  Reddit  ", "reddit"), ("türkçe", "trke")])
@@ -162,7 +168,7 @@ def test_video_without_a_tag_and_with_a_long_tag(client, monkeypatch):
 def test_bots_are_not_counted_but_are_still_redirected(client, monkeypatch, ua):
     monkeypatch.setenv("VIDEO_URL", YT)
     assert client.get("/video", params={"src": "x"}, headers={"user-agent": ua}).headers["location"] == YT
-    assert client.get("/get", params={"src": "x"}, headers={"user-agent": ua}).headers["location"] == STORE
+    assert client.get("/get", params={"src": "x"}, headers={"user-agent": ua}).headers["location"].startswith(STORE + "?utm_source=x&")
     assert clicks() == {} and hits() == []
 
 
@@ -188,7 +194,7 @@ def test_a_database_error_never_breaks_the_redirect(client, monkeypatch):
         raise RuntimeError("veritabanı yok")
     monkeypatch.setattr(main, "q", boom)
     assert client.get("/video", params={"src": "x"}, headers=PC).headers["location"] == YT
-    assert client.get("/get", params={"src": "x"}, headers=PC).headers["location"] == STORE
+    assert client.get("/get", params={"src": "x"}, headers=PC).headers["location"].startswith(STORE + "?utm_source=x&")
 
 
 # ================================================================ Admin: eklenti ve video tıklamaları ayrı
