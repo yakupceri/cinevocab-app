@@ -3,7 +3,8 @@
 120 BPM, la minör (Am - F - C - G). Sahne kesmeleri 0,5 sn katlarında olduğundan vuruşa oturur.
 Ses efektleri (dokunma, ding, öğrenildi çanı, konfeti, geçiş) videodaki gerçek anlara bağlıdır: ad3.mjs'in yazdığı cues.json okunur.
 
-Kullanım:  python3 dev/tools/music.py cues.json çıktı.wav
+Kullanım:  python3 dev/tools/music.py cues.json çıktı.wav [tepe=0.89]
+           (AAC kodlaması tepeyi yaklaşık %30 aşırtabiliyor; mp4 için 0.72 kırpılmayı önler)
            (cues.json: {"total": saniye, "cues": [[saniye, "tür"], ...]})
 """
 import json
@@ -184,7 +185,7 @@ CHORDS = [  # (bas kökü, akor sesleri (orta), arp sesleri (yüksek))
 ]
 
 
-def build(total, cues):
+def build(total, cues, peak=0.89):
     n = int(total * SR)
     music = np.zeros((n, 2))
     sfx = np.zeros((n, 2))
@@ -276,13 +277,13 @@ def build(total, cues):
     mix[-fo:] *= np.linspace(1, 0, fo)[:, None] ** 1.5
     fi = int(0.03 * SR)
     mix[:fi] *= np.linspace(0, 1, fi)[:, None]
-    mix *= 0.89 / (np.max(np.abs(mix)) + 1e-9)
+    mix *= peak / (np.max(np.abs(mix)) + 1e-9)
     return mix
 
 
 def main():
     cj = json.load(open(sys.argv[1], encoding="utf-8"))
-    mix = build(float(cj["total"]), [(float(t), k) for t, k in cj["cues"]])
+    mix = build(float(cj["total"]), [(float(t), k) for t, k in cj["cues"]], float(sys.argv[3]) if len(sys.argv) > 3 else 0.89)
     pcm = (mix * 32767).astype("<i2")
     with wave.open(sys.argv[2], "wb") as w:
         w.setnchannels(2)
